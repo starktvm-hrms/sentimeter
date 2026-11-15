@@ -6,7 +6,7 @@ default. Set SENTIMETER_REQUIRE_KEY=1 in /etc/sentimeter.env to require
 "Authorization: Bearer <SENTIMETER_ADMIN_KEY>" again.
 
 Safeguards that apply to everyone: the monthly post limit cannot exceed
-SENTIMETER_MAX_MONTHLY (default 1000), each Apify run is capped in posts and in
+SENTIMETER_MAX_MONTHLY (default 5000), each Apify run is capped in posts and in
 dollars (fetch.py), manual runs are limited to one per 30 minutes, and writes
 are rate limited per visitor.
 
@@ -88,6 +88,9 @@ def clean_settings(body):
     for k in fetch.KEYWORD_JOBS:
         if k in (body.get("keyword_search") or {}):
             s["keyword_search"][k] = bool(body["keyword_search"][k])
+    for k in ("google_news", "bing_news"):
+        if k in (body.get("news") or {}):
+            s.setdefault("news", {})[k] = bool(body["news"][k])
     if "search_terms" in body:
         terms = [str(x).strip() for x in body["search_terms"] or [] if str(x).strip()]
         if len(terms) > 10 or any(len(x) > 60 or "\n" in x for x in terms):
@@ -107,9 +110,9 @@ def clean_settings(body):
 
 def max_monthly():
     try:
-        return int(read_env().get("SENTIMETER_MAX_MONTHLY") or 1000)
+        return int(read_env().get("SENTIMETER_MAX_MONTHLY") or 5000)
     except ValueError:
-        return 1000
+        return 5000
 
 
 def load_shared():

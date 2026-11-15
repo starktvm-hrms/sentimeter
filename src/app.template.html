@@ -440,7 +440,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       </div></div>
 
       <div class="card"><div class="card-head"><h2>Monthly limit</h2><span class="hint" id="bud-month"></span></div><div class="card-body">
-        <div class="kpi"><span class="big" id="bud-used">0</span><span class="hint" id="bud-of">of 1,000 posts this month</span></div>
+        <div class="kpi"><span class="big" id="bud-used">0</span><span class="hint" id="bud-of">of 5,000 posts this month</span></div>
         <div class="track" style="height:10px;border-radius:5px;background:var(--sunk);overflow:hidden"><div id="bud-bar" style="height:100%;width:0;background:var(--accent)"></div></div>
         <p class="hint" style="margin:0" id="bud-note"></p>
         <div class="tbl-wrap" id="bud-runs"></div>
@@ -460,6 +460,12 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
           <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox" id="kw-terms"></div><span class="hint">Up to 10 terms, shared by every keyword search below. Hashtag searches use them without spaces. Fewer terms means more posts per term.</span></div>
         </div>
         <div class="form" id="kw-form"></div>
+      </div></div>
+
+      <div class="card" id="src-news" hidden><div class="card-head"><h2>News</h2><span class="hint">free, checked every hour</span></div><div class="card-body">
+        <p class="hint" style="margin:0">News articles from the last 24 hours that match any alert keyword or search term. News is free, so it does not count toward the monthly post limit. The same article found by both sources, or by several searches, is stored once.</p>
+        <div class="checks" id="news-form"></div>
+        <div class="hint" id="news-status"></div>
       </div></div>
 
       <div class="card" id="src-keys" hidden><div class="card-head"><h2>API keys on the server</h2></div><div class="card-body">
@@ -1101,7 +1107,7 @@ async function adm(path,opts={}){
 function fmtInt(n){return Number(n||0).toLocaleString("en-IN");}
 function daysLeftInMonth(){const ist=new Date(Date.now()+5.5*36e5);const y=ist.getUTCFullYear(),mo=ist.getUTCMonth();const dim=new Date(Date.UTC(y,mo+1,0)).getUTCDate();return dim-ist.getUTCDate()+1;}
 function renderBudget(){
-  const pub=LIVE&&LIVE.social;const used=ADM?ADM.usage.used:(pub?pub.used:0);const limit=ADM?ADM.settings.monthly_limit:(pub?pub.limit:1000);
+  const pub=LIVE&&LIVE.social;const used=ADM?ADM.usage.used:(pub?pub.used:0);const limit=ADM?Math.min(ADM.settings.monthly_limit,ADM.max_monthly||5000):(pub?pub.limit:5000);
   const runs=ADM?ADM.usage.runs:(pub&&pub.last_run?[pub.last_run]:[]);
   $("bud-used").textContent=fmtInt(used);$("bud-of").textContent=`of ${fmtInt(limit)} posts this month`;
   $("bud-month").textContent=ADM?ADM.usage.month:(pub?pub.month:"");
@@ -1115,10 +1121,13 @@ function renderBudget(){
 function renderSources(){
   const on=!!ADM;$("src-connect").hidden=!!(ADM&&ADM.public);$("src-badge").textContent=on?"Connected":"Not connected";$("adm-forget").hidden=!on;$("adm-connect").hidden=on;$("adm-key").hidden=on;
   if(document.activeElement!==$("adm-key"))$("adm-key").value=on?"":admKey;
-  ["src-accounts","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
+  ["src-accounts","src-news","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
   renderBudget();
   if(!on){if(!$("adm-msg").textContent)admConnect(true);return;}
-  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search,search_terms:st.search_terms||[]}));
+  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search,search_terms:st.search_terms||[],news:st.news||{google_news:true,bing_news:true}}));
+  const ns=(LIVE&&LIVE.sources)||{};
+  $("news-form").innerHTML=[["google_news","Google News (English, Malayalam, Hindi)"],["bing_news","Bing News (India)"]].map(([k,n])=>`<label><input type="checkbox" id="news-${k}" ${acctDraft.news[k]!==false?"checked":""}> <span class="src" style="background:var(--c2)">N</span> ${n}</label>`).join("");
+  $("news-status").textContent=["google_news","bing_news"].filter(k=>ns[k]).map(k=>`${k==="google_news"?"Google News":"Bing News"}: last run ${relAgo(ns[k].last_run)}, ${ns[k].new||0} new, ${ns[k].duplicates||0} already tracked`).join(" · ");
   $("run-after").textContent=st.run_after||"23:00";
   $("acct-form").innerHTML=SOC.map(([k,name,hint])=>`<label class="f"><span class="src" style="background:${PCOLOR[name]};margin-right:6px">${ABBR[name]}</span>${name}</label>
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox loc" id="acc-${k}"></div>
@@ -1143,6 +1152,7 @@ async function admConnect(silent){
 async function saveSources(){
   SOC.forEach(([k])=>{const i=$("acc-"+k).querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.accounts[k].includes(v))acctDraft.accounts[k].push(v);});i.value="";}});
   SOC.forEach(([k])=>acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k]);
+  ["google_news","bing_news"].forEach(k=>acctDraft.news[k]=$("news-"+k).checked);
   KWJOBS.forEach(([k])=>{acctDraft.keyword_search[k]=$("kw-"+k).checked;acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k];});
   {const i=$("kw-terms").querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.search_terms.includes(v))acctDraft.search_terms.push(v);});i.value="";}}
   const lim=parseInt($("bud-limit").value,10);

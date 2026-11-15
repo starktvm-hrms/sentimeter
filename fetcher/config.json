@@ -40,7 +40,7 @@
   "max_mentions": 6000,
   "google_news": {
     "enabled": true,
-    "window": "2d",
+    "window": "1d",
     "editions": [
       [
         "en-IN",
@@ -94,5 +94,13 @@
   },
   "social": {
     "enabled": true
+  },
+  "bing_news": {
+    "enabled": true,
+    "market": "en-IN",
+    "max_terms": 40,
+    "skip_keywords": [
+      "#kerala"
+    ]
   }
 }

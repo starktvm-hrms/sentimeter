@@ -74,6 +74,39 @@ def mid(source, key):
     return source[:2] + hashlib.sha1(f"{source}|{key}".encode()).hexdigest()[:14]
 
 
+def norm_text(s):
+    s = re.sub(r"https?://\S+", " ", (s or "").lower())
+    s = re.sub(r"[#@]", "", s)
+    return re.sub(r"[^\w]+", " ", s, flags=re.U).strip()
+
+
+def canon_url(u):
+    if not u:
+        return ""
+    try:
+        p = urllib.parse.urlparse(u.strip())
+    except Exception:
+        return ""
+    host = re.sub(r"^(www\.|m\.|mobile\.)", "", (p.netloc or "").lower())
+    if not host or host in ("news.google.com", "bing.com"):
+        return ""
+    keep = {k: v for k, v in urllib.parse.parse_qs(p.query).items() if k in ("v", "story_fbid", "id", "fbid")}
+    q = urllib.parse.urlencode(sorted((k, v[0]) for k, v in keep.items()))
+    return f"{host}{p.path.rstrip('/')}" + (f"?{q}" if q else "")
+
+
+def dedupe_key(m):
+    """One identity per post: news by headline, social by canonical URL, else author + text."""
+    if m.get("platform") == "News/Blogs":
+        t = norm_text(m.get("title") or m.get("text", ""))
+        return "news:" + t[:140] if t else "id:" + m["id"]
+    u = canon_url(m.get("url", ""))
+    if u:
+        return f"{m.get('platform')}:{u}"
+    t = norm_text(m.get("text", ""))
+    return f"{m.get('platform')}:{(m.get('handle') or m.get('author') or '').lower()}:{t[:180]}" if t else "id:" + m["id"]
+
+
 def chunks(terms, size):
     for i in range(0, len(terms), size):
         yield terms[i:i + size]
@@ -118,6 +151,38 @@ def src_google_news(cfg, kws):
                             "author": publisher or "Google News", "handle": urllib.parse.urlparse(site).netloc.replace("www.", ""),
                             "location": "India" if gl == "IN" else "", "title": title, "text": text, "url": link, "reach": 0})
             time.sleep(1)
+    return out
+
+
+def bing_target(link):
+    try:
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(link).query)
+        return q.get("url", [link])[0]
+    except Exception:
+        return link
+
+
+def src_bing_news(cfg, kws):
+    out = []
+    terms = sorted({k.lstrip("#").strip() for k in kws if k.strip()}, key=str.lower)[: cfg.get("max_terms", 40)]
+    for k in terms:
+        url = "https://www.bing.com/news/search?" + urllib.parse.urlencode({"q": f'"{k}"' if " " in k else k, "format": "rss", "setmkt": cfg.get("market", "en-IN")})
+        try:
+            root = ET.fromstring(http(url, headers={"User-Agent": "Mozilla/5.0 (compatible; Sentimeter/1.0)"}))
+        except Exception as e:
+            log("bing_news failed:", k, e)
+            continue
+        for it in root.iter("item"):
+            title = (it.findtext("title") or "").strip()
+            publisher = next((c.text for c in it if c.tag.endswith("Source") and c.text), "") or ""
+            publisher = re.sub(r"\s+on MSN$", "", publisher)
+            link = bing_target(it.findtext("link") or "")
+            desc = strip_html(it.findtext("description") or "")
+            out.append({"id": mid("bn", link or title), "date": iso(parse_date(it.findtext("pubDate")) or NOW), "platform": "News/Blogs",
+                        "author": publisher or "Bing News", "handle": urllib.parse.urlparse(link).netloc.replace("www.", ""),
+                        "location": "India" if cfg.get("market", "en-IN").endswith("IN") else "", "title": title,
+                        "text": title if not desc else f"{title}. {desc}", "url": link, "reach": 0})
+        time.sleep(1)
     return out
 
 
@@ -274,7 +339,8 @@ DEFAULT_SETTINGS = {
     "actors": dict(DEFAULT_ACTORS),
     "keyword_search": {k: False for k in ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]},
     "search_terms": ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"],
-    "monthly_limit": 1000,
+    "monthly_limit": 5000,
+    "news": {"google_news": True, "bing_news": True},
     "run_after": "23:00",
     "timezone": "Asia/Kolkata",
 }
@@ -482,8 +548,8 @@ def src_social(cfg, kws, force=False):
     mu = usage["months"].setdefault(month, {"posts": 0, "runs": []})
     days_in_month = calendar.monthrange(now_l.year, now_l.month)[1]
     days_left = days_in_month - now_l.day + 1
-    ceiling = int(os.environ.get("SENTIMETER_MAX_MONTHLY") or 1000)
-    remaining = max(0, min(int(st.get("monthly_limit", 1000)), ceiling) - mu["posts"])
+    ceiling = int(os.environ.get("SENTIMETER_MAX_MONTHLY") or 5000)
+    remaining = max(0, min(int(st.get("monthly_limit", 5000)), ceiling) - mu["posts"])
     allowance = remaining // days_left if days_left else 0
 
     accounts = {p: [a.strip() for a in st["accounts"].get(p, []) if a.strip()] for p in PLATFORMS}
@@ -550,7 +616,7 @@ def src_social(cfg, kws, force=False):
     save_usage(usage)
     return out
 
-SOURCES = {"google_news": src_google_news, "reddit": src_reddit, "bluesky": src_bluesky, "youtube": src_youtube, "apify": src_apify, "social": src_social}
+SOURCES = {"google_news": src_google_news, "bing_news": src_bing_news, "reddit": src_reddit, "bluesky": src_bluesky, "youtube": src_youtube, "apify": src_apify, "social": src_social}
 
 
 def main():
@@ -568,7 +634,20 @@ def main():
         log("another fetch is running; exiting")
         return
     cfg = json.load(open(a.config))
-    kws, excl = cfg["keywords"], [kw_regex(k) for k in cfg.get("excluded", [])]
+    kws, excl_words = list(cfg["keywords"]), list(cfg.get("excluded", []))
+    try:  # follow the alerts people edit on the site, plus the Sources search terms
+        shared = json.load(open(os.environ.get("SENTIMETER_SHARED", "/var/lib/sentimeter/shared.json")))
+        alerts = shared.get("alerts") or []
+        if alerts:
+            kws = sorted({k for al in alerts for k in al.get("keywords", [])} | set(load_settings().get("search_terms") or []), key=str.lower)
+            excl_words = sorted({k for al in alerts for k in al.get("excluded", [])})
+    except Exception:
+        pass
+    excl = [kw_regex(k) for k in excl_words]
+    news_on = load_settings().get("news", {})
+    for name in ("google_news", "bing_news"):
+        if name in news_on:
+            cfg.setdefault(name, {})["enabled"] = bool(news_on[name])
     only = set(filter(None, a.only.split(",")))
     skip = set(filter(None, a.skip.split(",")))
 
@@ -578,7 +657,16 @@ def main():
             old = json.load(open(a.out))
         except Exception:
             log("existing data unreadable, starting fresh")
-    byid = {m["id"]: m for m in old.get("mentions", [])}
+    byid, keys = {}, {}
+    for m in old.get("mentions", []):  # also collapses duplicates stored before
+        k = dedupe_key(m)
+        if k in keys:
+            continue
+        keys[k] = m["id"]
+        byid[m["id"]] = m
+    dupes = len(old.get("mentions", [])) - len(byid)
+    if dupes:
+        log(f"removed {dupes} duplicate posts already stored")
     status = old.get("sources", {})
 
     for name, fn in SOURCES.items():
@@ -602,15 +690,31 @@ def main():
         if got is None:
             status[name] = {"last_run": status.get(name, {}).get("last_run"), "ok": False, "count": 0, "note": "needs an API key"}
             continue
-        new = 0
+        new = dup = old_n = 0
+        news_cut = iso(NOW - timedelta(hours=24))
         for m in got:
             if not m.get("text") or any(r.search(m["text"]) for r in excl):
                 continue
-            if m["id"] not in byid:
-                new += 1
-            byid[m["id"]] = {**byid.get(m["id"], {}), **{k: v for k, v in m.items() if v not in (None, "")}}
-        status[name] = {"last_run": iso(NOW), "ok": bool(got), "count": len(got), "new": new}
-        log(f"{name}: {len(got)} fetched, {new} new, {time.time()-t0:.0f}s")
+            if name in ("google_news", "bing_news") and m["date"] < news_cut:
+                old_n += 1
+                continue
+            k = dedupe_key(m)
+            mid_ = m["id"] if m["id"] in byid else keys.get(k)
+            if mid_:
+                cur = byid[mid_]
+                dup += 1
+                if m["id"] == mid_:
+                    byid[mid_] = {**cur, **{f: v for f, v in m.items() if v not in (None, "")}}
+                else:
+                    cur["reach"] = max(int(cur.get("reach") or 0), int(m.get("reach") or 0))
+                    if m.get("tracked"):
+                        cur["tracked"] = True
+                continue
+            keys[k] = m["id"]
+            byid[m["id"]] = m
+            new += 1
+        status[name] = {"last_run": iso(NOW), "ok": bool(got), "count": len(got), "new": new, "duplicates": dup}
+        log(f"{name}: {len(got)} fetched, {new} new, {dup} already tracked" + (f", {old_n} older than 24h skipped" if old_n else "") + f", {time.time()-t0:.0f}s")
 
     cutoff = iso(NOW - timedelta(days=cfg.get("keep_days", 45)))
     ms = sorted((m for m in byid.values() if m.get("date", "") >= cutoff), key=lambda m: m["date"], reverse=True)[: cfg.get("max_mentions", 6000)]
@@ -620,7 +724,7 @@ def main():
         u = load_usage()
         st = load_settings()
         month = local_now(st.get("timezone", "Asia/Kolkata")).strftime("%Y-%m")
-        social = {"month": month, "used": u.get("months", {}).get(month, {}).get("posts", 0), "limit": st.get("monthly_limit", 1000),
+        social = {"month": month, "used": u.get("months", {}).get(month, {}).get("posts", 0), "limit": min(int(st.get("monthly_limit", 5000)), int(os.environ.get("SENTIMETER_MAX_MONTHLY") or 5000)),
                   "last_daily_run": u.get("last_daily_run"), "last_run": (u.get("months", {}).get(month, {}).get("runs") or [None])[-1]}
         json.dump({"updated": iso(NOW), "keywords": kws, "sources": status, "social": social, "mentions": ms}, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, a.out)

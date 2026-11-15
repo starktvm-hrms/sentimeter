@@ -43,6 +43,7 @@ DNS: `sentimeter.starkpeople.in` is an A record pointing to the VPS (76.13.241.1
 | Source | Needs | Notes |
 | --- | --- | --- |
 | Google News | nothing | English, Malayalam and Hindi editions for India |
+| Bing News | nothing | India market, one search per keyword |
 | Reddit | nothing | may be rate limited from some servers |
 | Bluesky | nothing | public post search |
 | YouTube | `YOUTUBE_API_KEY` | free key; runs every 3 hours to stay inside the daily quota |
@@ -61,7 +62,7 @@ The collected data is served publicly at `/data/mentions.json`, like the site it
 
 ## Tracked social accounts (Sources page)
 
-The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, the Apify actor used for each, optional keyword search on X, Instagram, Facebook, LinkedIn, TikTok and Snapchat (using one shared list of up to 10 search terms), and a monthly post limit (default 1,000 across all actors).
+The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, the Apify actor used for each, optional keyword search on X, Instagram, Facebook, LinkedIn, TikTok and Snapchat (using one shared list of up to 10 search terms), and a monthly post limit (default 5,000 across all actors).
 
 - The hourly fetch runs the social job once a day, after 23:00 India time, and keeps only that day's posts.
 - Each day's allowance is what is left of the monthly limit divided by the days left in the month. Every Apify run is started with `maxItems` set to that allowance, so Apify itself stops there. Results that turn out to be older than today still count, because Apify bills for them.
@@ -92,6 +93,12 @@ bash /var/www/sentimeter/deploy/setup-sources.sh
 
 It installs `fetcher/admin.py` as the `sentimeter-admin` service on 127.0.0.1:8787 and forwards `/api/` to it from nginx. Settings are stored in `/etc/sentimeter/settings.json`, usage in `/var/lib/sentimeter/usage.json`, keys in `/etc/sentimeter.env`.
 
+## News and duplicates
+
+News (Google News and Bing News) is checked every hour for any alert keyword or Sources search term, keeps articles from the last 24 hours, and does not count toward the Apify limit. Both can be switched off on the Sources page.
+
+Each post is stored once. News articles are identified by headline, so the same article from both sources, several searches or several Google News editions is one mention. Social posts are identified by their URL without tracking parameters, or by author and text when there is no URL. A post found by both account tracking and keyword search is stored once and keeps the "Tracked" mark. Apify still bills for a result returned twice in a day, so avoid tracking an account and also searching for terms it always uses.
+
 ## Public, shared use
 
 The site is open to everyone, with no login, and works the same on every device:
@@ -104,7 +111,7 @@ Safeguards that apply to everyone, set in `/etc/sentimeter.env`:
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `SENTIMETER_MAX_MONTHLY` | 1000 | Highest monthly post limit the Sources page can set |
+| `SENTIMETER_MAX_MONTHLY` | 5000 | Highest monthly post limit the Sources page can set |
 | `SENTIMETER_MAX_USD_PER_RUN` | 1 | Apify cost cap for each actor run (`maxTotalChargeUsd`) |
 | `SENTIMETER_REQUIRE_KEY` | unset | Set to `1` to require the admin key again |
 
