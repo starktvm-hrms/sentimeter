@@ -36,6 +36,29 @@ It clones the repo to `/var/www/sentimeter`, adds the nginx site, gets a Let's E
 
 DNS: `sentimeter.starkpeople.in` is an A record pointing to the VPS (76.13.241.150).
 
+## Live data (real mentions)
+
+`fetcher/fetch.py` collects public mentions for the keywords in `fetcher/config.json` and writes `public/data/mentions.json`, which the site loads on start. On the server it runs every hour from cron.
+
+| Source | Needs | Notes |
+| --- | --- | --- |
+| Google News | nothing | English, Malayalam and Hindi editions for India |
+| Reddit | nothing | may be rate limited from some servers |
+| Bluesky | nothing | public post search |
+| YouTube | `YOUTUBE_API_KEY` | free key; runs every 3 hours to stay inside the daily quota |
+| X and Instagram | `APIFY_TOKEN` | via Apify actors, paid per use; runs every 6 hours |
+| Facebook | not supported | Meta does not offer public post search |
+
+Set it up once on the VPS, after `setup-vps.sh`:
+
+```bash
+sudo bash /var/www/sentimeter/deploy/setup-fetcher.sh
+```
+
+Keys go in `/etc/sentimeter.env` on the server (never in this repository). To change what is collected, edit `fetcher/config.json` and push; the next hourly run picks it up. Run it by hand with `sudo sentimeter-fetch --force`; the log is `/var/log/sentimeter/fetch.log`.
+
+The collected data is served publicly at `/data/mentions.json`, like the site itself. Add HTTP basic auth in nginx if the dashboard should be private.
+
 ## Importing data
 
 Use **Alert settings → Data → Import CSV or JSON**. Recognised columns: text (or content, mention, message, comment, review, body), platform/source, date, author, handle, location/country, language, reach/followers, url, title, gender, age, account_type.

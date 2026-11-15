@@ -1,0 +1,94 @@
+{
+  "keywords": [
+    "Kovalam",
+    "#keralatourism",
+    "Ayurveda",
+    "Varkala",
+    "Kerala holiday",
+    "#ItsKeralaSeason",
+    "#KeralaUr2026Destination",
+    "#IndiasSummerCamp",
+    "Kerala vacation",
+    "#KeralaCuisine",
+    "Kerala Nature",
+    "kerala summer vacation",
+    "Kerala road trip",
+    "#wayanad",
+    "kerala travel",
+    "#KeralaReels2025",
+    "kerala hill stations",
+    "#WeddingDestination",
+    "Fortkochi",
+    "Kerala waterfalls",
+    "Kerala homestays",
+    "Kerala resorts",
+    "Kerala hotels",
+    "Kumarakom",
+    "Vagamon",
+    "KeralaResorts",
+    "kerala blog express",
+    "#kerala",
+    "kerala backwater",
+    "#KeralaSnack",
+    "#IntimateWeddings",
+    "munnar"
+  ],
+  "excluded": [
+    "massage"
+  ],
+  "keep_days": 45,
+  "max_mentions": 6000,
+  "google_news": {
+    "enabled": true,
+    "window": "2d",
+    "editions": [
+      [
+        "en-IN",
+        "IN",
+        "IN:en"
+      ],
+      [
+        "ml",
+        "IN",
+        "IN:ml"
+      ],
+      [
+        "hi",
+        "IN",
+        "IN:hi"
+      ]
+    ],
+    "skip_keywords": [
+      "#kerala"
+    ]
+  },
+  "reddit": {
+    "enabled": true,
+    "skip_keywords": [
+      "#kerala"
+    ]
+  },
+  "bluesky": {
+    "enabled": true
+  },
+  "youtube": {
+    "enabled": true,
+    "every_hours": 3,
+    "max_results": 25,
+    "skip_keywords": [
+      "#kerala"
+    ]
+  },
+  "apify": {
+    "enabled": true,
+    "every_hours": 6,
+    "x": {
+      "actor": "apidojo~tweet-scraper",
+      "max_items": 200
+    },
+    "instagram": {
+      "actor": "apify~instagram-hashtag-scraper",
+      "results_limit": 100
+    }
+  }
+}

@@ -482,10 +482,12 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <p class="hint" style="margin:0">Murmur scores mentions you bring in. Export them from your listening tool, platform analytics or a scraper as CSV or JSON. Recognized columns: <b>text</b> (or content, message, comment, review, body), <b>platform</b> (or source), <b>date</b>, <b>author</b>, <b>handle</b>, <b>location</b> (or country), <b>language</b> and <b>reach</b> (or followers). Only text is required. Data stays in this browser.</p>
         <div class="toolbar">
           <label class="btn primary">Import CSV or JSON<input type="file" id="file-set" accept=".csv,.tsv,.txt,.json"></label>
+          <button class="btn" id="use-live">Use live data</button>
           <button class="btn" id="load-sample">Load sample data</button>
           <button class="btn danger" id="clear-data">Clear data</button>
           <span class="hint" id="import-msg"></span>
         </div>
+        <div id="live-status" class="hint"></div>
       </div></div>
     </section>
   </main>
@@ -620,15 +622,15 @@ function makeSample(){
   return out;
 }
 const SAMPLE_ALERTS=[
- {id:"a1",name:"#keralatourism",keywords:["Kovalam","#keralatourism","Ayurveda","Varkala","Kerala holiday","#ItsKeralaSeason","#KeralaUr2026Destination","#IndiasSummerCamp","Kerala vacation","#KeralaCuisine","Kerala Nature","kerala summer vacation","Kerala road trip","#wayanad","kerala travel","#KeralaReels2025","kerala hill stations","#WeddingDestination","Fortkochi","Kerala waterfalls","Kerala homestays","Kerala resorts","Kerala hotels","Kumarakom","Vagamon","KeralaResorts","kerala blog express","#kerala","kerala backwater","#KeralaSnack","#IntimateWeddings","munnar"],excluded:["massage"],langs:[],locations:["India"],unknown:false,sources:PLATFORMS.slice()},
+ {id:"a1",name:"#keralatourism",keywords:["Kovalam","#keralatourism","Ayurveda","Varkala","Kerala holiday","#ItsKeralaSeason","#KeralaUr2026Destination","#IndiasSummerCamp","Kerala vacation","#KeralaCuisine","Kerala Nature","kerala summer vacation","Kerala road trip","#wayanad","kerala travel","#KeralaReels2025","kerala hill stations","#WeddingDestination","Fortkochi","Kerala waterfalls","Kerala homestays","Kerala resorts","Kerala hotels","Kumarakom","Vagamon","KeralaResorts","kerala blog express","#kerala","kerala backwater","#KeralaSnack","#IntimateWeddings","munnar"],excluded:["massage"],langs:[],locations:["India"],unknown:true,sources:PLATFORMS.slice()},
  {id:"a2",name:"Kerala Ayurveda",keywords:["Ayurveda","#ayurveda","Panchakarma","wellness retreat"],excluded:["massage"],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()},
  {id:"a3",name:"Kerala Weddings",keywords:["#WeddingDestination","#IntimateWeddings","destination wedding","wedding shoot"],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()}
 ];
 
 /* ---------- State ---------- */
 const KEY="murmur-v2";
-let S={meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
-let MENTIONS=[];let NOW_TS=Date.now();
+let S={forceSample:false,meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
+let MENTIONS=[];let NOW_TS=Date.now();let LIVE=null;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}}
 function prepare(raw){
@@ -642,7 +644,8 @@ function prepare(raw){
       gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
   });
 }
-function setData(){MENTIONS=prepare(S.imported||makeSample());NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
+function dataMode(){return S.imported?"import":(LIVE&&LIVE.mentions.length&&!S.forceSample)?"live":"sample";}
+function setData(){const mode=dataMode();MENTIONS=prepare(mode==="import"?S.imported:mode==="live"?LIVE.mentions:makeSample());NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
 const getMeta=id=>S.meta[id]||{star:false,done:false,tags:[]};
 const M=id=>S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});
 const isHidden=m=>!!(S.meta[m.id]&&S.meta[m.id].del)||S.blocked.includes(m.author);
@@ -717,7 +720,7 @@ function renderChrome(){
   $("alert-list").innerHTML=S.alerts.map(a=>{const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}"><button class="alert-link" data-id="${a.id}" aria-current="${on}"><span>${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button><button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${on&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button></div>`;}).join("");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
-  const lbl=S.imported?S.dataLabel:"Sample data: fictional posts";
+  const mode=dataMode();const lbl=mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts";
   $("data-badge").textContent=lbl;$("data-badge2").textContent=lbl;
   $("side-foot").textContent=`${MENTIONS.length} mentions loaded · ${p.start?fmtDay(p.start):""} to ${p.end?fmtDay(p.end):""}`;
 }
@@ -811,6 +814,7 @@ function feedList(){
   const k={new:(a,b)=>b.date.localeCompare(a.date),reach:(a,b)=>b.reach-a.reach,negative:(a,b)=>a.a.compound-b.a.compound,positive:(a,b)=>b.a.compound-a.a.compound}[F.sort];
   return arr.sort(k);
 }
+function relAgo(iso){const m=(Date.now()-new Date(iso))/6e4;if(!(m>=0))return"recently";if(m<60)return Math.max(1,Math.round(m))+" min ago";if(m<1440)return Math.round(m/60)+" h ago";return Math.round(m/1440)+" d ago";}
 function relTime(iso){const h=(NOW_TS-new Date(iso))/36e5;if(h<1)return Math.max(1,Math.round(h*60))+"m";if(h<24)return Math.round(h)+"h";return Math.round(h/24)+"d";}
 function normKey(x){return x.toLowerCase().replace(/https?:\/\/\S+/g," ").replace(/[#@][\p{L}\p{N}_]+/gu," ").replace(/[^\p{L}\p{N}]+/gu," ").trim();}
 function titleOf(m){if(m.title)return m.title;if(m.platform==="News/Blogs"){const s=m.text.split(/(?<=[.!?])\s/)[0];return s.length>120?s.slice(0,117)+"…":s;}return m.author;}
@@ -819,7 +823,7 @@ function itemHTML(m,sel,simN){const lb=labelOf(m),mt=getMeta(m.id);
   <div class="row1"><span class="src" style="background:${PCOLOR[m.platform]}">${ABBR[m.platform]}</span><span class="t">${esc(titleOf(m))}</span><span class="when">${relTime(m.date)}</span></div>
   ${m.platform==="News/Blogs"||m.title?`<div class="m-meta">${esc(m.author)}${m.location?" · "+esc(m.location):""}</div>`:""}
   <div class="snip">${esc(m.text)}</div>
-  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span><span class="num">${compact(m.reach)} reach</span>${simN?`<span>+${simN} similar</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
+  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span>${m.reach?`<span class="num">${compact(m.reach)} reach</span>`:""}${simN?`<span>+${simN} similar</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
 let arm=null;
 function renderMentions(){
   const arr=feedList();const s=splits(arr);const all=pools().cur;
@@ -913,7 +917,7 @@ function renderReports(){
   $("r-title").textContent=al.name;
   const per=`${fmtDay(p.start)} to ${fmtDay(p.end)}${p.end?", "+p.end.slice(0,4):""}`;
   const prevTxt=hasPrev?`${fmtDay(p.pStart)} to ${fmtDay(p.pEnd)}`:"";
-  $("r-sub").textContent=`${per}${hasPrev?" · compared with "+prevTxt:""} · ${S.srcOff.length?PLATFORMS.filter(x=>!S.srcOff.includes(x)).join(", "):"all sources"} · ${S.imported?S.dataLabel:"sample data (fictional)"}`;
+  $("r-sub").textContent=`${per}${hasPrev?" · compared with "+prevTxt:""} · ${S.srcOff.length?PLATFORMS.filter(x=>!S.srcOff.includes(x)).join(", "):"all sources"} · ${dataMode()==="import"?S.dataLabel:dataMode()==="live"?"live data, updated "+relAgo(LIVE.updated):"sample data (fictional)"}`;
   const daily=days.map(d=>{const arr=cur.filter(m=>m.day===d);const o={day:d,pos:0,neu:0,neg:0,reach:0};arr.forEach(m=>{o[labelOf(m)]++;o.reach+=m.reach;});return o;});
   const peak=daily.reduce((a,b)=>(b.pos+b.neu+b.neg)>(a.pos+a.neu+a.neg)?b:a,daily[0]||{day:"",pos:0,neu:0,neg:0});
   const peakN=peak.pos+peak.neu+peak.neg;
@@ -1021,7 +1025,10 @@ function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
   el.onclick=e=>{const b=e.target.closest("button[data-i]");if(b){arr.splice(+b.dataset.i,1);draw();ch();}else if(e.target===el)el.querySelector("input").focus();};
   draw();
 }
-function renderSettings(){
+function renderLiveStatus(){const el=$("live-status");if(!el)return;if(!LIVE){el.textContent="Live data: none on this server yet.";return;}
+  const names={google_news:"Google News",reddit:"Reddit",bluesky:"Bluesky",youtube:"YouTube",apify:"X and Instagram (Apify)"};
+  el.innerHTML=`<b>Live data</b> · ${LIVE.mentions.length} mentions · updated ${relAgo(LIVE.updated)}<br>`+Object.entries(LIVE.sources||{}).map(([k,v])=>`${names[k]||k}: ${v.note?esc(v.note):v.ok?`${v.count} fetched, last run ${relAgo(v.last_run)}`:"no results last run"}`).join(" · ");}
+function renderSettings(){renderLiveStatus();
   draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
   $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
   chipBox($("set-kw"),draft.keywords,"Add keyword");
@@ -1066,7 +1073,7 @@ function importFile(f){
   rd.onload=()=>{const rows=parseFile(String(rd.result));
     if(!rows.length){$("import-msg").textContent=`No posts found in ${f.name}. Check that it has a text column.`;go("alert-setup");return;}
     const now=new Date().toISOString();rows.forEach((r,i)=>{r.id="u"+i;if(!r.date)r.date=now;});
-    S.imported=rows;S.dataLabel=f.name;S.overrides={};S.meta={};S.blocked=[];if(!rows.some(r=>r.date!==now))S.range=0;
+    S.imported=rows;S.forceSample=false;S.dataLabel=f.name;S.overrides={};S.meta={};S.blocked=[];if(!rows.some(r=>r.date!==now))S.range=0;
     setData();save();
     const al=activeAlert();const p=periods();const hit=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,al)).length;
     $("import-msg").textContent=`Imported ${rows.length} posts from ${f.name}. ${hit} match “${al.name}”.${hit<rows.length?" Adjust keywords or locations to include more.":""}`;
@@ -1075,8 +1082,9 @@ function importFile(f){
 }
 $("file-top").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
 $("file-set").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
-$("load-sample").onclick=()=>{S.imported=null;S.dataLabel="Sample data";S.overrides={};S.meta={};S.blocked=[];S.range=7;setData();save();$("import-msg").textContent="Sample data loaded.";render();};
-$("clear-data").onclick=()=>{S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
+$("use-live").onclick=()=>{S.imported=null;S.forceSample=false;S.dataLabel="Live data";setData();save();$("import-msg").textContent=LIVE&&LIVE.mentions.length?`Live data loaded: ${LIVE.mentions.length} mentions, updated ${relAgo(LIVE.updated)}.`:"No live data on this server yet. The fetcher writes it every hour once set up.";render();};
+$("load-sample").onclick=()=>{S.imported=null;S.forceSample=true;S.dataLabel="Sample data";S.overrides={};S.meta={};S.blocked=[];S.range=7;setData();save();$("import-msg").textContent="Sample data loaded.";render();};
+$("clear-data").onclick=()=>{S.forceSample=false;S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
@@ -1133,9 +1141,11 @@ $("del-alert").onclick=()=>{
 };
 
 /* ---------- Boot ---------- */
-load();setData();
+load();
+function boot(){setData();
 $("single-input").value="Honestly the houseboat in Kumarakom was AMAZING 🔥 but the booking app kept crashing and support wasn't helpful at all 😤";
-lastView=current();render();
+lastView=current();render();}
+fetch("data/mentions.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&Array.isArray(j.mentions))LIVE=j;}).catch(()=>{}).finally(boot);
 window.MurmurAnalyze=analyze;
 })();
 </script>
