@@ -353,6 +353,7 @@ DEFAULT_SETTINGS = {
     "accounts": {p: [] for p in PLATFORMS},
     "actors": dict(DEFAULT_ACTORS),
     "keyword_search": {k: False for k in ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]},
+    "include_mentions": True,
     "search_terms": ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"],
     "monthly_limit": 5000,
     "news": {"google_news": True, "bing_news": True},
@@ -505,13 +506,15 @@ def platform_input(platform, accounts, keywords, per, total, today):
     if platform == "linkedin_search":
         return {"searchQueries": [k.lstrip("#") for k in keywords][:10], "maxPosts": max(1, total // max(1, min(10, len(keywords)))),
                 "postedLimit": "24h", "sortBy": "date"}
-    if platform == "tiktok_hashtags":
-        return {"hashtags": tags, "resultsPerPage": max(1, total // max(1, len(tags))), "excludePinnedPosts": True}
+    if platform == "tiktok_hashtags":  # public TikTok videos: keyword video search, past 24 hours, newest first
+        qs = [k.lstrip("#") for k in keywords][:10]
+        return {"searchQueries": qs, "searchSection": "/video", "videoSearchDateFilter": "PAST_24_HOURS",
+                "videoSearchSorting": "LATEST", "resultsPerPage": max(1, total // max(1, len(qs)))}
     if platform == "snapchat_hashtags":
         return {"hashtags": tags, "resultsPerHashtag": max(1, total // max(1, len(tags))), "includeVideoUrls": False,
                 "includeLlmMetadata": False, "includeRelatedTopics": False}
     if platform == "x_search":
-        return {"searchTerms": keywords, "maxItems": total, "sort": "Latest", "start": today}
+        return {"searchTerms": keywords[:15], "maxItems": total, "sort": "Latest", "start": today}
     if platform == "instagram_hashtags":
         tags = sorted({k.lstrip("#").replace(" ", "").lower() for k in keywords if re.fullmatch(r"#?\w+", k)})[:20]
         return {"hashtags": tags, "resultsLimit": max(1, total // max(1, len(tags)))}
@@ -587,6 +590,14 @@ def src_social(cfg, kws, force=False):
     jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
     jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
     terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()] or kws[:10]
+    handle = lambda a: a.rstrip("/").rsplit("/", 1)[-1].lstrip("@")
+    mention_terms = {}  # public posts that mention a tracked profile
+    if st.get("include_mentions", True):
+        mention_terms = {
+            "x_search": [f"@{handle(a)}" for a in accounts["x"]],
+            "instagram_hashtags": [handle(a) for a in accounts["instagram"]],
+            "tiktok_hashtags": [handle(a) for a in accounts["tiktok"]],
+        }
     run_log = {"date": today, "time": now_l.strftime("%H:%M"), "allowance": allowance, "jobs": {}}
     if jobs and not any(token_for(p)[0] for p in jobs):
         log("social skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
@@ -610,7 +621,8 @@ def src_social(cfg, kws, force=False):
                 run_log["jobs"][p] = {"skipped": "no Apify token for this platform"}
                 continue
             try:
-                payload = platform_input(p, accounts.get(p, []), terms, per, total, since)
+                jt = terms + [m for m in mention_terms.get(p, []) if m.lower() not in {x.lower() for x in terms}]
+                payload = platform_input(p, accounts.get(p, []), jt, per, total, since)
                 items, billed = apify_run_capped(actor, payload, token, total)
             except Exception as e:
                 log(f"social {p} failed:", e)

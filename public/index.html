@@ -375,7 +375,8 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
           <button class="chip" data-f="neg" aria-pressed="false">Negative</button>
           <button class="chip" data-f="flag" aria-pressed="false">Flagged</button>
           <button class="chip" data-f="star" aria-pressed="false">Starred</button>
-          <button class="chip" data-f="tracked" aria-pressed="false">Tracked accounts</button>
+          <button class="chip" data-f="tracked" aria-pressed="false">Profile posts</button>
+          <button class="chip" data-f="public" aria-pressed="false">Public posts</button>
         </div>
         <input type="search" id="search" placeholder="Search mentions" aria-label="Search mentions">
         <select class="select" id="sort" aria-label="Sort">
@@ -462,12 +463,15 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <pre id="run-log" class="hint" hidden style="background:var(--sunk);border-radius:8px;padding:10px;max-height:220px;overflow:auto;font:12px/1.5 var(--f-mono);white-space:pre-wrap"></pre>
       </div></div>
 
-      <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Tracked accounts</h2><span class="hint">new posts since the previous run, collected daily at <span id="run-after">09:00</span> India time</span></div><div class="card-body">
+      <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Brand profiles and public posts</h2><span class="hint">new posts since the previous run, collected daily at <span id="run-after">09:00</span> India time</span></div><div class="card-body">
+        <div class="eyebrow">Brand profiles: posts published by these accounts</div>
         <div class="form" id="acct-form"></div>
-        <div class="eyebrow" style="margin-top:6px">Keyword search (also counts toward the limit)</div>
+        <div class="eyebrow" style="margin-top:6px">Public posts: anyone's posts that match the search terms (also counts toward the limit)</div>
         <div class="form">
           <label class="f">Search terms</label>
-          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox" id="kw-terms"></div><span class="hint">Up to 10 terms, shared by every keyword search below. Hashtag searches use them without spaces. Fewer terms means more posts per term.</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox" id="kw-terms"></div><span class="hint">Up to 10 terms, shared by every public-post search below. Hashtag searches use them without spaces. Fewer terms means more posts per term.</span></div>
+          <label class="f">Brand mentions</label>
+          <label style="display:inline-flex;gap:8px;align-items:center;padding-top:8px"><input type="checkbox" id="kw-mentions" style="accent-color:var(--accent)"> Also collect public posts that mention the brand profiles above (for example @KeralaTourism on X)</label>
         </div>
         <div class="form" id="kw-form"></div>
       </div></div>
@@ -540,8 +544,8 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
             <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="set-unknown" style="accent-color:var(--accent)"> Include results with unknown location</label></div>
           <label class="f">Sources</label>
           <div class="checks" id="set-src"></div>
-          <label class="f">Tracked accounts</label>
-          <label style="display:inline-flex;gap:8px;align-items:center;padding-top:8px"><input type="checkbox" id="set-tracked" style="accent-color:var(--accent)"> Include every post from the accounts on the Sources page, even without a keyword</label>
+          <label class="f">Brand profiles</label>
+          <label style="display:inline-flex;gap:8px;align-items:center;padding-top:8px"><input type="checkbox" id="set-tracked" style="accent-color:var(--accent)"> Include every post from the brand profiles on the Sources page, even without a keyword. Public posts appear when they match this alert's keywords.</label>
         </div>
         <div class="form-actions">
           <button class="btn danger" id="del-alert">Delete alert</button>
@@ -1080,7 +1084,7 @@ function mentionHTML(m,full){
 let F={s:"all",q:"",sort:"new",term:null,termText:null,limit:40};
 function feedList(){
   let arr=pools().cur;
-  if(F.s==="flag")arr=arr.filter(m=>m.a.flags.length||m.lang!=="English");else if(F.s==="star")arr=arr.filter(m=>getMeta(m.id).star);else if(F.s==="tracked")arr=arr.filter(m=>m.tracked);else if(F.s!=="all")arr=arr.filter(m=>labelOf(m)===F.s);
+  if(F.s==="flag")arr=arr.filter(m=>m.a.flags.length||m.lang!=="English");else if(F.s==="star")arr=arr.filter(m=>getMeta(m.id).star);else if(F.s==="tracked")arr=arr.filter(m=>m.tracked);else if(F.s==="public")arr=arr.filter(m=>!m.tracked);else if(F.s!=="all")arr=arr.filter(m=>labelOf(m)===F.s);
   if(F.q){const q=F.q.toLowerCase();arr=arr.filter(m=>(m.text+" "+m.author+" "+m.location).toLowerCase().includes(q));}
   if(F.term)arr=arr.filter(m=>m.a.items.some(it=>(it.negated?"not "+it.key:it.key)===F.term));
   if(F.termText)arr=arr.filter(m=>m.text.toLowerCase().includes(F.termText));
@@ -1096,7 +1100,7 @@ function itemHTML(m,sel,simN){const lb=labelOf(m),mt=getMeta(m.id);
   <div class="row1"><span class="src" style="background:${PCOLOR[m.platform]}">${ABBR[m.platform]}</span><span class="t">${esc(titleOf(m))}</span><span class="when">${relTime(m.date)}</span></div>
   ${m.platform==="News/Blogs"||m.title?`<div class="m-meta">${esc(m.author)}${m.location?" · "+esc(m.location):""}</div>`:""}
   <div class="snip">${esc(m.text)}</div>
-  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span>${m.reach?`<span class="num">${compact(m.reach)} reach</span>`:""}${simN?`<span>+${simN} similar</span>`:""}${m.tracked?`<span class="flag">Tracked</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
+  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span>${m.reach?`<span class="num">${compact(m.reach)} reach</span>`:""}${simN?`<span>+${simN} similar</span>`:""}${m.tracked?`<span class="flag">Profile post</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
 let arm=null;
 function renderMentions(){
   const arr=feedList();const s=splits(arr);const all=pools().cur;
@@ -1278,7 +1282,7 @@ const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPo
 try{admKey=localStorage.getItem(ADM_KEY)||sessionStorage.getItem(ADM_KEY)||"";}catch(e){}
 const SOC=[["facebook","Facebook","Page URL or username, e.g. keralatourism"],["instagram","Instagram","Username, e.g. keralatourism"],["x","X","Handle, e.g. KeralaTourism"],["linkedin","LinkedIn","Company or profile URL"],["youtube","YouTube","Channel handle, e.g. @keralatourism"],["tiktok","TikTok","Username"],["snapchat","Snapchat","Username"]];
 const SOC_DEF={facebook:"apify~facebook-posts-scraper",instagram:"apify~instagram-post-scraper",x:"apidojo~tweet-scraper",linkedin:"harvestapi~linkedin-profile-posts",youtube:"youtube-data-api",tiktok:"clockworks~tiktok-scraper",snapchat:"parseforge~snapchat-scraper",x_search:"apidojo~tweet-scraper",instagram_hashtags:"apify~instagram-hashtag-scraper",facebook_search:"apify~facebook-search-scraper",linkedin_search:"harvestapi~linkedin-post-search",tiktok_hashtags:"clockworks~tiktok-scraper",snapchat_hashtags:"w3crawler~snapchat-hashtag-scraper"};
-const KWJOBS=[["x_search","X","X keyword search","Searches X posts"],["instagram_hashtags","Instagram","Instagram hashtags","Posts under the terms as hashtags"],["facebook_search","Facebook","Facebook post search","Searches public Facebook posts"],["linkedin_search","LinkedIn","LinkedIn post search","Searches LinkedIn posts from the last 24 hours"],["tiktok_hashtags","TikTok","TikTok hashtags","Videos under the terms as hashtags"],["snapchat_hashtags","Snapchat","Snapchat hashtags","Spotlight videos under the terms as hashtags (experimental: a newer, little-used actor)"]];
+const KWJOBS=[["x_search","X","X keyword search","Searches X posts"],["instagram_hashtags","Instagram","Instagram hashtags","Posts under the terms as hashtags"],["facebook_search","Facebook","Facebook post search","Searches public Facebook posts"],["linkedin_search","LinkedIn","LinkedIn post search","Searches LinkedIn posts from the last 24 hours"],["tiktok_hashtags","TikTok","TikTok search","Public videos matching the terms from the past 24 hours, newest first"],["snapchat_hashtags","Snapchat","Snapchat hashtags","Public Spotlight videos under the terms as hashtags (experimental: Snapchat has little public search, so results are often empty)"]];
 async function adm(path,opts={}){
   const r=await fetch("api"+path,Object.assign({},opts,{headers:Object.assign({"Authorization":"Bearer "+admKey},opts.body?{"Content-Type":"application/json"}:{})}));
   let j=null;try{j=await r.json();}catch(e){}
@@ -1305,7 +1309,7 @@ function renderSources(){
   ["src-accounts","src-news","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
   renderBudget();
   if(!on){if(!$("adm-msg").textContent)admConnect(true);return;}
-  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search,search_terms:st.search_terms||[],news:st.news||{google_news:true,bing_news:true}}));
+  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search,search_terms:st.search_terms||[],include_mentions:st.include_mentions!==false,news:st.news||{google_news:true,bing_news:true}}));
   const ns=(LIVE&&LIVE.sources)||{};
   $("news-form").innerHTML=[["google_news","Google News (English, Malayalam, Hindi)"],["bing_news","Bing News (India)"]].map(([k,n])=>`<label><input type="checkbox" id="news-${k}" ${acctDraft.news[k]!==false?"checked":""}> <span class="src" style="background:var(--c2)">N</span> ${n}</label>`).join("");
   $("news-status").textContent=["google_news","bing_news"].filter(k=>ns[k]).map(k=>`${k==="google_news"?"Google News":"Bing News"}: last run ${relAgo(ns[k].last_run)}, ${ns[k].new||0} new, ${ns[k].duplicates||0} already tracked`).join(" · ");
@@ -1318,6 +1322,7 @@ function renderSources(){
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="kw-${k}" ${acctDraft.keyword_search[k]?"checked":""} style="accent-color:var(--accent)"> ${hint}</label>
     <div class="toolbar"><span class="hint">Actor</span><input type="text" id="act-${k}" value="${esc(acctDraft.actors[k]||SOC_DEF[k])}" style="flex:1;min-width:200px" aria-label="${name} actor"></div></div>`).join("");
   chipBox($("kw-terms"),acctDraft.search_terms,"Add a search term",()=>{});
+  $("kw-mentions").checked=acctDraft.include_mentions!==false;
   const kset=(id,v)=>{const el=$(id);el.textContent=v?"Saved":"Not set";el.className="pill "+(v?"pos":"neu");};
   kset("key-apify-state",ADM.keys.apify);kset("key-yt-state",ADM.keys.youtube);
   const grp=(id,own)=>{const el=$(id);if(own){el.textContent="Saved";el.className="pill pos";}else if(ADM.keys.apify){el.textContent="Uses default";el.className="pill neu";}else{el.textContent="Not set";el.className="pill neg";}};
@@ -1336,6 +1341,7 @@ async function saveSources(){
   SOC.forEach(([k])=>{const i=$("acc-"+k).querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.accounts[k].includes(v))acctDraft.accounts[k].push(v);});i.value="";}});
   SOC.forEach(([k])=>acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k]);
   ["google_news","bing_news"].forEach(k=>acctDraft.news[k]=$("news-"+k).checked);
+  acctDraft.include_mentions=$("kw-mentions").checked;
   KWJOBS.forEach(([k])=>{acctDraft.keyword_search[k]=$("kw-"+k).checked;acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k];});
   {const i=$("kw-terms").querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.search_terms.includes(v))acctDraft.search_terms.push(v);});i.value="";}}
   const lim=parseInt($("bud-limit").value,10);const rt=$("run-time").value;if(/^\d\d:\d\d$/.test(rt))acctDraft.run_after=rt;

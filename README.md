@@ -82,7 +82,7 @@ The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedI
 | Instagram hashtags | `apify~instagram-hashtag-scraper` |
 | Facebook post search | `apify~facebook-search-scraper` |
 | LinkedIn post search | `harvestapi~linkedin-post-search` |
-| TikTok hashtags | `clockworks~tiktok-scraper` |
+| TikTok search (public videos, past 24 hours) | `clockworks~tiktok-scraper` |
 | Snapchat hashtags (experimental) | `w3crawler~snapchat-hashtag-scraper` |
 
 Set up once on the VPS (after `setup-fetcher.sh`):
@@ -92,6 +92,15 @@ bash /var/www/sentimeter/deploy/setup-sources.sh
 ```
 
 It installs `fetcher/admin.py` as the `sentimeter-admin` service on 127.0.0.1:8787 and forwards `/api/` to it from nginx. Settings are stored in `/etc/sentimeter/settings.json`, usage in `/var/lib/sentimeter/usage.json`, keys in `/etc/sentimeter.env`.
+
+## Profile posts and public posts
+
+Sentimeter collects two kinds of social posts:
+
+- **Profile posts**: everything the brand profiles on the Sources page publish. They appear in every alert and are marked "Profile post".
+- **Public posts**: anyone's posts that match the search terms (X, Instagram, Facebook, LinkedIn, TikTok, Snapchat searches). With "Brand mentions" on, X search also looks for `@handle` of each tracked X profile, and Instagram and TikTok searches include the tracked usernames. Public posts appear in alerts whose keywords they match.
+
+The Mentions page filters them with "Profile posts" and "Public posts".
 
 ## Apify tokens per platform
 

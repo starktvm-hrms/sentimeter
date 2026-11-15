@@ -92,6 +92,8 @@ def clean_settings(body):
     for k in ("google_news", "bing_news"):
         if k in (body.get("news") or {}):
             s.setdefault("news", {})[k] = bool(body["news"][k])
+    if "include_mentions" in body:
+        s["include_mentions"] = bool(body["include_mentions"])
     if "search_terms" in body:
         terms = [str(x).strip() for x in body["search_terms"] or [] if str(x).strip()]
         if len(terms) > 10 or any(len(x) > 60 or "\n" in x for x in terms):
