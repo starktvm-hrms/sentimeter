@@ -411,8 +411,9 @@ def apify_run_capped(actor, payload, token, max_items):
         run = apify_call(f"/actor-runs/{run['id']}?waitForFinish=60", token, timeout=90)["data"]
     ds = run.get("defaultDatasetId")
     items = apify_call(f"/datasets/{ds}/items?clean=true&format=json&limit={max_items * 3}", token, timeout=120) if ds else []
+    items = items if isinstance(items, list) else []
     try:
-        billed = int(apify_call(f"/datasets/{ds}", token)["data"].get("itemCount") or len(items))
+        billed = max(int(apify_call(f"/datasets/{ds}", token)["data"].get("itemCount") or 0), len(items))
     except Exception:
         billed = len(items)
     if run["status"] not in ("SUCCEEDED", "TIMED-OUT"):
@@ -632,6 +633,12 @@ def src_social(cfg, kws, force=False):
                     kept += 1
             run_log["jobs"][p] = {"actor": actor, "billed": billed, "kept_today": kept, "token": tgroup}
             log(f"social {p} ({tgroup} token): {billed} results billed, {kept} since {iso(day_start)}")
+    seen = {}
+    for m in out:
+        k = dedupe_key(m)
+        if k in seen and m.get("tracked"):
+            seen[k]["tracked"] = True
+        seen.setdefault(k, m)
     mu["runs"] = (mu["runs"] + [run_log])[-62:]
     run_log["window_from"] = iso(day_start)
     if run_log.get("note") != "no Apify token":
@@ -729,7 +736,10 @@ def main():
                 cur = byid[mid_]
                 dup += 1
                 if m["id"] == mid_:
+                    was_tracked = cur.get("tracked") or m.get("tracked")
                     byid[mid_] = {**cur, **{f: v for f, v in m.items() if v not in (None, "")}}
+                    if was_tracked:
+                        byid[mid_]["tracked"] = True
                 else:
                     cur["reach"] = max(int(cur.get("reach") or 0), int(m.get("reach") or 0))
                     if m.get("tracked"):
