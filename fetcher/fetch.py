@@ -316,7 +316,7 @@ def apify_call(path, token, data=None, timeout=60):
 
 def apify_run_capped(actor, payload, token, max_items):
     """Start an actor run that Apify itself caps at max_items results, wait, return (items, billed_count)."""
-    q = urllib.parse.urlencode({"maxItems": max_items, "waitForFinish": 60})
+    q = urllib.parse.urlencode({"maxItems": max_items, "maxTotalChargeUsd": os.environ.get("SENTIMETER_MAX_USD_PER_RUN", "1"), "waitForFinish": 60})
     run = apify_call(f"/acts/{urllib.parse.quote(actor, safe='~')}/runs?{q}", token, data=payload, timeout=90)["data"]
     t0 = time.time()
     while run["status"] in ("READY", "RUNNING") and time.time() - t0 < 900:
@@ -459,7 +459,8 @@ def src_social(cfg, kws, force=False):
     mu = usage["months"].setdefault(month, {"posts": 0, "runs": []})
     days_in_month = calendar.monthrange(now_l.year, now_l.month)[1]
     days_left = days_in_month - now_l.day + 1
-    remaining = max(0, int(st.get("monthly_limit", 1000)) - mu["posts"])
+    ceiling = int(os.environ.get("SENTIMETER_MAX_MONTHLY") or 1000)
+    remaining = max(0, min(int(st.get("monthly_limit", 1000)), ceiling) - mu["posts"])
     allowance = remaining // days_left if days_left else 0
 
     accounts = {p: [a.strip() for a in st["accounts"].get(p, []) if a.strip()] for p in PLATFORMS}

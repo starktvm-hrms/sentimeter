@@ -86,7 +86,25 @@ Set up once on the VPS (after `setup-fetcher.sh`):
 bash /var/www/sentimeter/deploy/setup-sources.sh
 ```
 
-It installs `fetcher/admin.py` as the `sentimeter-admin` service on 127.0.0.1:8787, forwards `/api/` to it from nginx, and prints the admin key the Sources page asks for. Settings are stored in `/etc/sentimeter/settings.json`, usage in `/var/lib/sentimeter/usage.json`, keys in `/etc/sentimeter.env`.
+It installs `fetcher/admin.py` as the `sentimeter-admin` service on 127.0.0.1:8787 and forwards `/api/` to it from nginx. Settings are stored in `/etc/sentimeter/settings.json`, usage in `/var/lib/sentimeter/usage.json`, keys in `/etc/sentimeter.env`.
+
+## Public, shared use
+
+The site is open to everyone, with no login, and works the same on every device:
+
+- Sources settings, API keys (write-only), and "Run today's collection now" need no key.
+- Alerts, label corrections, stars, tags, deleted posts and blocked authors are stored on the server (`/var/lib/sentimeter/shared.json`) and shared by everyone.
+- Imported files are uploaded to the server (`public/data/imported.json`) and shown to everyone.
+
+Safeguards that apply to everyone, set in `/etc/sentimeter.env`:
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `SENTIMETER_MAX_MONTHLY` | 1000 | Highest monthly post limit the Sources page can set |
+| `SENTIMETER_MAX_USD_PER_RUN` | 1 | Apify cost cap for each actor run (`maxTotalChargeUsd`) |
+| `SENTIMETER_REQUIRE_KEY` | unset | Set to `1` to require the admin key again |
+
+Manual runs are limited to one every 30 minutes, and changes are rate limited per visitor.
 
 ## Importing data
 

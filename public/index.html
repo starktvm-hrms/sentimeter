@@ -439,7 +439,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 
     <!-- SOURCES -->
     <section class="content" id="v-sources" hidden>
-      <div class="page-head"><div><h1>Sources</h1><p class="sub">Social accounts collected every day by the server, the Apify actor for each platform, and the monthly post limit. These settings are shared by everyone who uses this site.</p></div></div>
+      <div class="page-head"><div><h1>Sources</h1><p class="sub">Social accounts collected every day by the server, the Apify actor for each platform, and the monthly post limit. Anyone who opens this site can change these settings, and changes apply for everyone.</p></div></div>
 
       <div class="card" id="src-connect"><div class="card-head"><h2>Admin access</h2><span class="badge" id="src-badge">Not connected</span></div><div class="card-body">
         <p class="hint" style="margin:0">Enter the admin key printed by <code>setup-sources.sh</code> on the server. Find it again with <code>grep ADMIN /etc/sentimeter.env</code>.</p>
@@ -536,7 +536,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       </div></div>
 
       <div class="card"><div class="card-head"><h2>Data</h2><span class="badge" id="data-badge2"></span></div><div class="card-body">
-        <p class="hint" style="margin:0">Sentimeter scores mentions you bring in. Export them from your listening tool, platform analytics or a scraper as CSV or JSON. Recognized columns: <b>text</b> (or content, message, comment, review, body), <b>platform</b> (or source), <b>date</b>, <b>author</b>, <b>handle</b>, <b>location</b> (or country), <b>language</b> and <b>reach</b> (or followers). Only text is required. Data stays in this browser.</p>
+        <p class="hint" style="margin:0">Sentimeter scores mentions you bring in. Export them from your listening tool, platform analytics or a scraper as CSV or JSON. Recognized columns: <b>text</b> (or content, message, comment, review, body), <b>platform</b> (or source), <b>date</b>, <b>author</b>, <b>handle</b>, <b>location</b> (or country), <b>language</b> and <b>reach</b> (or followers). Only text is required. <span id="data-where">Data stays in this browser.</span></p>
         <div class="toolbar">
           <label class="btn primary">Import CSV or JSON<input type="file" id="file-set" accept=".csv,.tsv,.txt,.json"></label>
           <button class="btn" id="use-live">Use live data</button>
@@ -853,8 +853,38 @@ const SAMPLE_ALERTS=[
 /* ---------- State ---------- */
 const KEY="murmur-v2";
 let S={extra:[],apify:{x:true,ig:true,max:100,xActor:"apidojo~tweet-scraper",igActor:"apify~instagram-hashtag-scraper"},forceSample:false,meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
-let MENTIONS=[];let NOW_TS=Date.now();let LIVE=null;
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
+let MENTIONS=[];let NOW_TS=Date.now();let LIVE=null;let SHARED=false;let SIMPORT=null;
+let SYNC=null,syncT=null,syncBusy=false,SHARED_UPDATED=0;
+function snapshot(){SYNC={alerts:JSON.stringify(S.alerts),meta:JSON.parse(JSON.stringify(S.meta||{})),overrides:Object.assign({},S.overrides),blocked:JSON.stringify(S.blocked||[])};}
+function scheduleSync(){if(!SHARED)return;clearTimeout(syncT);syncT=setTimeout(pushSync,500);}
+function syncNote(s){const el=$("side-foot");if(el&&s)el.dataset.note=s;renderChrome();}
+async function pushSync(){
+  if(!SHARED||!SYNC)return;if(syncBusy){scheduleSync();return;}syncBusy=true;
+  try{
+    const a=JSON.stringify(S.alerts);
+    if(a!==SYNC.alerts){const r=await fetch("api/shared/alerts",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({alerts:S.alerts})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"HTTP "+r.status);}
+    const meta={},ov={};const norm=m=>m&&(m.star||m.done||m.del||(m.tags&&m.tags.length))?JSON.stringify({star:!!m.star,done:!!m.done,del:!!m.del,tags:m.tags||[]}):"";
+    new Set([...Object.keys(S.meta||{}),...Object.keys(SYNC.meta)]).forEach(k=>{const x=norm((S.meta||{})[k]),y=norm(SYNC.meta[k]);if(x!==y)meta[k]=x?JSON.parse(x):null;});
+    new Set([...Object.keys(S.overrides),...Object.keys(SYNC.overrides)]).forEach(k=>{if(S.overrides[k]!==SYNC.overrides[k])ov[k]=S.overrides[k]||null;});
+    const bl=JSON.stringify(S.blocked||[]);const body={};
+    if(Object.keys(meta).length)body.meta=meta;if(Object.keys(ov).length)body.overrides=ov;if(bl!==SYNC.blocked)body.blocked=S.blocked||[];
+    if(Object.keys(body).length){const r=await fetch("api/shared/edits",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"HTTP "+r.status);SHARED_UPDATED=j.updated||SHARED_UPDATED;}
+    snapshot();syncNote("");
+  }catch(e){syncNote("Changes not saved to the server: "+e.message);}
+  finally{syncBusy=false;}
+}
+function applyShared(d){
+  if(Array.isArray(d.alerts)&&d.alerts.length){S.alerts=d.alerts;if(!S.alerts.some(a=>a.id===S.active))S.active=S.alerts[0].id;}
+  S.meta=d.meta||{};S.overrides=d.overrides||{};S.blocked=d.blocked||[];SHARED_UPDATED=d.updated||0;
+  S.alerts.forEach(a=>{if(!a.srcV3){["LinkedIn","TikTok","Snapchat"].forEach(p=>{if(!a.sources.includes(p))a.sources.push(p);});a.srcV3=true;}if(a.tracked===undefined)a.tracked=true;});
+  snapshot();
+}
+async function refreshShared(){
+  if(!SHARED||syncBusy||syncT&&SYNC&&JSON.stringify(S.alerts)!==SYNC.alerts)return;
+  const v=current();if(v==="alert-setup"||v==="sources")return;
+  try{const d=await (await fetch("api/shared",{cache:"no-store"})).json();if(d.updated&&d.updated!==SHARED_UPDATED){applyShared(d);render();}}catch(e){}
+}
+function save(){scheduleSync();try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}
   S.alerts.forEach(a=>{if(!a.srcV3){["LinkedIn","TikTok","Snapchat"].forEach(p=>{if(!a.sources.includes(p))a.sources.push(p);});a.srcV3=true;}if(a.tracked===undefined)a.tracked=true;});}
 function prepare(raw){
@@ -868,10 +898,11 @@ function prepare(raw){
       gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),tracked:!!m.tracked,url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
   });
 }
-function dataMode(){return S.imported?"import":(LIVE&&LIVE.mentions.length&&!S.forceSample)?"live":"sample";}
-function setData(){const mode=dataMode();const base=mode==="import"?S.imported:mode==="live"?LIVE.mentions:makeSample();const seen=new Set(base.map(r=>r.id));MENTIONS=prepare(base.concat((S.extra||[]).filter(r=>!seen.has(r.id))));NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
-const getMeta=id=>S.meta[id]||{star:false,done:false,tags:[]};
-const M=id=>S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});
+function hasLive(){return !!(LIVE&&LIVE.mentions.length&&!S.forceSample);}
+function dataMode(){if(SHARED)return hasLive()?"live":SIMPORT&&!S.forceSample?"import":"sample";return S.imported?"import":hasLive()?"live":"sample";}
+function setData(){const mode=dataMode();let base;if(SHARED){base=mode==="sample"?makeSample():hasLive()?LIVE.mentions.slice():[];if(SIMPORT&&!S.forceSample)base=base.concat(SIMPORT.mentions.map((r,i)=>Object.assign({},r,{id:r.id||"im"+i})));}else base=mode==="import"?S.imported:mode==="live"?LIVE.mentions:makeSample();const seen=new Set(base.map(r=>r.id));MENTIONS=prepare(base.concat((S.extra||[]).filter(r=>!seen.has(r.id))));NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
+const getMeta=id=>{const m=S.meta[id];return m?Object.assign({star:false,done:false,tags:[]},m):{star:false,done:false,tags:[]};};
+const M=id=>{const m=S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});if(!Array.isArray(m.tags))m.tags=[];return m;};
 const isHidden=m=>!!(S.meta[m.id]&&S.meta[m.id].del)||S.blocked.includes(m.author);
 const labelOf=m=>S.overrides[m.id]||m.a.label;
 const activeAlert=()=>S.alerts.find(a=>a.id===S.active)||S.alerts[0];
@@ -945,9 +976,9 @@ function renderChrome(){
   $("alert-list").innerHTML=S.alerts.map(a=>{const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}"><button class="alert-link" data-id="${a.id}" aria-current="${on}"><span>${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button><button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${on&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button></div>`;}).join("");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
-  const mode=dataMode();const nx=(S.extra||[]).length;const lbl=(mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts")+(nx?` + ${nx} from Apify`:"");
+  const mode=dataMode();const nx=(S.extra||[]).length;const lbl=SHARED?(mode==="sample"?"Sample data: fictional posts":(hasLive()?"Live data · updated "+relAgo(LIVE.updated):"Imported: "+SIMPORT.name)+(hasLive()&&SIMPORT&&!S.forceSample?" + "+SIMPORT.name:"")):(mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts")+(nx?` + ${nx} from Apify`:"");
   $("data-badge").textContent=lbl;$("data-badge2").textContent=lbl;
-  $("side-foot").textContent=`${MENTIONS.length} mentions loaded · ${p.start?fmtDay(p.start):""} to ${p.end?fmtDay(p.end):""}`;
+  const sf=$("side-foot");sf.textContent=(sf.dataset.note?sf.dataset.note+" · ":"")+`${MENTIONS.length} mentions loaded · ${p.start?fmtDay(p.start):""} to ${p.end?fmtDay(p.end):""}`+(SHARED?" · shared with everyone":"");
 }
 
 /* ---------- Render: dashboard ---------- */
@@ -1248,13 +1279,14 @@ function renderBudget(){
   $("bud-note").textContent=`${fmtInt(Math.max(0,limit-used))} left for ${dl} day${dl>1?"s":""}, so about ${fmtInt(allow)} posts per day. Apify charges for every result an actor returns, including older posts that are then dropped, and each run is capped at the day's allowance.`;
   $("bud-runs").innerHTML=runs.length?tbl([["Date"],["Allowance","r"],["Results by platform"]],runs.slice().reverse().map(r=>[r.date,r.allowance,r.note?esc(r.note):Object.entries(r.jobs||{}).map(([k,v])=>`${esc(k)}: ${v.error?`<span class="neg-c">failed</span>`:v.skipped?"skipped":`${v.billed} billed, ${v.kept_today} today`}`).join(" · ")||"no accounts set"])):`<p class="hint" style="margin:0">No daily runs yet this month.</p>`;
   $("bud-admin").hidden=!ADM;if(ADM&&document.activeElement!==$("bud-limit"))$("bud-limit").value=limit;
+  if(ADM){$("bud-note").textContent+=` The server allows at most ${fmtInt(ADM.max_monthly)} posts a month, and each Apify run is also capped in dollars.`+(ADM.next_manual_run_in?` Next manual run possible in ${Math.ceil(ADM.next_manual_run_in/60)} min.`:"");}
 }
 function renderSources(){
-  const on=!!ADM;$("src-badge").textContent=on?"Connected":"Not connected";$("adm-forget").hidden=!on;$("adm-connect").hidden=on;$("adm-key").hidden=on;
+  const on=!!ADM;$("src-connect").hidden=!!(ADM&&ADM.public);$("src-badge").textContent=on?"Connected":"Not connected";$("adm-forget").hidden=!on;$("adm-connect").hidden=on;$("adm-key").hidden=on;
   if(document.activeElement!==$("adm-key"))$("adm-key").value=on?"":admKey;
   ["src-accounts","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
   renderBudget();
-  if(!on){if(admKey&&!$("adm-msg").textContent)admConnect(true);return;}
+  if(!on){if(!$("adm-msg").textContent)admConnect(true);return;}
   const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search}));
   $("run-after").textContent=st.run_after||"23:00";
   $("acct-form").innerHTML=SOC.map(([k,name,hint])=>`<label class="f"><span class="src" style="background:${PCOLOR[name]};margin-right:6px">${ABBR[name]}</span>${name}</label>
@@ -1268,12 +1300,12 @@ function renderSources(){
   kset("key-apify-state",ADM.keys.apify);kset("key-yt-state",ADM.keys.youtube);
 }
 async function admConnect(silent){
-  const v=$("adm-key").value.trim()||admKey;if(!v){$("adm-msg").textContent="Paste the admin key first.";return;}
+  const v=$("adm-key").value.trim()||admKey;if(!v&&!silent){$("adm-msg").textContent="Paste the admin key first.";return;}
   admKey=v;$("adm-msg").textContent=silent?"":"Connecting…";
   try{ADM=await adm("/settings");acctDraft=null;
     try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);($("adm-remember").checked?localStorage:sessionStorage).setItem(ADM_KEY,admKey);}catch(e){}
     $("adm-msg").textContent="";if(ADM.running)pollRun();}
-  catch(e){ADM=null;$("adm-msg").textContent=e.message;if(e.status===401){admKey="";try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(_){}}}
+  catch(e){ADM=null;$("adm-msg").textContent=silent&&e.status===401?" ":e.message;if(e.status===401){admKey="";try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(_){}}}
   renderSources();
 }
 async function saveSources(){
@@ -1329,7 +1361,7 @@ function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
 function renderLiveStatus(){const el=$("live-status");if(!el)return;if(!LIVE){el.textContent="Live data: none on this server yet.";return;}
   const names={google_news:"Google News",reddit:"Reddit",bluesky:"Bluesky",youtube:"YouTube",apify:"X and Instagram (Apify)"};
   el.innerHTML=`<b>Live data</b> · ${LIVE.mentions.length} mentions · updated ${relAgo(LIVE.updated)}<br>`+Object.entries(LIVE.sources||{}).map(([k,v])=>`${names[k]||k}: ${v.note?esc(v.note):v.ok?`${v.count} fetched, last run ${relAgo(v.last_run)}`:"no results last run"}`).join(" · ");}
-function renderSettings(){renderLiveStatus();
+function renderSettings(){renderLiveStatus();$("data-where").textContent=SHARED?"Imported files are uploaded to the server and shared with everyone who opens this site.":"Data stays in this browser.";$("clear-data").textContent=SHARED?"Remove imported file":"Clear data";
   draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
   $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
   chipBox($("set-kw"),draft.keywords,"Add keyword");
@@ -1371,7 +1403,7 @@ function parseFile(raw){
 }
 function importFile(f){
   const rd=new FileReader();
-  rd.onload=()=>{const rows=parseFile(String(rd.result));
+  rd.onload=async()=>{const rows=parseFile(String(rd.result));if(SHARED&&rows.length){await uploadShared(f.name,rows);return;}
     if(!rows.length){$("import-msg").textContent=`No posts found in ${f.name}. Check that it has a text column.`;go("alert-setup");return;}
     const now=new Date().toISOString();rows.forEach((r,i)=>{r.id="u"+i;if(!r.date)r.date=now;});
     S.imported=rows;S.forceSample=false;S.dataLabel=f.name;S.overrides={};S.meta={};S.blocked=[];if(!rows.some(r=>r.date!==now))S.range=0;
@@ -1381,11 +1413,23 @@ function importFile(f){
     render();};
   rd.readAsText(f);
 }
+async function uploadShared(name,rows){
+  const msg=$("import-msg");go("alert-setup");
+  try{
+    const post=(step,b)=>fetch("api/import?step="+step,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"HTTP "+r.status);return j;});
+    await post("start",{name});
+    for(let i=0;i<rows.length;i+=100){msg.textContent=`Uploading ${name}: ${Math.min(i+100,rows.length)} of ${rows.length} posts…`;await post("append",{rows:rows.slice(i,i+100).map((r,k)=>Object.assign({id:"im"+hashStr(name+"|"+(i+k)+"|"+r.text).toString(36)},r))});}
+    const fin=await post("finish",{});
+    const imp=await (await fetch("data/imported.json",{cache:"no-store"})).json();SIMPORT=imp;S.forceSample=false;setData();save();
+    const al=activeAlert();const p=periods();const hit=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,al)).length;
+    msg.textContent=`Uploaded ${fin.rows} posts from ${name}. Everyone who opens this site now sees them. ${hit} match “${al.name}” in the selected period.`;render();
+  }catch(e){msg.textContent=`Upload failed: ${e.message}`;}
+}
 $("file-top").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
 $("file-set").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
 $("use-live").onclick=()=>{S.imported=null;S.forceSample=false;S.dataLabel="Live data";setData();save();$("import-msg").textContent=LIVE&&LIVE.mentions.length?`Live data loaded: ${LIVE.mentions.length} mentions, updated ${relAgo(LIVE.updated)}.`:"No live data on this server yet. The fetcher writes it every hour once set up.";render();};
 $("load-sample").onclick=()=>{S.imported=null;S.forceSample=true;S.dataLabel="Sample data";S.overrides={};S.meta={};S.blocked=[];S.range=7;setData();save();$("import-msg").textContent="Sample data loaded.";render();};
-$("clear-data").onclick=()=>{S.extra=[];S.forceSample=false;S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
+$("clear-data").onclick=async()=>{if(SHARED){try{await fetch("api/import",{method:"DELETE"});}catch(e){}SIMPORT=null;S.forceSample=false;setData();save();$("import-msg").textContent="Removed the imported file for everyone.";render();return;}S.extra=[];S.forceSample=false;S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
@@ -1446,7 +1490,12 @@ load();
 function boot(){setData();
 $("single-input").value="Honestly the houseboat in Kumarakom was AMAZING 🔥 but the booking app kept crashing and support wasn't helpful at all 😤";
 lastView=current();render();}
-fetch("data/mentions.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&Array.isArray(j.mentions))LIVE=j;}).catch(()=>{}).finally(boot);
+const getJSON=u=>fetch(u,{cache:"no-store"}).then(r=>r.ok&&(r.headers.get("content-type")||"").includes("json")?r.json():null).catch(()=>null);
+Promise.all([getJSON("data/mentions.json"),getJSON("api/shared"),getJSON("data/imported.json")]).then(([live,sh,imp])=>{
+  if(live&&Array.isArray(live.mentions))LIVE=live;
+  if(sh&&sh.meta!==undefined){SHARED=true;applyShared(sh);if(!Array.isArray(sh.alerts)||!sh.alerts.length){SYNC.alerts="";scheduleSync();}}
+  if(SHARED&&imp&&Array.isArray(imp.mentions)&&imp.mentions.length)SIMPORT=imp;
+}).finally(()=>{boot();if(SHARED){setInterval(refreshShared,60000);window.addEventListener("focus",refreshShared);}});
 window.SentimeterAnalyze=analyze;
 })();
 </script>
