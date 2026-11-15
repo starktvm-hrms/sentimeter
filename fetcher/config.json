@@ -80,7 +80,7 @@
     ]
   },
   "apify": {
-    "enabled": true,
+    "enabled": false,
     "every_hours": 6,
     "x": {
       "actor": "apidojo~tweet-scraper",
@@ -89,6 +89,10 @@
     "instagram": {
       "actor": "apify~instagram-hashtag-scraper",
       "results_limit": 100
-    }
+    },
+    "note": "Replaced by 'social', which shares the monthly budget. Keyword search on X and Instagram is a toggle in Sources settings."
+  },
+  "social": {
+    "enabled": true
   }
 }

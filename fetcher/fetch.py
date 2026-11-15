@@ -13,13 +13,16 @@ Sources (each skipped cleanly when disabled or missing a key):
 
 Usage: fetch.py [--config fetcher/config.json] [--out public/data/mentions.json] [--only google_news,reddit] [--force]
 """
-import argparse, email.utils, hashlib, html, json, os, re, sys, time, urllib.parse, urllib.request
+import argparse, calendar, email.utils, fcntl, hashlib, html, json, os, re, sys, time, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UA = "Sentimeter/1.0 (social listening; +https://sentimeter.starkpeople.in)"
 NOW = datetime.now(timezone.utc)
+SETTINGS_PATH = os.environ.get("SENTIMETER_SETTINGS", "/etc/sentimeter/settings.json")
+USAGE_PATH = os.environ.get("SENTIMETER_USAGE", "/var/lib/sentimeter/usage.json")
+LOCK_PATH = os.environ.get("SENTIMETER_LOCK", "/tmp/sentimeter-fetch.lock")
 
 
 def log(*a):
@@ -245,7 +248,284 @@ def src_apify(cfg, kws):
     return out
 
 
-SOURCES = {"google_news": src_google_news, "reddit": src_reddit, "bluesky": src_bluesky, "youtube": src_youtube, "apify": src_apify}
+
+# ---------------- tracked social accounts (Apify, daily, budgeted) ----------------
+
+PLATFORMS = ["facebook", "instagram", "x", "linkedin", "youtube", "tiktok", "snapchat"]
+DEFAULT_ACTORS = {
+    "facebook": "apify~facebook-posts-scraper",
+    "instagram": "apify~instagram-post-scraper",
+    "x": "apidojo~tweet-scraper",
+    "linkedin": "harvestapi~linkedin-profile-posts",
+    "youtube": "youtube-data-api",
+    "tiktok": "clockworks~tiktok-scraper",
+    "snapchat": "parseforge~snapchat-scraper",
+    "x_search": "apidojo~tweet-scraper",
+    "instagram_hashtags": "apify~instagram-hashtag-scraper",
+}
+DEFAULT_SETTINGS = {
+    "accounts": {p: [] for p in PLATFORMS},
+    "actors": dict(DEFAULT_ACTORS),
+    "keyword_search": {"x_search": False, "instagram_hashtags": False},
+    "monthly_limit": 1000,
+    "run_after": "23:00",
+    "timezone": "Asia/Kolkata",
+}
+
+
+def load_settings():
+    s = json.loads(json.dumps(DEFAULT_SETTINGS))
+    try:
+        user = json.load(open(SETTINGS_PATH))
+    except FileNotFoundError:
+        user = {}
+    for k, v in user.items():
+        if isinstance(v, dict) and isinstance(s.get(k), dict):
+            s[k].update(v)
+        else:
+            s[k] = v
+    return s
+
+
+def local_now(tzname):
+    try:
+        from zoneinfo import ZoneInfo
+        return NOW.astimezone(ZoneInfo(tzname))
+    except Exception:
+        return NOW.astimezone(timezone(timedelta(hours=5, minutes=30)))
+
+
+def load_usage():
+    try:
+        return json.load(open(USAGE_PATH))
+    except Exception:
+        return {"months": {}, "last_daily_run": None}
+
+
+def save_usage(u):
+    os.makedirs(os.path.dirname(USAGE_PATH), exist_ok=True)
+    tmp = USAGE_PATH + ".tmp"
+    json.dump(u, open(tmp, "w"), indent=1)
+    os.replace(tmp, USAGE_PATH)
+
+
+def apify_call(path, token, data=None, timeout=60):
+    url = "https://api.apify.com/v2" + path
+    return json.loads(http(url, data=data, headers={"Authorization": "Bearer " + token}, timeout=timeout))
+
+
+def apify_run_capped(actor, payload, token, max_items):
+    """Start an actor run that Apify itself caps at max_items results, wait, return (items, billed_count)."""
+    q = urllib.parse.urlencode({"maxItems": max_items, "waitForFinish": 60})
+    run = apify_call(f"/acts/{urllib.parse.quote(actor, safe='~')}/runs?{q}", token, data=payload, timeout=90)["data"]
+    t0 = time.time()
+    while run["status"] in ("READY", "RUNNING") and time.time() - t0 < 900:
+        run = apify_call(f"/actor-runs/{run['id']}?waitForFinish=60", token, timeout=90)["data"]
+    ds = run.get("defaultDatasetId")
+    items = apify_call(f"/datasets/{ds}/items?clean=true&format=json&limit={max_items * 3}", token, timeout=120) if ds else []
+    try:
+        billed = int(apify_call(f"/datasets/{ds}", token)["data"].get("itemCount") or len(items))
+    except Exception:
+        billed = len(items)
+    if run["status"] not in ("SUCCEEDED", "TIMED-OUT"):
+        log(f"apify {actor} run ended {run['status']}")
+    return items if isinstance(items, list) else [], billed
+
+
+def g(d, *paths, default=""):
+    """First non-empty value among dotted paths."""
+    for p in paths:
+        v = d
+        for part in p.split("."):
+            v = v.get(part) if isinstance(v, dict) else None
+            if v is None:
+                break
+        if v not in (None, "", []):
+            return v
+    return default
+
+
+def num(*vals):
+    tot = 0
+    for v in vals:
+        try:
+            tot += int(v or 0)
+        except Exception:
+            pass
+    return tot
+
+
+def mention(platform, key, date, author, handle, text, url, reach, location="", title=""):
+    d = parse_date(date) if not isinstance(date, datetime) else date
+    return {"id": mid(platform[:2], str(key or url or text)), "date": iso(d or NOW), "platform": platform, "author": author or handle or platform,
+            "handle": handle or "", "location": location or "", "title": title or "", "text": text, "url": url or "", "reach": reach, "tracked": True}
+
+
+MAPPERS = {
+    "facebook": lambda i: mention("Facebook", g(i, "postId", "id", "url"), g(i, "time", "timestamp", "date"), g(i, "pageName", "user.name", "authorName"),
+                                  g(i, "pageName", "user.id"), g(i, "text", "message", "postText"), g(i, "url", "topLevelUrl"),
+                                  num(g(i, "likes", default=0), g(i, "comments", default=0), g(i, "shares", default=0))),
+    "instagram": lambda i: mention("Instagram", g(i, "id", "shortCode", "url"), g(i, "timestamp"), g(i, "ownerFullName", "ownerUsername"), g(i, "ownerUsername"),
+                                   g(i, "caption"), g(i, "url"), num(g(i, "likesCount", default=0), g(i, "commentsCount", default=0)), g(i, "locationName")),
+    "instagram_hashtags": lambda i: MAPPERS["instagram"](i),
+    "x": lambda i: mention("X", g(i, "id", "url"), g(i, "createdAt"), g(i, "author.name", "author.userName"), g(i, "author.userName"),
+                           g(i, "fullText", "text"), g(i, "url", "twitterUrl"), num(g(i, "author.followers", default=0)), g(i, "author.location")),
+    "x_search": lambda i: MAPPERS["x"](i),
+    "linkedin": lambda i: mention("LinkedIn", g(i, "id", "linkedinUrl", "url"), g(i, "postedAt.date", "postedAt.timestamp", "postedAt", "date"),
+                                  g(i, "author.name", "authorName"), g(i, "author.publicIdentifier", "author.universalName", "author.linkedinUrl"),
+                                  g(i, "content", "text", "commentary"), g(i, "linkedinUrl", "url", "postUrl"),
+                                  num(g(i, "engagement.likes", "numLikes", default=0), g(i, "engagement.comments", "numComments", default=0), g(i, "engagement.shares", "numShares", default=0))),
+    "youtube": lambda i: mention("YouTube", g(i, "id", "url"), g(i, "date", "uploadDate", "publishedAt"), g(i, "channelName"), g(i, "channelUsername", "channelUrl"),
+                                 (g(i, "title") + ". " + g(i, "text", "description")).strip(". "), g(i, "url"), num(g(i, "viewCount", default=0)), title=g(i, "title")),
+    "tiktok": lambda i: mention("TikTok", g(i, "id", "webVideoUrl"), g(i, "createTimeISO", "createTime"), g(i, "authorMeta.nickName", "authorMeta.name"), g(i, "authorMeta.name"),
+                                g(i, "text"), g(i, "webVideoUrl"), num(g(i, "playCount", default=0)), g(i, "locationCreated")),
+    "snapchat": lambda i: mention("Snapchat", g(i, "id", "url"), g(i, "postedAt", "uploadedAt", "createdAt"), g(i, "creatorUsername", "username"), g(i, "creatorUsername", "username"),
+                                  g(i, "title", "description", "text"), g(i, "url"), num(g(i, "viewCount", default=0))),
+}
+
+
+def platform_input(platform, accounts, keywords, per, total, today):
+    if platform == "facebook":
+        urls = [a if a.startswith("http") else f"https://www.facebook.com/{a.lstrip('@')}" for a in accounts]
+        return {"startUrls": [{"url": u} for u in urls], "resultsLimit": per, "onlyPostsNewerThan": today}
+    if platform == "instagram":
+        return {"username": [a.lstrip("@") for a in accounts], "resultsLimit": per, "onlyPostsNewerThan": today, "skipPinnedPosts": True}
+    if platform == "x":
+        return {"twitterHandles": [a.lstrip("@").split("/")[-1] for a in accounts], "maxItems": total, "sort": "Latest", "start": today}
+    if platform == "linkedin":
+        urls = [a if a.startswith("http") else f"https://www.linkedin.com/company/{a}/" for a in accounts]
+        return {"targetUrls": urls, "maxPosts": per, "postedLimit": "24h", "includeReposts": False}
+    if platform == "youtube":
+        urls = [a if a.startswith("http") else f"https://www.youtube.com/{a if a.startswith('@') else '@' + a}" for a in accounts]
+        half = max(1, per // 2)
+        return {"startUrls": [{"url": u} for u in urls], "maxResults": half, "maxResultsShorts": half, "maxResultStreams": 0,
+                "sortVideosBy": "NEWEST", "oldestPostDate": "1 day"}
+    if platform == "tiktok":
+        return {"profiles": [a.lstrip("@") for a in accounts], "resultsPerPage": per, "profileSorting": "latest",
+                "excludePinnedPosts": True, "oldestPostDateUnified": today}
+    if platform == "snapchat":
+        return {"usernames": [a.lstrip("@").split("/")[-1] for a in accounts], "resultType": "spotlight", "maxItems": total}
+    if platform == "x_search":
+        return {"searchTerms": keywords, "maxItems": total, "sort": "Latest", "start": today}
+    if platform == "instagram_hashtags":
+        tags = sorted({k.lstrip("#").replace(" ", "").lower() for k in keywords if re.fullmatch(r"#?\w+", k)})[:20]
+        return {"hashtags": tags, "resultsLimit": max(1, total // max(1, len(tags)))}
+    raise ValueError(platform)
+
+
+def youtube_api_channel_posts(handles, key, day_start):
+    """Today's uploads from channels via the free YouTube Data API (no Apify cost)."""
+    out = []
+    for h in handles:
+        h = h.strip()
+        try:
+            if "channel/" in h:
+                q = {"id": h.rsplit("channel/", 1)[-1].strip("/")}
+            else:
+                q = {"forHandle": "@" + h.rstrip("/").rsplit("/", 1)[-1].lstrip("@")}
+            ch = json.loads(http("https://www.googleapis.com/youtube/v3/channels?" + urllib.parse.urlencode({**q, "part": "contentDetails,snippet,statistics", "key": key})))
+            if not ch.get("items"):
+                log("youtube channel not found:", h)
+                continue
+            c = ch["items"][0]
+            uploads = c["contentDetails"]["relatedPlaylists"]["uploads"]
+            subs = int(c.get("statistics", {}).get("subscriberCount", 0) or 0)
+            pl = json.loads(http("https://www.googleapis.com/youtube/v3/playlistItems?" + urllib.parse.urlencode({"playlistId": uploads, "part": "snippet,contentDetails", "maxResults": 20, "key": key})))
+            for it in pl.get("items", []):
+                s = it["snippet"]
+                d = parse_date(it.get("contentDetails", {}).get("videoPublishedAt") or s.get("publishedAt"))
+                if not d or d < day_start:
+                    continue
+                vid = it["contentDetails"]["videoId"]
+                out.append(mention("YouTube", vid, d, s.get("channelTitle"), h, html.unescape(s.get("title", "")) + ". " + html.unescape(s.get("description", ""))[:1500],
+                                   f"https://www.youtube.com/watch?v={vid}", subs, title=html.unescape(s.get("title", ""))))
+        except Exception as e:
+            log("youtube channel failed:", h, e)
+    return out
+
+
+def src_social(cfg, kws, force=False):
+    st = load_settings()
+    token = os.environ.get("APIFY_TOKEN", "")
+    now_l = local_now(st.get("timezone", "Asia/Kolkata"))
+    today = now_l.strftime("%Y-%m-%d")
+    day_start = now_l.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    usage = load_usage()
+    if not force:
+        hh, mm = (st.get("run_after") or "23:00").split(":")
+        if now_l.hour * 60 + now_l.minute < int(hh) * 60 + int(mm) or usage.get("last_daily_run") == today:
+            return "not_due"
+    month = today[:7]
+    mu = usage["months"].setdefault(month, {"posts": 0, "runs": []})
+    days_in_month = calendar.monthrange(now_l.year, now_l.month)[1]
+    days_left = days_in_month - now_l.day + 1
+    remaining = max(0, int(st.get("monthly_limit", 1000)) - mu["posts"])
+    allowance = remaining // days_left if days_left else 0
+
+    accounts = {p: [a.strip() for a in st["accounts"].get(p, []) if a.strip()] for p in PLATFORMS}
+    actors = st["actors"]
+    out = []
+    # YouTube through the free API does not use the Apify budget
+    yt_free = accounts["youtube"] and actors.get("youtube") == "youtube-data-api"
+    if yt_free:
+        key = os.environ.get("YOUTUBE_API_KEY")
+        if key:
+            got = youtube_api_channel_posts(accounts["youtube"], key, day_start)
+            out += got
+            log(f"social youtube (free API): {len(got)} today")
+        else:
+            log("social youtube skipped: set YOUTUBE_API_KEY, or choose an Apify actor for YouTube")
+    jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
+    jobs += [k for k, on in st.get("keyword_search", {}).items() if on]
+    run_log = {"date": today, "allowance": allowance, "jobs": {}}
+    if jobs and not token:
+        log("social skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
+        run_log["note"] = "no Apify token"
+    elif jobs and allowance < 1:
+        log(f"social skipped: monthly limit reached ({mu['posts']}/{st.get('monthly_limit')})")
+        run_log["note"] = "monthly limit reached"
+    elif jobs:
+        share = max(1, allowance // len(jobs))
+        left = allowance
+        for p in jobs:
+            if left < 1:
+                run_log["jobs"][p] = {"skipped": "daily allowance used"}
+                continue
+            total = min(share, left)
+            n = len(accounts.get(p) or [1])
+            per = max(1, total // n)
+            actor = actors.get(p) or DEFAULT_ACTORS[p]
+            try:
+                payload = platform_input(p, accounts.get(p, []), kws, per, total, today)
+                items, billed = apify_run_capped(actor, payload, token, total)
+            except Exception as e:
+                log(f"social {p} failed:", e)
+                run_log["jobs"][p] = {"error": str(e)[:200]}
+                continue
+            left -= billed
+            mu["posts"] += billed
+            kept = 0
+            for it in items:
+                try:
+                    m = MAPPERS[p](it)
+                except Exception:
+                    continue
+                if not m["text"]:
+                    continue
+                if p in ("x_search", "instagram_hashtags"):
+                    m["tracked"] = False
+                if m["date"] >= iso(day_start):
+                    out.append(m)
+                    kept += 1
+            run_log["jobs"][p] = {"actor": actor, "billed": billed, "kept_today": kept}
+            log(f"social {p}: {billed} results billed, {kept} from today")
+    mu["runs"] = (mu["runs"] + [run_log])[-62:]
+    if run_log.get("note") != "no Apify token":
+        usage["last_daily_run"] = today
+    save_usage(usage)
+    return out
+
+SOURCES = {"google_news": src_google_news, "reddit": src_reddit, "bluesky": src_bluesky, "youtube": src_youtube, "apify": src_apify, "social": src_social}
 
 
 def main():
@@ -253,11 +533,19 @@ def main():
     ap.add_argument("--config", default=os.path.join(ROOT, "fetcher/config.json"))
     ap.add_argument("--out", default=os.path.join(ROOT, "public/data/mentions.json"))
     ap.add_argument("--only", default="")
-    ap.add_argument("--force", action="store_true", help="ignore every_hours schedules")
+    ap.add_argument("--skip", default="")
+    ap.add_argument("--force", action="store_true", help="ignore schedules (every_hours, daily run time)")
     a = ap.parse_args()
+    lock = open(LOCK_PATH, "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        log("another fetch is running; exiting")
+        return
     cfg = json.load(open(a.config))
     kws, excl = cfg["keywords"], [kw_regex(k) for k in cfg.get("excluded", [])]
     only = set(filter(None, a.only.split(",")))
+    skip = set(filter(None, a.skip.split(",")))
 
     old = {"mentions": [], "sources": {}}
     if os.path.exists(a.out):
@@ -270,19 +558,22 @@ def main():
 
     for name, fn in SOURCES.items():
         scfg = cfg.get(name, {})
-        if not scfg.get("enabled") or (only and name not in only):
+        if not scfg.get("enabled") or (only and name not in only) or name in skip:
             continue
         every = scfg.get("every_hours")
         last = parse_date(status.get(name, {}).get("last_run"))
         if every and last and not a.force and NOW - last < timedelta(hours=every) - timedelta(minutes=5):
             continue
         t0 = time.time()
-        skip = {s.lower() for s in scfg.get("skip_keywords", [])}
+        skip_kw = {s.lower() for s in scfg.get("skip_keywords", [])}
         try:
-            got = fn(scfg, [k for k in kws if k.lower() not in skip])
+            kw2 = [k for k in kws if k.lower() not in skip_kw]
+            got = fn(scfg, kw2, a.force) if name == "social" else fn(scfg, kw2)
         except Exception as e:
             log(name, "crashed:", e)
             got = []
+        if got == "not_due":
+            continue
         if got is None:
             status[name] = {"last_run": status.get(name, {}).get("last_run"), "ok": False, "count": 0, "note": "needs an API key"}
             continue
@@ -301,7 +592,12 @@ def main():
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     tmp = a.out + ".tmp"
     with open(tmp, "w") as f:
-        json.dump({"updated": iso(NOW), "keywords": kws, "sources": status, "mentions": ms}, f, ensure_ascii=False, separators=(",", ":"))
+        u = load_usage()
+        st = load_settings()
+        month = local_now(st.get("timezone", "Asia/Kolkata")).strftime("%Y-%m")
+        social = {"month": month, "used": u.get("months", {}).get(month, {}).get("posts", 0), "limit": st.get("monthly_limit", 1000),
+                  "last_daily_run": u.get("last_daily_run"), "last_run": (u.get("months", {}).get(month, {}).get("runs") or [None])[-1]}
+        json.dump({"updated": iso(NOW), "keywords": kws, "sources": status, "social": social, "mentions": ms}, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, a.out)
     log(f"wrote {len(ms)} mentions to {a.out}")
 

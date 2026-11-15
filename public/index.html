@@ -18,7 +18,7 @@
   --bg:#f1f3f7; --surface:#ffffff; --sunk:#eceff4; --ink:#141b27; --muted:#5b6576; --line:#dce1e8;
   --accent:#2a46d1; --accent-soft:#e5e9fb; --on-accent:#ffffff;
   --pos:#1b8456; --pos-soft:#dcf2e6; --neg:#c93b31; --neg-soft:#fae3e0; --neu:#8a94a3; --neu-soft:#e8ecf1;
-  --c1:#2a46d1; --c2:#138f9f; --c3:#8656d1; --c4:#d99a12; --c5:#d4457a; --c6:#46505f; --c7:#9b7354;
+  --c1:#2a46d1; --c2:#138f9f; --c3:#8656d1; --c4:#d99a12; --c5:#d4457a; --c6:#46505f; --c7:#9b7354; --c8:#0f7b6c; --c9:#b0560f;
   --side-bg:#131a29; --side-ink:#d5dcea; --side-muted:#8792a8; --side-hover:#1d2638; --side-active:#26324b; --side-line:#222c3f;
   --shadow:0 1px 2px rgba(20,27,39,.05),0 3px 12px rgba(20,27,39,.04);
   --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
@@ -29,14 +29,14 @@
   --bg:#0e131a; --surface:#161d27; --sunk:#1d2632; --ink:#e6ebf2; --muted:#98a3b3; --line:#29333f;
   --accent:#8299ff; --accent-soft:#222b4b; --on-accent:#0e131a;
   --pos:#47c28c; --pos-soft:#163326; --neg:#ff7b6f; --neg-soft:#3a1f1d; --neu:#7f8a9a; --neu-soft:#252e3a;
-  --c1:#8299ff; --c2:#3cc4d2; --c3:#b48cf2; --c4:#f0b93c; --c5:#f278a6; --c6:#9aa6b8; --c7:#c99a76;
+  --c1:#8299ff; --c2:#3cc4d2; --c3:#b48cf2; --c4:#f0b93c; --c5:#f278a6; --c6:#9aa6b8; --c7:#c99a76; --c8:#4fd1bd; --c9:#f0a060;
   --side-bg:#0a0e14; --side-ink:#d5dcea; --side-muted:#7f8aa0; --side-hover:#141b26; --side-active:#1c2535; --side-line:#1a222e;
   --shadow:none; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0e131a; --surface:#161d27; --sunk:#1d2632; --ink:#e6ebf2; --muted:#98a3b3; --line:#29333f;
   --accent:#8299ff; --accent-soft:#222b4b; --on-accent:#0e131a;
   --pos:#47c28c; --pos-soft:#163326; --neg:#ff7b6f; --neg-soft:#3a1f1d; --neu:#7f8a9a; --neu-soft:#252e3a;
-  --c1:#8299ff; --c2:#3cc4d2; --c3:#b48cf2; --c4:#f0b93c; --c5:#f278a6; --c6:#9aa6b8; --c7:#c99a76;
+  --c1:#8299ff; --c2:#3cc4d2; --c3:#b48cf2; --c4:#f0b93c; --c5:#f278a6; --c6:#9aa6b8; --c7:#c99a76; --c8:#4fd1bd; --c9:#f0a060;
   --side-bg:#0a0e14; --side-ink:#d5dcea; --side-muted:#7f8aa0; --side-hover:#141b26; --side-active:#1c2535; --side-line:#1a222e;
   --shadow:none; color-scheme:dark}
 *{box-sizing:border-box}
@@ -267,6 +267,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <a href="#dashboard" data-view="dashboard"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="7" rx="1.5"/><rect x="10" y="2" width="6" height="4" rx="1.5"/><rect x="2" y="11" width="6" height="5" rx="1.5"/><rect x="10" y="8" width="6" height="8" rx="1.5"/></svg>Dashboard</a>
       <a href="#mentions" data-view="mentions"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h12v8H8l-3 3v-3H3z" stroke-linejoin="round"/></svg>Mentions</a>
       <a href="#reports" data-view="reports"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2" width="13" height="14" rx="2"/><path d="M6 12V9M9 12V6M12 12v-2" stroke-linecap="round"/></svg>Reports</a>
+      <a href="#sources" data-view="sources"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="5" r="2.2"/><circle cx="13" cy="5" r="2.2"/><circle cx="9" cy="13.5" r="2.2"/><path d="M6.5 6.7 8 11.5M11.5 6.7 10 11.5M7.2 5h3.6" stroke-linecap="round"/></svg>Sources</a>
       <a href="#analyze" data-view="analyze"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 6-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 5h4v4" stroke-linecap="round"/></svg>Analyze text</a>
     </nav>
     <div class="side-head"><span>Alerts</span><button id="new-alert" title="New alert" aria-label="New alert">+</button></div>
@@ -374,6 +375,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
           <button class="chip" data-f="neg" aria-pressed="false">Negative</button>
           <button class="chip" data-f="flag" aria-pressed="false">Flagged</button>
           <button class="chip" data-f="star" aria-pressed="false">Starred</button>
+          <button class="chip" data-f="tracked" aria-pressed="false">Tracked accounts</button>
         </div>
         <input type="search" id="search" placeholder="Search mentions" aria-label="Search mentions">
         <select class="select" id="sort" aria-label="Sort">
@@ -435,6 +437,50 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <div class="card"><div class="card-head"><h2>Alert comparison</h2><span class="hint">same period and sources, all alerts</span></div><div class="card-body"><div class="tbl-wrap" id="r-alerts"></div></div></div>
     </section>
 
+    <!-- SOURCES -->
+    <section class="content" id="v-sources" hidden>
+      <div class="page-head"><div><h1>Sources</h1><p class="sub">Social accounts collected every day by the server, the Apify actor for each platform, and the monthly post limit. These settings are shared by everyone who uses this site.</p></div></div>
+
+      <div class="card" id="src-connect"><div class="card-head"><h2>Admin access</h2><span class="badge" id="src-badge">Not connected</span></div><div class="card-body">
+        <p class="hint" style="margin:0">Enter the admin key printed by <code>setup-sources.sh</code> on the server. Find it again with <code>grep ADMIN /etc/sentimeter.env</code>.</p>
+        <div class="toolbar"><input type="password" id="adm-key" autocomplete="off" spellcheck="false" placeholder="Admin key" style="flex:1;min-width:220px" aria-label="Admin key"><button class="btn primary" id="adm-connect" type="button">Connect</button><button class="btn" id="adm-forget" type="button" hidden>Disconnect</button></div>
+        <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="adm-remember" style="accent-color:var(--accent)"> Remember on this device</label>
+        <span class="hint" id="adm-msg" role="status"></span>
+      </div></div>
+
+      <div class="card"><div class="card-head"><h2>Monthly limit</h2><span class="hint" id="bud-month"></span></div><div class="card-body">
+        <div class="kpi"><span class="big" id="bud-used">0</span><span class="hint" id="bud-of">of 1,000 posts this month</span></div>
+        <div class="track" style="height:10px;border-radius:5px;background:var(--sunk);overflow:hidden"><div id="bud-bar" style="height:100%;width:0;background:var(--accent)"></div></div>
+        <p class="hint" style="margin:0" id="bud-note"></p>
+        <div class="tbl-wrap" id="bud-runs"></div>
+        <div class="toolbar" id="bud-admin" hidden>
+          <label for="bud-limit" style="font-weight:600">Posts per month</label><input type="text" id="bud-limit" inputmode="numeric" style="width:110px">
+          <span class="spacer"></span>
+          <button class="btn" id="run-now" type="button">Run today's collection now</button>
+        </div>
+        <pre id="run-log" class="hint" hidden style="background:var(--sunk);border-radius:8px;padding:10px;max-height:220px;overflow:auto;font:12px/1.5 var(--f-mono);white-space:pre-wrap"></pre>
+      </div></div>
+
+      <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Tracked accounts</h2><span class="hint">today's posts, collected daily after <span id="run-after">23:00</span> India time</span></div><div class="card-body">
+        <div class="form" id="acct-form"></div>
+        <div class="eyebrow" style="margin-top:6px">Keyword search (also counts toward the limit)</div>
+        <div class="form" id="kw-form"></div>
+      </div></div>
+
+      <div class="card" id="src-keys" hidden><div class="card-head"><h2>API keys on the server</h2></div><div class="card-body">
+        <p class="hint" style="margin:0">Keys are saved in <code>/etc/sentimeter.env</code> on the server and are never shown again or sent to browsers.</p>
+        <div class="form">
+          <label class="f" for="key-apify">Apify token</label>
+          <div class="toolbar"><input type="password" id="key-apify" autocomplete="off" placeholder="apify_api_…" style="flex:1;min-width:200px"><span class="pill" id="key-apify-state">Not set</span></div>
+          <label class="f" for="key-yt">YouTube API key</label>
+          <div class="toolbar"><input type="password" id="key-yt" autocomplete="off" placeholder="AIza…" style="flex:1;min-width:200px"><span class="pill" id="key-yt-state">Not set</span></div>
+        </div>
+        <div class="form-actions"><span class="hint" id="key-msg"></span><span class="spacer"></span><button class="btn" id="key-save" type="button">Save keys</button></div>
+      </div></div>
+
+      <div class="form-actions" id="src-save-bar" hidden style="border:0;padding:0"><span class="hint" id="src-msg" role="status"></span><span class="spacer"></span><button class="btn primary" id="src-save" type="button">Save sources</button></div>
+    </section>
+
     <!-- ANALYZE -->
     <section class="content" id="v-analyze" hidden>
       <div class="page-head"><div><h1>Analyze text</h1><p class="sub">Paste any post, comment or review to see how it is scored, word by word.</p></div></div>
@@ -477,6 +523,8 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
             <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="set-unknown" style="accent-color:var(--accent)"> Include results with unknown location</label></div>
           <label class="f">Sources</label>
           <div class="checks" id="set-src"></div>
+          <label class="f">Tracked accounts</label>
+          <label style="display:inline-flex;gap:8px;align-items:center;padding-top:8px"><input type="checkbox" id="set-tracked" style="accent-color:var(--accent)"> Include every post from the accounts on the Sources page, even without a keyword</label>
         </div>
         <div class="form-actions">
           <button class="btn danger" id="del-alert">Delete alert</button>
@@ -499,24 +547,6 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <div id="live-status" class="hint"></div>
       </div></div>
 
-      <div class="card"><div class="card-head"><h2>Apify: X and Instagram</h2><span class="badge" id="ap-badge">Not connected</span></div><div class="card-body">
-        <p class="hint" style="margin:0">Collect posts from X and Instagram for this alert's keywords with your Apify account. Apify charges per result, so check each actor's pricing on apify.com. Your token is used only in this browser to call Apify directly. It is never sent to the Sentimeter server, and fetched posts are visible only on this device.</p>
-        <div class="form">
-          <label class="f" for="ap-token">API token</label>
-          <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-            <div class="toolbar"><input type="password" id="ap-token" autocomplete="off" spellcheck="false" placeholder="apify_api_…" style="flex:1;min-width:200px"><button class="btn" id="ap-show" type="button">Show</button><button class="btn" id="ap-test" type="button">Connect</button></div>
-            <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="ap-remember" style="accent-color:var(--accent)"> Remember the token on this device</label>
-            <span class="hint">Find it in the Apify Console under Settings, then API &amp; Integrations.</span>
-          </div>
-          <label class="f">Sources</label>
-          <div class="checks"><label><input type="checkbox" id="ap-x"> <span class="src" style="background:var(--c6)">X</span> X (Twitter) search</label><label><input type="checkbox" id="ap-ig"> <span class="src" style="background:var(--c5)">IG</span> Instagram hashtags</label></div>
-          <label class="f" for="ap-max">Results per source</label>
-          <div class="toolbar"><select class="select" id="ap-max"><option value="50">50</option><option value="100">100</option><option value="250">250</option><option value="500">500</option></select><span class="hint">Higher limits cost more.</span></div>
-          <label class="f">Actors</label>
-          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="toolbar"><input type="text" id="ap-x-actor" aria-label="X actor ID" style="flex:1;min-width:200px"><input type="text" id="ap-ig-actor" aria-label="Instagram actor ID" style="flex:1;min-width:200px"></div><span class="hint">Apify actor IDs for X and Instagram. Change them only if you use different actors.</span></div>
-        </div>
-        <div class="form-actions"><span class="hint" id="ap-msg" role="status"></span><span class="spacer"></span><button class="btn" id="ap-clear" type="button">Remove fetched posts</button><button class="btn primary" id="ap-run" type="button">Fetch now</button></div>
-      </div></div>
     </section>
   </main>
 </div>
@@ -692,14 +722,14 @@ function highlight(r){
 
 
 /* ---------- Constants ---------- */
-const PLATFORMS=["X","Facebook","Instagram","YouTube","Reddit","News/Blogs","Web"];
-const ABBR={X:"X",Facebook:"f",Instagram:"IG",YouTube:"YT",Reddit:"R","News/Blogs":"N",Web:"W"};
-const PCOLOR={X:"var(--c6)",Facebook:"var(--c1)",Instagram:"var(--c5)",YouTube:"var(--neg)",Reddit:"var(--c4)","News/Blogs":"var(--c2)",Web:"var(--c7)"};
+const PLATFORMS=["X","Facebook","Instagram","LinkedIn","YouTube","TikTok","Snapchat","Reddit","News/Blogs","Web"];
+const ABBR={X:"X",Facebook:"f",Instagram:"IG",LinkedIn:"in",YouTube:"YT",TikTok:"TT",Snapchat:"SC",Reddit:"R","News/Blogs":"N",Web:"W"};
+const PCOLOR={X:"var(--c6)",Facebook:"var(--c1)",Instagram:"var(--c5)",LinkedIn:"var(--c8)",TikTok:"var(--c3)",Snapchat:"var(--c9)",YouTube:"var(--neg)",Reddit:"var(--c4)","News/Blogs":"var(--c2)",Web:"var(--c7)"};
 const LANGS=["English","Hindi","Malayalam","Tamil","Arabic","Other"];
 const LCOLOR={English:"var(--c1)",Hindi:"var(--c2)",Malayalam:"var(--c3)",Tamil:"var(--c5)",Arabic:"var(--c4)",Other:"var(--c7)"};
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const STOP=new Set(("a an the and or but if of to in on at by for with from as is are was were be been being it its it's this that these those i me my we our you your he she they them their his her im i'm so very just not no yes do does did done have has had will would can could should may might must there here what which who whom when where why how all any some more most other such only own same than too also into out up down over under again then once about after before while because until during through between both each few nor off very s t don't can't won't us am get got go going one two three new day days time today tonight now still even really much many like").split(" "));
-function normPlatform(s){s=String(s||"").toLowerCase().trim();if(!s)return"Web";if(/^(x|twitter|tweet)/.test(s))return"X";if(s.includes("face")||s==="fb")return"Facebook";if(s.includes("insta")||s==="ig")return"Instagram";if(s.includes("youtu")||s==="yt")return"YouTube";if(s.includes("reddit"))return"Reddit";if(/news|blog|article|press|media/.test(s))return"News/Blogs";return"Web";}
+function normPlatform(s){s=String(s||"").toLowerCase().trim();if(!s)return"Web";if(/^(x|twitter|tweet)/.test(s))return"X";if(s.includes("face")||s==="fb")return"Facebook";if(s.includes("insta")||s==="ig")return"Instagram";if(s.includes("youtu")||s==="yt")return"YouTube";if(s.includes("linkedin"))return"LinkedIn";if(s.includes("tiktok"))return"TikTok";if(s.includes("snap"))return"Snapchat";if(s.includes("reddit"))return"Reddit";if(/news|blog|article|press|media/.test(s))return"News/Blogs";return"Web";}
 function normGender(g){g=String(g||"").toLowerCase().trim();if(/^(m|male|man)$/.test(g))return"Male";if(/^(f|female|woman)$/.test(g))return"Female";return"";}
 const AGE_BUCKETS=["18-24","25-34","35-44","45-54","55-64","65+"];
 function normAge(a){a=String(a||"").trim();if(!a)return"";const hit=AGE_BUCKETS.find(b=>a.replace(/\s|–/g,"-").startsWith(b));if(hit)return hit;const n=parseInt(a,10);if(!(n>=13))return"";return n<25?"18-24":n<35?"25-34":n<45?"35-44":n<55?"45-54":n<65?"55-64":"65+";}
@@ -825,7 +855,8 @@ const KEY="murmur-v2";
 let S={extra:[],apify:{x:true,ig:true,max:100,xActor:"apidojo~tweet-scraper",igActor:"apify~instagram-hashtag-scraper"},forceSample:false,meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
 let MENTIONS=[];let NOW_TS=Date.now();let LIVE=null;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
-function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}}
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}
+  S.alerts.forEach(a=>{if(!a.srcV3){["LinkedIn","TikTok","Snapchat"].forEach(p=>{if(!a.sources.includes(p))a.sources.push(p);});a.srcV3=true;}if(a.tracked===undefined)a.tracked=true;});}
 function prepare(raw){
   return raw.map((m,i)=>{
     const text=String(m.text||"");
@@ -834,7 +865,7 @@ function prepare(raw){
     const d=new Date(m.date);const iso=isNaN(d)?new Date().toISOString():d.toISOString();
     return{id:m.id||("m"+i),text,author:m.author||m.handle||"Unknown author",handle:m.handle||"",platform:normPlatform(m.platform),location:loc,
       country:parts.length?parts[parts.length-1]:"",region:parts.length>=3?parts[parts.length-2]:parts.length===2?parts[0]:parts[0]||"",
-      gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
+      gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),tracked:!!m.tracked,url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
   });
 }
 function dataMode(){return S.imported?"import":(LIVE&&LIVE.mentions.length&&!S.forceSample)?"live":"sample";}
@@ -849,10 +880,11 @@ const activeAlert=()=>S.alerts.find(a=>a.id===S.active)||S.alerts[0];
 const reCache=new Map();
 function kwRe(k){if(reCache.has(k))return reCache.get(k);const e=k.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");const r=new RegExp("(?<![\\p{L}\\p{N}_])"+e+"(?![\\p{L}\\p{N}_])","iu");reCache.set(k,r);return r;}
 function matches(m,al){
-  if(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text)))return false;
+  const own=m.tracked&&al.tracked!==false;
+  if(!own&&(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text))))return false;
   if(al.excluded.some(k=>kwRe(k).test(m.text)))return false;
   if(al.langs.length&&!al.langs.includes(m.lang))return false;
-  if(al.locations.length){if(!m.location){if(!al.unknown)return false;}else if(!al.locations.some(l=>m.location.toLowerCase().includes(l.toLowerCase())))return false;}
+  if(al.locations.length&&!own){if(!m.location){if(!al.unknown)return false;}else if(!al.locations.some(l=>m.location.toLowerCase().includes(l.toLowerCase())))return false;}
   if(!al.sources.includes(m.platform))return false;
   return true;
 }
@@ -1000,7 +1032,7 @@ function mentionHTML(m,full){
 let F={s:"all",q:"",sort:"new",term:null,termText:null,limit:40};
 function feedList(){
   let arr=pools().cur;
-  if(F.s==="flag")arr=arr.filter(m=>m.a.flags.length||m.lang!=="English");else if(F.s==="star")arr=arr.filter(m=>getMeta(m.id).star);else if(F.s!=="all")arr=arr.filter(m=>labelOf(m)===F.s);
+  if(F.s==="flag")arr=arr.filter(m=>m.a.flags.length||m.lang!=="English");else if(F.s==="star")arr=arr.filter(m=>getMeta(m.id).star);else if(F.s==="tracked")arr=arr.filter(m=>m.tracked);else if(F.s!=="all")arr=arr.filter(m=>labelOf(m)===F.s);
   if(F.q){const q=F.q.toLowerCase();arr=arr.filter(m=>(m.text+" "+m.author+" "+m.location).toLowerCase().includes(q));}
   if(F.term)arr=arr.filter(m=>m.a.items.some(it=>(it.negated?"not "+it.key:it.key)===F.term));
   if(F.termText)arr=arr.filter(m=>m.text.toLowerCase().includes(F.termText));
@@ -1016,7 +1048,7 @@ function itemHTML(m,sel,simN){const lb=labelOf(m),mt=getMeta(m.id);
   <div class="row1"><span class="src" style="background:${PCOLOR[m.platform]}">${ABBR[m.platform]}</span><span class="t">${esc(titleOf(m))}</span><span class="when">${relTime(m.date)}</span></div>
   ${m.platform==="News/Blogs"||m.title?`<div class="m-meta">${esc(m.author)}${m.location?" · "+esc(m.location):""}</div>`:""}
   <div class="snip">${esc(m.text)}</div>
-  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span>${m.reach?`<span class="num">${compact(m.reach)} reach</span>`:""}${simN?`<span>+${simN} similar</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
+  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span>${m.reach?`<span class="num">${compact(m.reach)} reach</span>`:""}${simN?`<span>+${simN} similar</span>`:""}${m.tracked?`<span class="flag">Tracked</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
 let arm=null;
 function renderMentions(){
   const arr=feedList();const s=splits(arr);const all=pools().cur;
@@ -1193,6 +1225,82 @@ function renderReports(){
 function copyOut(text,btn,label){const out=$("r-out");const fb=()=>{out.hidden=false;out.value=text;out.focus();out.select();btn.textContent="Select all and copy";};
   try{navigator.clipboard.writeText(text).then(()=>{out.hidden=true;btn.textContent="Copied";setTimeout(()=>btn.textContent=label,1600);},fb);}catch(e){fb();}}
 
+/* ---------- Sources (server settings) ---------- */
+const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPoll=null,runArm=false;
+try{admKey=localStorage.getItem(ADM_KEY)||sessionStorage.getItem(ADM_KEY)||"";}catch(e){}
+const SOC=[["facebook","Facebook","Page URL or username, e.g. keralatourism"],["instagram","Instagram","Username, e.g. keralatourism"],["x","X","Handle, e.g. KeralaTourism"],["linkedin","LinkedIn","Company or profile URL"],["youtube","YouTube","Channel handle, e.g. @keralatourism"],["tiktok","TikTok","Username"],["snapchat","Snapchat","Username"]];
+const SOC_DEF={facebook:"apify~facebook-posts-scraper",instagram:"apify~instagram-post-scraper",x:"apidojo~tweet-scraper",linkedin:"harvestapi~linkedin-profile-posts",youtube:"youtube-data-api",tiktok:"clockworks~tiktok-scraper",snapchat:"parseforge~snapchat-scraper",x_search:"apidojo~tweet-scraper",instagram_hashtags:"apify~instagram-hashtag-scraper"};
+async function adm(path,opts={}){
+  const r=await fetch("api"+path,Object.assign({},opts,{headers:Object.assign({"Authorization":"Bearer "+admKey},opts.body?{"Content-Type":"application/json"}:{})}));
+  let j=null;try{j=await r.json();}catch(e){}
+  if(!r.ok){const err=new Error(j&&j.error||(r.status===404||r.status===405?"The settings service is not set up on this server yet. Run deploy/setup-sources.sh on the VPS.":"Server error "+r.status));err.status=r.status;throw err;}
+  return j;
+}
+function fmtInt(n){return Number(n||0).toLocaleString("en-IN");}
+function daysLeftInMonth(){const ist=new Date(Date.now()+5.5*36e5);const y=ist.getUTCFullYear(),mo=ist.getUTCMonth();const dim=new Date(Date.UTC(y,mo+1,0)).getUTCDate();return dim-ist.getUTCDate()+1;}
+function renderBudget(){
+  const pub=LIVE&&LIVE.social;const used=ADM?ADM.usage.used:(pub?pub.used:0);const limit=ADM?ADM.settings.monthly_limit:(pub?pub.limit:1000);
+  const runs=ADM?ADM.usage.runs:(pub&&pub.last_run?[pub.last_run]:[]);
+  $("bud-used").textContent=fmtInt(used);$("bud-of").textContent=`of ${fmtInt(limit)} posts this month`;
+  $("bud-month").textContent=ADM?ADM.usage.month:(pub?pub.month:"");
+  $("bud-bar").style.width=Math.min(100,limit?used/limit*100:0)+"%";$("bud-bar").style.background=used>=limit?"var(--neg)":used>=limit*.8?"var(--c4)":"var(--accent)";
+  const dl=daysLeftInMonth();const allow=Math.max(0,Math.floor((limit-used)/dl));
+  $("bud-note").textContent=`${fmtInt(Math.max(0,limit-used))} left for ${dl} day${dl>1?"s":""}, so about ${fmtInt(allow)} posts per day. Apify charges for every result an actor returns, including older posts that are then dropped, and each run is capped at the day's allowance.`;
+  $("bud-runs").innerHTML=runs.length?tbl([["Date"],["Allowance","r"],["Results by platform"]],runs.slice().reverse().map(r=>[r.date,r.allowance,r.note?esc(r.note):Object.entries(r.jobs||{}).map(([k,v])=>`${esc(k)}: ${v.error?`<span class="neg-c">failed</span>`:v.skipped?"skipped":`${v.billed} billed, ${v.kept_today} today`}`).join(" · ")||"no accounts set"])):`<p class="hint" style="margin:0">No daily runs yet this month.</p>`;
+  $("bud-admin").hidden=!ADM;if(ADM&&document.activeElement!==$("bud-limit"))$("bud-limit").value=limit;
+}
+function renderSources(){
+  const on=!!ADM;$("src-badge").textContent=on?"Connected":"Not connected";$("adm-forget").hidden=!on;$("adm-connect").hidden=on;$("adm-key").hidden=on;
+  if(document.activeElement!==$("adm-key"))$("adm-key").value=on?"":admKey;
+  ["src-accounts","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
+  renderBudget();
+  if(!on){if(admKey&&!$("adm-msg").textContent)admConnect(true);return;}
+  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search}));
+  $("run-after").textContent=st.run_after||"23:00";
+  $("acct-form").innerHTML=SOC.map(([k,name,hint])=>`<label class="f"><span class="src" style="background:${PCOLOR[name]};margin-right:6px">${ABBR[name]}</span>${name}</label>
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox loc" id="acc-${k}"></div>
+    <div class="toolbar"><span class="hint">Actor</span><input type="text" id="act-${k}" value="${esc(acctDraft.actors[k]||SOC_DEF[k])}" style="flex:1;min-width:200px" aria-label="${name} actor">${k==="youtube"?`<span class="hint">“youtube-data-api” uses your free YouTube key instead of Apify</span>`:""}</div></div>`).join("");
+  SOC.forEach(([k,,hint])=>{acctDraft.accounts[k]=acctDraft.accounts[k]||[];chipBox($("acc-"+k),acctDraft.accounts[k],hint,()=>{});});
+  $("kw-form").innerHTML=[["x_search","X keyword search","Searches X for this site's alert keywords"],["instagram_hashtags","Instagram hashtags","Collects posts under keyword hashtags"]].map(([k,name,hint])=>`<label class="f">${name}</label>
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="kw-${k}" ${acctDraft.keyword_search[k]?"checked":""} style="accent-color:var(--accent)"> ${hint}</label>
+    <div class="toolbar"><span class="hint">Actor</span><input type="text" id="act-${k}" value="${esc(acctDraft.actors[k]||SOC_DEF[k])}" style="flex:1;min-width:200px" aria-label="${name} actor"></div></div>`).join("");
+  const kset=(id,v)=>{const el=$(id);el.textContent=v?"Saved":"Not set";el.className="pill "+(v?"pos":"neu");};
+  kset("key-apify-state",ADM.keys.apify);kset("key-yt-state",ADM.keys.youtube);
+}
+async function admConnect(silent){
+  const v=$("adm-key").value.trim()||admKey;if(!v){$("adm-msg").textContent="Paste the admin key first.";return;}
+  admKey=v;$("adm-msg").textContent=silent?"":"Connecting…";
+  try{ADM=await adm("/settings");acctDraft=null;
+    try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);($("adm-remember").checked?localStorage:sessionStorage).setItem(ADM_KEY,admKey);}catch(e){}
+    $("adm-msg").textContent="";if(ADM.running)pollRun();}
+  catch(e){ADM=null;$("adm-msg").textContent=e.message;if(e.status===401){admKey="";try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(_){}}}
+  renderSources();
+}
+async function saveSources(){
+  SOC.forEach(([k])=>{const i=$("acc-"+k).querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.accounts[k].includes(v))acctDraft.accounts[k].push(v);});i.value="";}});
+  SOC.forEach(([k])=>acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k]);
+  ["x_search","instagram_hashtags"].forEach(k=>{acctDraft.keyword_search[k]=$("kw-"+k).checked;acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k];});
+  const lim=parseInt($("bud-limit").value,10);
+  $("src-msg").textContent="Saving…";
+  try{ADM=await adm("/settings",{method:"PUT",body:JSON.stringify(Object.assign({},acctDraft,isNaN(lim)?{}:{monthly_limit:lim}))});acctDraft=null;$("src-msg").textContent="Saved. The next daily run uses these settings.";renderSources();}
+  catch(e){$("src-msg").textContent=e.message;}
+}
+function pollRun(){clearInterval(runPoll);$("run-log").hidden=false;$("run-now").disabled=true;
+  runPoll=setInterval(async()=>{try{const s=await adm("/status");$("run-log").textContent=s.log.filter(l=>/social|apify|youtube|wrote|limit|skipped|failed/i.test(l)).slice(-12).join("\n")||"Starting…";
+    if(!s.running){clearInterval(runPoll);$("run-now").disabled=false;ADM=await adm("/settings");renderSources();
+      try{const j=await (await fetch("data/mentions.json",{cache:"no-cache"})).json();if(j&&Array.isArray(j.mentions)){LIVE=j;setData();renderChrome();}}catch(e){}}}catch(e){clearInterval(runPoll);$("run-now").disabled=false;}},4000);}
+$("adm-connect").onclick=()=>admConnect(false);
+$("adm-key").onkeydown=e=>{if(e.key==="Enter")admConnect(false);};
+$("adm-forget").onclick=()=>{ADM=null;admKey="";acctDraft=null;try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(e){}$("adm-msg").textContent="Disconnected.";renderSources();};
+$("src-save").onclick=saveSources;
+$("key-save").onclick=async()=>{const b={};const a=$("key-apify").value.trim(),y=$("key-yt").value.trim();if(a)b.apify_token=a;if(y)b.youtube_api_key=y;
+  if(!a&&!y){$("key-msg").textContent="Paste a key to save it.";return;}
+  try{ADM=await adm("/keys",{method:"POST",body:JSON.stringify(b)});$("key-apify").value="";$("key-yt").value="";$("key-msg").textContent="Saved on the server.";renderSources();}catch(e){$("key-msg").textContent=e.message;}};
+$("run-now").onclick=async()=>{
+  if(!runArm){runArm=true;const dl=daysLeftInMonth();$("run-now").textContent=`Run now: uses up to ${fmtInt(Math.floor((ADM.settings.monthly_limit-ADM.usage.used)/dl))} posts. Click again`;setTimeout(()=>{runArm=false;$("run-now").textContent="Run today's collection now";},6000);return;}
+  runArm=false;$("run-now").textContent="Run today's collection now";
+  try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
+
 /* ---------- Render: analyze ---------- */
 function renderAnalyze(){
   const r=analyze($("single-input").value);
@@ -1214,90 +1322,30 @@ function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
     const inp=el.querySelector("input");
     inp.onkeydown=e=>{if((e.key==="Enter"||e.key===",")&&inp.value.trim()){e.preventDefault();inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.some(a=>a.toLowerCase()===v.toLowerCase()))arr.push(v);});draw();el.querySelector("input").focus();ch();}
       else if(e.key==="Backspace"&&!inp.value&&arr.length){arr.pop();draw();el.querySelector("input").focus();ch();}};
-    inp.onblur=()=>{if(inp.value.trim()){inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.includes(v))arr.push(v);});draw();ch();}};};
+    inp.onblur=()=>setTimeout(()=>{if(!el.isConnected||!inp.isConnected)return;if(inp.value.trim()){inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.includes(v))arr.push(v);});draw();ch();}});};
   el.onclick=e=>{const b=e.target.closest("button[data-i]");if(b){arr.splice(+b.dataset.i,1);draw();ch();}else if(e.target===el)el.querySelector("input").focus();};
   draw();
 }
 function renderLiveStatus(){const el=$("live-status");if(!el)return;if(!LIVE){el.textContent="Live data: none on this server yet.";return;}
   const names={google_news:"Google News",reddit:"Reddit",bluesky:"Bluesky",youtube:"YouTube",apify:"X and Instagram (Apify)"};
   el.innerHTML=`<b>Live data</b> · ${LIVE.mentions.length} mentions · updated ${relAgo(LIVE.updated)}<br>`+Object.entries(LIVE.sources||{}).map(([k,v])=>`${names[k]||k}: ${v.note?esc(v.note):v.ok?`${v.count} fetched, last run ${relAgo(v.last_run)}`:"no results last run"}`).join(" · ");}
-/* ---------- Apify (runs in the browser) ---------- */
-const AP_KEY="sentimeter-apify-token";const AP="https://api.apify.com/v2";let apToken="",apBusy=false;
-try{apToken=localStorage.getItem(AP_KEY)||sessionStorage.getItem(AP_KEY)||"";}catch(e){}
-function apSetToken(v,remember){apToken=v.trim();try{localStorage.removeItem(AP_KEY);sessionStorage.removeItem(AP_KEY);if(apToken)(remember?localStorage:sessionStorage).setItem(AP_KEY,apToken);}catch(e){}}
-async function apFetch(path,opts={}){
-  const r=await fetch(AP+path,Object.assign({},opts,{headers:Object.assign({"Authorization":"Bearer "+apToken},opts.body?{"Content-Type":"application/json"}:{})}));
-  let j=null;try{j=await r.json();}catch(e){}
-  if(!r.ok){const m=j&&j.error&&j.error.message||("HTTP "+r.status);const e=new Error(r.status===401?"Apify rejected the token. Check it in the Apify Console.":m);e.status=r.status;throw e;}
-  return j;
-}
-function apMsg(s){$("ap-msg").textContent=s;}
-function apUI(){const a=S.apify;$("ap-token").value=apToken;let rem=false;try{rem=!!localStorage.getItem(AP_KEY);}catch(e){}$("ap-remember").checked=rem;
-  $("ap-x").checked=a.x;$("ap-ig").checked=a.ig;$("ap-max").value=String(a.max);$("ap-x-actor").value=a.xActor;$("ap-ig-actor").value=a.igActor;
-  $("ap-run").textContent=`Fetch for “${activeAlert().name}”`;$("ap-run").disabled=apBusy;
-  const nx=(S.extra||[]).length;$("ap-clear").hidden=!nx;$("ap-clear").textContent=`Remove ${nx} fetched posts`;
-  if(!apToken)$("ap-badge").textContent="Not connected";}
-function apRead(){const a=S.apify;a.x=$("ap-x").checked;a.ig=$("ap-ig").checked;a.max=+$("ap-max").value;a.xActor=$("ap-x-actor").value.trim()||"apidojo~tweet-scraper";a.igActor=$("ap-ig-actor").value.trim()||"apify~instagram-hashtag-scraper";save();}
-async function apConnect(){
-  apSetToken($("ap-token").value,$("ap-remember").checked);
-  if(!apToken){apMsg("Paste your Apify API token first.");return false;}
-  apMsg("Checking the token…");
-  try{const j=await apFetch("/users/me");const u=j.data||{};$("ap-badge").textContent="Connected: "+(u.username||"Apify account");apMsg("Connected. Choose sources and fetch.");return true;}
-  catch(e){$("ap-badge").textContent="Not connected";apMsg(e.message);return false;}
-}
-function apMapX(t){const a=t.author||{};const text=t.fullText||t.text||"";if(!text)return null;
-  return{id:"ax"+hashStr(String(t.id||t.url||text)).toString(36),date:t.createdAt||new Date().toISOString(),platform:"X",author:a.name||a.userName||"X user",handle:a.userName||"",location:a.location||"",text,url:t.url||t.twitterUrl||"",lang:t.lang||"",reach:+(a.followers||0)};}
-function apMapIG(p){const text=p.caption||"";if(!text)return null;
-  return{id:"ai"+hashStr(String(p.id||p.url||text)).toString(36),date:p.timestamp||new Date().toISOString(),platform:"Instagram",author:p.ownerFullName||p.ownerUsername||"Instagram user",handle:p.ownerUsername||"",location:p.locationName||"",text,url:p.url||"",reach:(+p.likesCount||0)+(+p.commentsCount||0)};}
-async function apActor(label,actor,input,map,limit){
-  const t0=Date.now();apMsg(`${label}: starting run…`);
-  let run=(await apFetch(`/acts/${encodeURIComponent(actor)}/runs?waitForFinish=30`,{method:"POST",body:JSON.stringify(input)})).data;
-  while(run.status==="READY"||run.status==="RUNNING"){apMsg(`${label}: running (${Math.round((Date.now()-t0)/1000)}s)…`);run=(await apFetch(`/actor-runs/${run.id}?waitForFinish=30`)).data;}
-  if(run.status!=="SUCCEEDED"&&run.status!=="TIMED-OUT")throw new Error(`${label} run ${run.status.toLowerCase()}. See the run in the Apify Console.`);
-  const items=await apFetch(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json&limit=${limit}`);
-  return(Array.isArray(items)?items:[]).map(map).filter(Boolean);
-}
-async function apRun(){
-  if(apBusy)return;apRead();
-  if(!apToken||$("ap-token").value.trim()!==apToken){if(!(await apConnect()))return;}
-  const a=S.apify,al=activeAlert();
-  if(!a.x&&!a.ig){apMsg("Tick X or Instagram first.");return;}
-  if(!al.keywords.length){apMsg("This alert has no keywords yet.");return;}
-  apBusy=true;apUI();const got=[];const notes=[];
-  try{
-    if(a.x){try{const r=await apActor("X",a.xActor,{searchTerms:al.keywords,maxItems:a.max,sort:"Latest"},apMapX,a.max*2);got.push(...r);notes.push(`${r.length} from X`);}catch(e){notes.push("X failed: "+e.message);}}
-    if(a.ig){const tags=[...new Set(al.keywords.map(k=>k.replace(/^#/,"").replace(/\s+/g,"").toLowerCase()).filter(k=>/^[\p{L}\p{N}_]+$/u.test(k)))].slice(0,20);
-      if(tags.length){try{const r=await apActor("Instagram",a.igActor,{hashtags:tags,resultsLimit:Math.max(5,Math.floor(a.max/tags.length))},apMapIG,a.max*2);got.push(...r);notes.push(`${r.length} from Instagram`);}catch(e){notes.push("Instagram failed: "+e.message);}}}
-    const ex=(al.excluded||[]).map(kwRe);const keep=got.filter(r=>!ex.some(re=>re.test(r.text)));
-    const byId=new Map((S.extra||[]).map(r=>[r.id,r]));let fresh=0;keep.forEach(r=>{if(!byId.has(r.id))fresh++;byId.set(r.id,r);});
-    S.extra=[...byId.values()].sort((x,y)=>String(y.date).localeCompare(String(x.date))).slice(0,3000);
-    save();setData();renderChrome();apMsg(`${notes.join(" · ")}. ${fresh} new posts added.`);
-  }finally{apBusy=false;apUI();}
-}
-$("ap-show").onclick=()=>{const i=$("ap-token");const s=i.type==="password";i.type=s?"text":"password";$("ap-show").textContent=s?"Hide":"Show";};
-$("ap-test").onclick=apConnect;
-$("ap-remember").onchange=()=>apSetToken($("ap-token").value,$("ap-remember").checked);
-["ap-x","ap-ig","ap-max","ap-x-actor","ap-ig-actor"].forEach(id=>$(id).onchange=apRead);
-$("ap-run").onclick=()=>{apRun().catch(e=>{apBusy=false;apUI();apMsg(e.message);});};
-$("ap-clear").onclick=()=>{S.extra=[];save();setData();renderChrome();apUI();apMsg("Removed the posts fetched from Apify.");};
-
-function renderSettings(){renderLiveStatus();apUI();
+function renderSettings(){renderLiveStatus();
   draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
   $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
   chipBox($("set-kw"),draft.keywords,"Add keyword");
   chipBox($("set-ex"),draft.excluded,"Add excluded keyword");
   chipBox($("set-loc"),draft.locations,"Any location (add a country, state or city)");
-  $("set-unknown").checked=draft.unknown;
+  $("set-unknown").checked=draft.unknown;$("set-tracked").checked=draft.tracked!==false;
   $("set-lang").innerHTML=LANGS.map(l=>`<label><input type="checkbox" value="${l}" ${draft.langs.includes(l)?"checked":""}> ${l}</label>`).join("");
   $("set-src").innerHTML=PLATFORMS.map(p=>`<label><input type="checkbox" value="${p}" ${draft.sources.includes(p)?"checked":""}> <span class="src" style="background:${PCOLOR[p]}">${ABBR[p]}</span> ${p}</label>`).join("");
   preview();
 }
-function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.unknown=$("set-unknown").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
+function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.unknown=$("set-unknown").checked;draft.tracked=$("set-tracked").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
 function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,draft)).length;const ex=draft.excluded.length?MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&draft.keywords.some(k=>kwRe(k).test(m.text))&&draft.excluded.some(k=>kwRe(k).test(m.text))).length:0;
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["dashboard","mentions","reports","analyze","alert-setup"];
+const VIEWS=["dashboard","mentions","reports","sources","analyze","alert-setup"];
 function current(){const h=location.hash.slice(1);if(h.startsWith("m-"))return"mentions";return VIEWS.includes(h)?h:"dashboard";}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
@@ -1305,7 +1353,7 @@ function render(){
   VIEWS.forEach(x=>$("v-"+x).hidden=x!==v);
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.view===v?"page":"false"));
   renderChrome();
-  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="analyze")renderAnalyze();else renderSettings();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
 }
 function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
 let lastView=null;window.addEventListener("hashchange",()=>{const v=current();if(v!==lastView||window.innerWidth<=1050)window.scrollTo(0,0);lastView=v;arm=null;render();});
@@ -1337,11 +1385,11 @@ $("file-top").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target
 $("file-set").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
 $("use-live").onclick=()=>{S.imported=null;S.forceSample=false;S.dataLabel="Live data";setData();save();$("import-msg").textContent=LIVE&&LIVE.mentions.length?`Live data loaded: ${LIVE.mentions.length} mentions, updated ${relAgo(LIVE.updated)}.`:"No live data on this server yet. The fetcher writes it every hour once set up.";render();};
 $("load-sample").onclick=()=>{S.imported=null;S.forceSample=true;S.dataLabel="Sample data";S.overrides={};S.meta={};S.blocked=[];S.range=7;setData();save();$("import-msg").textContent="Sample data loaded.";render();};
-$("clear-data").onclick=()=>{S.forceSample=false;S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
+$("clear-data").onclick=()=>{S.extra=[];S.forceSample=false;S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
-$("alert-list").onclick=e=>{const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports")render();else if(selId())go("mentions");else render();};
+$("alert-list").onclick=e=>{const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
 $("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
 $("range").onchange=e=>{S.range=+e.target.value;save();render();};
@@ -1384,7 +1432,7 @@ $("r-copy-sum").onclick=e=>copyOut(REPORT.sum,e.currentTarget,"Copy summary");
 $("r-copy-csv").onclick=e=>copyOut(REPORT.csv,e.currentTarget,"Copy daily data (CSV)");
 $("v-reports").addEventListener("click",e=>{const a=e.target.closest("[data-rtag]");if(!a)return;e.preventDefault();toTerm(null,a.dataset.rtag);});
 $("set-name").oninput=()=>{$("set-name-h").textContent=$("set-name").value||"Untitled alert";};
-$("set-unknown").onchange=preview;$("set-lang").onchange=preview;$("set-src").onchange=preview;
+$("set-unknown").onchange=preview;$("set-tracked").onchange=preview;$("set-lang").onchange=preview;$("set-src").onchange=preview;
 $("save-set").onclick=()=>{readDraft();const i=S.alerts.findIndex(a=>a.id===draft.id);S.alerts[i]=draft;save();go("dashboard");};
 $("cancel-set").onclick=()=>go("dashboard");
 $("del-alert").onclick=()=>{

@@ -59,6 +59,35 @@ Keys go in `/etc/sentimeter.env` on the server (never in this repository). To ch
 
 The collected data is served publicly at `/data/mentions.json`, like the site itself. Add HTTP basic auth in nginx if the dashboard should be private.
 
+## Tracked social accounts (Sources page)
+
+The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, the Apify actor used for each, optional keyword search on X and Instagram, and a monthly post limit (default 1,000 across all actors).
+
+- The hourly fetch runs the social job once a day, after 23:00 India time, and keeps only that day's posts.
+- Each day's allowance is what is left of the monthly limit divided by the days left in the month. Every Apify run is started with `maxItems` set to that allowance, so Apify itself stops there. Results that turn out to be older than today still count, because Apify bills for them.
+- YouTube channels use the free YouTube Data API when the actor is `youtube-data-api` (default), so they do not use the Apify limit.
+- Posts from tracked accounts appear in every alert unless the alert's "Tracked accounts" box is unticked.
+
+| Platform | Default actor |
+| --- | --- |
+| Facebook | `apify~facebook-posts-scraper` |
+| Instagram | `apify~instagram-post-scraper` |
+| X | `apidojo~tweet-scraper` |
+| LinkedIn | `harvestapi~linkedin-profile-posts` |
+| YouTube | `youtube-data-api` (free) or `streamers~youtube-scraper` |
+| TikTok | `clockworks~tiktok-scraper` |
+| Snapchat | `parseforge~snapchat-scraper` |
+| X keyword search | `apidojo~tweet-scraper` |
+| Instagram hashtags | `apify~instagram-hashtag-scraper` |
+
+Set up once on the VPS (after `setup-fetcher.sh`):
+
+```bash
+bash /var/www/sentimeter/deploy/setup-sources.sh
+```
+
+It installs `fetcher/admin.py` as the `sentimeter-admin` service on 127.0.0.1:8787, forwards `/api/` to it from nginx, and prints the admin key the Sources page asks for. Settings are stored in `/etc/sentimeter/settings.json`, usage in `/var/lib/sentimeter/usage.json`, keys in `/etc/sentimeter.env`.
+
 ## Importing data
 
 Use **Alert settings → Data → Import CSV or JSON**. Recognised columns: text (or content, mention, message, comment, review, body), platform/source, date, author, handle, location/country, language, reach/followers, url, title, gender, age, account_type.
