@@ -262,11 +262,18 @@ DEFAULT_ACTORS = {
     "snapchat": "parseforge~snapchat-scraper",
     "x_search": "apidojo~tweet-scraper",
     "instagram_hashtags": "apify~instagram-hashtag-scraper",
+    "facebook_search": "apify~facebook-search-scraper",
+    "linkedin_search": "harvestapi~linkedin-post-search",
+    "tiktok_hashtags": "clockworks~tiktok-scraper",
+    "snapchat_hashtags": "w3crawler~snapchat-hashtag-scraper",
 }
+KEYWORD_JOBS = ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]
+DEFAULT_SEARCH_TERMS = ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"]
 DEFAULT_SETTINGS = {
     "accounts": {p: [] for p in PLATFORMS},
     "actors": dict(DEFAULT_ACTORS),
-    "keyword_search": {"x_search": False, "instagram_hashtags": False},
+    "keyword_search": {k: False for k in ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]},
+    "search_terms": ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"],
     "monthly_limit": 1000,
     "run_after": "23:00",
     "timezone": "Asia/Kolkata",
@@ -379,8 +386,13 @@ MAPPERS = {
                                  (g(i, "title") + ". " + g(i, "text", "description")).strip(". "), g(i, "url"), num(g(i, "viewCount", default=0)), title=g(i, "title")),
     "tiktok": lambda i: mention("TikTok", g(i, "id", "webVideoUrl"), g(i, "createTimeISO", "createTime"), g(i, "authorMeta.nickName", "authorMeta.name"), g(i, "authorMeta.name"),
                                 g(i, "text"), g(i, "webVideoUrl"), num(g(i, "playCount", default=0)), g(i, "locationCreated")),
-    "snapchat": lambda i: mention("Snapchat", g(i, "id", "url"), g(i, "postedAt", "uploadedAt", "createdAt"), g(i, "creatorUsername", "username"), g(i, "creatorUsername", "username"),
-                                  g(i, "title", "description", "text"), g(i, "url"), num(g(i, "viewCount", default=0))),
+    "snapchat": lambda i: mention("Snapchat", g(i, "id", "snapId", "url"), g(i, "postedAt", "uploadedAt", "createdAt", "uploadDate", "timestamp"),
+                                  g(i, "creatorUsername", "username", "creator.username", "creatorName"), g(i, "creatorUsername", "username", "creator.username"),
+                                  g(i, "title", "caption", "description", "text", "name"), g(i, "url", "spotlightUrl", "shareUrl"), num(g(i, "viewCount", "views", default=0))),
+    "facebook_search": lambda i: MAPPERS["facebook"](i),
+    "linkedin_search": lambda i: MAPPERS["linkedin"](i),
+    "tiktok_hashtags": lambda i: MAPPERS["tiktok"](i),
+    "snapchat_hashtags": lambda i: MAPPERS["snapchat"](i),
 }
 
 
@@ -405,6 +417,17 @@ def platform_input(platform, accounts, keywords, per, total, today):
                 "excludePinnedPosts": True, "oldestPostDateUnified": today}
     if platform == "snapchat":
         return {"usernames": [a.lstrip("@").split("/")[-1] for a in accounts], "resultType": "spotlight", "maxItems": total}
+    tags = sorted({k.lstrip("#").replace(" ", "").lower() for k in keywords if re.fullmatch(r"#?[\w ]+", k)})[:10]
+    if platform == "facebook_search":
+        return {"categories": [k.lstrip("#") for k in keywords][:10], "searchType": "posts", "resultsLimit": total}
+    if platform == "linkedin_search":
+        return {"searchQueries": [k.lstrip("#") for k in keywords][:10], "maxPosts": max(1, total // max(1, min(10, len(keywords)))),
+                "postedLimit": "24h", "sortBy": "date"}
+    if platform == "tiktok_hashtags":
+        return {"hashtags": tags, "resultsPerPage": max(1, total // max(1, len(tags))), "excludePinnedPosts": True}
+    if platform == "snapchat_hashtags":
+        return {"hashtags": tags, "resultsPerHashtag": max(1, total // max(1, len(tags))), "includeVideoUrls": False,
+                "includeLlmMetadata": False, "includeRelatedTopics": False}
     if platform == "x_search":
         return {"searchTerms": keywords, "maxItems": total, "sort": "Latest", "start": today}
     if platform == "instagram_hashtags":
@@ -477,7 +500,8 @@ def src_social(cfg, kws, force=False):
         else:
             log("social youtube skipped: set YOUTUBE_API_KEY, or choose an Apify actor for YouTube")
     jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
-    jobs += [k for k, on in st.get("keyword_search", {}).items() if on]
+    jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
+    terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()] or kws[:10]
     run_log = {"date": today, "allowance": allowance, "jobs": {}}
     if jobs and not token:
         log("social skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
@@ -497,7 +521,7 @@ def src_social(cfg, kws, force=False):
             per = max(1, total // n)
             actor = actors.get(p) or DEFAULT_ACTORS[p]
             try:
-                payload = platform_input(p, accounts.get(p, []), kws, per, total, today)
+                payload = platform_input(p, accounts.get(p, []), terms, per, total, today)
                 items, billed = apify_run_capped(actor, payload, token, total)
             except Exception as e:
                 log(f"social {p} failed:", e)
@@ -513,7 +537,7 @@ def src_social(cfg, kws, force=False):
                     continue
                 if not m["text"]:
                     continue
-                if p in ("x_search", "instagram_hashtags"):
+                if p in KEYWORD_JOBS:
                     m["tracked"] = False
                 if m["date"] >= iso(day_start):
                     out.append(m)

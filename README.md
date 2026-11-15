@@ -61,7 +61,7 @@ The collected data is served publicly at `/data/mentions.json`, like the site it
 
 ## Tracked social accounts (Sources page)
 
-The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, the Apify actor used for each, optional keyword search on X and Instagram, and a monthly post limit (default 1,000 across all actors).
+The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, the Apify actor used for each, optional keyword search on X, Instagram, Facebook, LinkedIn, TikTok and Snapchat (using one shared list of up to 10 search terms), and a monthly post limit (default 1,000 across all actors).
 
 - The hourly fetch runs the social job once a day, after 23:00 India time, and keeps only that day's posts.
 - Each day's allowance is what is left of the monthly limit divided by the days left in the month. Every Apify run is started with `maxItems` set to that allowance, so Apify itself stops there. Results that turn out to be older than today still count, because Apify bills for them.
@@ -79,6 +79,10 @@ The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedI
 | Snapchat | `parseforge~snapchat-scraper` |
 | X keyword search | `apidojo~tweet-scraper` |
 | Instagram hashtags | `apify~instagram-hashtag-scraper` |
+| Facebook post search | `apify~facebook-search-scraper` |
+| LinkedIn post search | `harvestapi~linkedin-post-search` |
+| TikTok hashtags | `clockworks~tiktok-scraper` |
+| Snapchat hashtags (experimental) | `w3crawler~snapchat-hashtag-scraper` |
 
 Set up once on the VPS (after `setup-fetcher.sh`):
 

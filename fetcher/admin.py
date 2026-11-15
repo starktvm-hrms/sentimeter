@@ -85,9 +85,14 @@ def clean_settings(body):
         if not (ACTOR_RE.match(v) or (k == "youtube" and v == "youtube-data-api")):
             raise ValueError(f"actors.{k}: use an Apify actor ID like owner~actor-name")
         s["actors"][k] = v
-    for k in ("x_search", "instagram_hashtags"):
+    for k in fetch.KEYWORD_JOBS:
         if k in (body.get("keyword_search") or {}):
             s["keyword_search"][k] = bool(body["keyword_search"][k])
+    if "search_terms" in body:
+        terms = [str(x).strip() for x in body["search_terms"] or [] if str(x).strip()]
+        if len(terms) > 10 or any(len(x) > 60 or "\n" in x for x in terms):
+            raise ValueError("Search terms: up to 10, each at most 60 characters")
+        s["search_terms"] = terms
     if "monthly_limit" in body:
         n = int(body["monthly_limit"])
         if not 0 <= n <= max_monthly():

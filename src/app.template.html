@@ -455,6 +455,10 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Tracked accounts</h2><span class="hint">today's posts, collected daily after <span id="run-after">23:00</span> India time</span></div><div class="card-body">
         <div class="form" id="acct-form"></div>
         <div class="eyebrow" style="margin-top:6px">Keyword search (also counts toward the limit)</div>
+        <div class="form">
+          <label class="f">Search terms</label>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox" id="kw-terms"></div><span class="hint">Up to 10 terms, shared by every keyword search below. Hashtag searches use them without spaces. Fewer terms means more posts per term.</span></div>
+        </div>
         <div class="form" id="kw-form"></div>
       </div></div>
 
@@ -1086,7 +1090,8 @@ function copyOut(text,btn,label){const out=$("r-out");const fb=()=>{out.hidden=f
 const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPoll=null,runArm=false;
 try{admKey=localStorage.getItem(ADM_KEY)||sessionStorage.getItem(ADM_KEY)||"";}catch(e){}
 const SOC=[["facebook","Facebook","Page URL or username, e.g. keralatourism"],["instagram","Instagram","Username, e.g. keralatourism"],["x","X","Handle, e.g. KeralaTourism"],["linkedin","LinkedIn","Company or profile URL"],["youtube","YouTube","Channel handle, e.g. @keralatourism"],["tiktok","TikTok","Username"],["snapchat","Snapchat","Username"]];
-const SOC_DEF={facebook:"apify~facebook-posts-scraper",instagram:"apify~instagram-post-scraper",x:"apidojo~tweet-scraper",linkedin:"harvestapi~linkedin-profile-posts",youtube:"youtube-data-api",tiktok:"clockworks~tiktok-scraper",snapchat:"parseforge~snapchat-scraper",x_search:"apidojo~tweet-scraper",instagram_hashtags:"apify~instagram-hashtag-scraper"};
+const SOC_DEF={facebook:"apify~facebook-posts-scraper",instagram:"apify~instagram-post-scraper",x:"apidojo~tweet-scraper",linkedin:"harvestapi~linkedin-profile-posts",youtube:"youtube-data-api",tiktok:"clockworks~tiktok-scraper",snapchat:"parseforge~snapchat-scraper",x_search:"apidojo~tweet-scraper",instagram_hashtags:"apify~instagram-hashtag-scraper",facebook_search:"apify~facebook-search-scraper",linkedin_search:"harvestapi~linkedin-post-search",tiktok_hashtags:"clockworks~tiktok-scraper",snapchat_hashtags:"w3crawler~snapchat-hashtag-scraper"};
+const KWJOBS=[["x_search","X","X keyword search","Searches X posts"],["instagram_hashtags","Instagram","Instagram hashtags","Posts under the terms as hashtags"],["facebook_search","Facebook","Facebook post search","Searches public Facebook posts"],["linkedin_search","LinkedIn","LinkedIn post search","Searches LinkedIn posts from the last 24 hours"],["tiktok_hashtags","TikTok","TikTok hashtags","Videos under the terms as hashtags"],["snapchat_hashtags","Snapchat","Snapchat hashtags","Spotlight videos under the terms as hashtags (experimental: a newer, little-used actor)"]];
 async function adm(path,opts={}){
   const r=await fetch("api"+path,Object.assign({},opts,{headers:Object.assign({"Authorization":"Bearer "+admKey},opts.body?{"Content-Type":"application/json"}:{})}));
   let j=null;try{j=await r.json();}catch(e){}
@@ -1113,15 +1118,16 @@ function renderSources(){
   ["src-accounts","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
   renderBudget();
   if(!on){if(!$("adm-msg").textContent)admConnect(true);return;}
-  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search}));
+  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search,search_terms:st.search_terms||[]}));
   $("run-after").textContent=st.run_after||"23:00";
   $("acct-form").innerHTML=SOC.map(([k,name,hint])=>`<label class="f"><span class="src" style="background:${PCOLOR[name]};margin-right:6px">${ABBR[name]}</span>${name}</label>
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox loc" id="acc-${k}"></div>
     <div class="toolbar"><span class="hint">Actor</span><input type="text" id="act-${k}" value="${esc(acctDraft.actors[k]||SOC_DEF[k])}" style="flex:1;min-width:200px" aria-label="${name} actor">${k==="youtube"?`<span class="hint">“youtube-data-api” uses your free YouTube key instead of Apify</span>`:""}</div></div>`).join("");
   SOC.forEach(([k,,hint])=>{acctDraft.accounts[k]=acctDraft.accounts[k]||[];chipBox($("acc-"+k),acctDraft.accounts[k],hint,()=>{});});
-  $("kw-form").innerHTML=[["x_search","X keyword search","Searches X for this site's alert keywords"],["instagram_hashtags","Instagram hashtags","Collects posts under keyword hashtags"]].map(([k,name,hint])=>`<label class="f">${name}</label>
+  $("kw-form").innerHTML=KWJOBS.map(([k,plat,name,hint])=>`<label class="f"><span class="src" style="background:${PCOLOR[plat]};margin-right:6px">${ABBR[plat]}</span>${name}</label>
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="kw-${k}" ${acctDraft.keyword_search[k]?"checked":""} style="accent-color:var(--accent)"> ${hint}</label>
     <div class="toolbar"><span class="hint">Actor</span><input type="text" id="act-${k}" value="${esc(acctDraft.actors[k]||SOC_DEF[k])}" style="flex:1;min-width:200px" aria-label="${name} actor"></div></div>`).join("");
+  chipBox($("kw-terms"),acctDraft.search_terms,"Add a search term",()=>{});
   const kset=(id,v)=>{const el=$(id);el.textContent=v?"Saved":"Not set";el.className="pill "+(v?"pos":"neu");};
   kset("key-apify-state",ADM.keys.apify);kset("key-yt-state",ADM.keys.youtube);
 }
@@ -1137,7 +1143,8 @@ async function admConnect(silent){
 async function saveSources(){
   SOC.forEach(([k])=>{const i=$("acc-"+k).querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.accounts[k].includes(v))acctDraft.accounts[k].push(v);});i.value="";}});
   SOC.forEach(([k])=>acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k]);
-  ["x_search","instagram_hashtags"].forEach(k=>{acctDraft.keyword_search[k]=$("kw-"+k).checked;acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k];});
+  KWJOBS.forEach(([k])=>{acctDraft.keyword_search[k]=$("kw-"+k).checked;acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k];});
+  {const i=$("kw-terms").querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.search_terms.includes(v))acctDraft.search_terms.push(v);});i.value="";}}
   const lim=parseInt($("bud-limit").value,10);
   $("src-msg").textContent="Saving…";
   try{ADM=await adm("/settings",{method:"PUT",body:JSON.stringify(Object.assign({},acctDraft,isNaN(lim)?{}:{monthly_limit:lim}))});acctDraft=null;$("src-msg").textContent="Saved. The next daily run uses these settings.";renderSources();}
