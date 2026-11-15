@@ -146,7 +146,7 @@ function analyze(text){
 
 /* ---------- Helpers ---------- */
 const $=id=>document.getElementById(id);
-const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const LABEL={pos:"Positive",neg:"Negative",neu:"Neutral"};
 const fmt=n=>(n>0?"+":n<0?"−":"")+Math.abs(n).toFixed(2);
 function highlight(r){

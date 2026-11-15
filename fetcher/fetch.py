@@ -445,15 +445,27 @@ def num(*vals):
     return tot
 
 
+def as_text(v):
+    """Actors sometimes return an object where a name is expected (e.g. author: {id, name, ...})."""
+    if isinstance(v, dict):
+        return str(v.get("name") or v.get("username") or v.get("userName") or v.get("title") or v.get("id") or "")
+    if isinstance(v, list):
+        return " ".join(as_text(x) for x in v if x)
+    return "" if v is None else str(v)
+
+
 def mention(platform, key, date, author, handle, text, url, reach, location="", title=""):
+    author, handle, text, url, location, title = map(as_text, (author, handle, text, url, location, title))
+    if isinstance(date, (int, float)) and date > 1e11:
+        date = date / 1000
     d = parse_date(date) if not isinstance(date, datetime) else date
     return {"id": mid(platform[:2], str(key or url or text)), "date": iso(d or NOW), "platform": platform, "author": author or handle or platform,
             "handle": handle or "", "location": location or "", "title": title or "", "text": text, "url": url or "", "reach": reach, "tracked": True}
 
 
 MAPPERS = {
-    "facebook": lambda i: mention("Facebook", g(i, "postId", "id", "url"), g(i, "time", "timestamp", "date"), g(i, "pageName", "user.name", "authorName"),
-                                  g(i, "pageName", "user.id"), g(i, "text", "message", "postText"), g(i, "url", "topLevelUrl"),
+    "facebook": lambda i: mention("Facebook", g(i, "postId", "id", "url"), g(i, "time", "timestamp", "date"), g(i, "pageName", "user.name", "author.name", "authorName"),
+                                  g(i, "pageName", "user.id", "author.id"), g(i, "text", "message", "postText"), g(i, "url", "topLevelUrl"),
                                   num(g(i, "likes", default=0), g(i, "comments", default=0), g(i, "shares", default=0))),
     "instagram": lambda i: mention("Instagram", g(i, "id", "shortCode", "url"), g(i, "timestamp"), g(i, "ownerFullName", "ownerUsername"), g(i, "ownerUsername"),
                                    g(i, "caption"), g(i, "url"), num(g(i, "likesCount", default=0), g(i, "commentsCount", default=0)), g(i, "locationName")),
@@ -703,6 +715,9 @@ def main():
             log("existing data unreadable, starting fresh")
     byid, keys = {}, {}
     for m in old.get("mentions", []):  # also collapses duplicates stored before
+        for f_ in ("author", "handle", "text", "title", "location", "url", "platform", "date"):
+            if f_ in m and not isinstance(m[f_], str):
+                m[f_] = as_text(m[f_])
         k = dedupe_key(m)
         if k in keys:
             continue

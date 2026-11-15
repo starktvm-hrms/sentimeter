@@ -734,9 +734,11 @@ async function refreshShared(){
 function save(){scheduleSync();try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}
   S.alerts.forEach(a=>{if(!a.srcV3){["LinkedIn","TikTok","Snapchat"].forEach(p=>{if(!a.sources.includes(p))a.sources.push(p);});a.srcV3=true;}if(a.tracked===undefined)a.tracked=true;});}
+function str(v){if(v==null)return"";if(typeof v==="object")return Array.isArray(v)?v.map(str).filter(Boolean).join(" "):String(v.name||v.username||v.userName||v.title||v.id||"");return String(v);}
 function prepare(raw){
-  return raw.map((m,i)=>{
-    const text=String(m.text||"");
+  return raw.filter(m=>m&&typeof m==="object").map((m,i)=>{
+    m=Object.assign({},m,{author:str(m.author),handle:str(m.handle),location:str(m.location),title:str(m.title),url:str(m.url),platform:str(m.platform),lang:str(m.lang)});
+    const text=str(m.text);
     const loc=String(m.location||"").trim();
     const parts=loc.split(",").map(x=>x.trim()).filter(Boolean);
     const d=new Date(m.date);const iso=isNaN(d)?new Date().toISOString():d.toISOString();
