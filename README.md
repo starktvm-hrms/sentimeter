@@ -64,7 +64,7 @@ The collected data is served publicly at `/data/mentions.json`, like the site it
 
 The **Sources** page lists accounts to follow on Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, the Apify actor used for each, optional keyword search on X, Instagram, Facebook, LinkedIn, TikTok and Snapchat (using one shared list of up to 10 search terms), and a monthly post limit (default 5,000 across all actors).
 
-- The hourly fetch runs the social job once a day, after 23:00 India time, and keeps only that day's posts.
+- The settings service starts the social collection every day at 09:00 India time (changeable on the Sources page). Each run collects posts published since the previous run (24 hours for the first run, at most 48), so every hour is covered once and nothing is billed twice. The hourly fetch is a backup if the 09:00 start is missed.
 - Each day's allowance is what is left of the monthly limit divided by the days left in the month. Every Apify run is started with `maxItems` set to that allowance, so Apify itself stops there. Results that turn out to be older than today still count, because Apify bills for them.
 - YouTube channels use the free YouTube Data API when the actor is `youtube-data-api` (default), so they do not use the Apify limit.
 - Posts from tracked accounts appear in every alert unless the alert's "Tracked accounts" box is unticked.

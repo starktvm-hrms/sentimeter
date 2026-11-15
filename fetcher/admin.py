@@ -30,6 +30,7 @@ import fetch  # noqa: E402  (settings defaults, paths, usage)
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
 FETCH_CMD = os.environ.get("SENTIMETER_FETCH_CMD", "/usr/local/bin/sentimeter-fetch --only social --force").split()
+SCHEDULED_CMD = os.environ.get("SENTIMETER_SCHEDULED_CMD", "/usr/local/bin/sentimeter-fetch --only social").split()
 SHARED_PATH = os.environ.get("SENTIMETER_SHARED", "/var/lib/sentimeter/shared.json")
 DATA_DIR = os.environ.get("SENTIMETER_DATA_DIR", os.path.join(fetch.ROOT, "public/data"))
 LOCK = threading.Lock()
@@ -108,6 +109,15 @@ def clean_settings(body):
     return s
 
 
+def now_local(s):
+    from datetime import datetime, timezone, timedelta
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo(s.get("timezone", "Asia/Kolkata")))
+    except Exception:
+        return datetime.now(timezone(timedelta(hours=5, minutes=30)))
+
+
 def max_monthly():
     try:
         return int(read_env().get("SENTIMETER_MAX_MONTHLY") or 5000)
@@ -154,11 +164,15 @@ def clean_meta(m):
 
 
 def running():
+    """True while a fetch holds its lock file."""
+    import fcntl
     try:
-        out = subprocess.run(["pgrep", "-f", "fetcher/fetch.py"], capture_output=True, text=True).stdout.split()
-        return any(int(pid) != os.getpid() for pid in out)
-    except Exception:
+        with open(fetch.LOCK_PATH, "a") as f:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(f, fcntl.LOCK_UN)
         return False
+    except OSError:
+        return True
 
 
 class H(BaseHTTPRequestHandler):
@@ -212,7 +226,7 @@ class H(BaseHTTPRequestHandler):
         env = read_env()
         s = fetch.load_settings()
         u = fetch.load_usage()
-        month = fetch.local_now(s.get("timezone", "Asia/Kolkata")).strftime("%Y-%m")
+        month = now_local(s).strftime("%Y-%m")
         mu = u.get("months", {}).get(month, {"posts": 0, "runs": []})
         return {"settings": s, "keys": {"apify": bool(env.get("APIFY_TOKEN")), "apify_meta": bool(env.get("APIFY_TOKEN_META")), "apify_x_linkedin": bool(env.get("APIFY_TOKEN_X_LINKEDIN")),
                          "apify_other": bool(env.get("APIFY_TOKEN_OTHER")), "youtube": bool(env.get("YOUTUBE_API_KEY"))},
@@ -362,7 +376,32 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {"error": "Not found"})
 
 
+def scheduler():
+    """Start the daily social collection at the configured time (India time). The fetch itself
+    re-checks the time and skips if today's run already happened, so this cannot double-spend."""
+    tried = {}
+    while True:
+        try:
+            s = fetch.load_settings()
+            loc = now_local(s)
+            today = loc.strftime("%Y-%m-%d")
+            hh, mm = (s.get("run_after") or "09:00").split(":")
+            due = loc.hour * 60 + loc.minute >= int(hh) * 60 + int(mm)
+            done = fetch.load_usage().get("last_daily_run") == today
+            last_try = tried.get(today, 0)
+            if due and not done and not running() and time.time() - last_try > 3600:
+                tried = {today: time.time()}
+                sys.stderr.write(f"scheduler: starting daily collection {today} {loc:%H:%M}\n")
+                with open(LOG_FILE, "a") as logf:
+                    subprocess.Popen(SCHEDULED_CMD, stdout=logf, stderr=logf, start_new_session=True,
+                                     env={**os.environ, **read_env()})
+        except Exception as e:
+            sys.stderr.write(f"scheduler error: {e}\n")
+        time.sleep(30)
+
+
 if __name__ == "__main__":
+    threading.Thread(target=scheduler, daemon=True).start()
     port = int(os.environ.get("SENTIMETER_ADMIN_PORT", "8787"))
     print(f"sentimeter-admin on 127.0.0.1:{port}", file=sys.stderr)
     ThreadingHTTPServer(("127.0.0.1", port), H).serve_forever()

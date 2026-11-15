@@ -54,7 +54,8 @@ cat > /etc/cron.d/sentimeter-deploy <<CRON
 */5 * * * * root git -C $DIR fetch --quiet origin main && [ "\$(git -C $DIR rev-parse HEAD)" != "\$(git -C $DIR rev-parse origin/main)" ] && git -C $DIR reset --quiet --hard origin/main && chown -R www-data:www-data $DIR && systemctl try-restart sentimeter-admin
 CRON
 
-# The hourly fetch (setup-fetcher.sh) also runs the daily social job after 23:00 India time.
+# The settings service starts the daily social collection at 09:00 India time (set on the Sources page);
+# the hourly fetch (setup-fetcher.sh) is a backup.
 sleep 1
 curl -fsS -o /dev/null -w "Settings service: HTTP %{http_code} (401 is expected without a key)\n" https://sentimeter.starkpeople.in/api/settings || true
 echo

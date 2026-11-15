@@ -446,13 +446,14 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <div class="tbl-wrap" id="bud-runs"></div>
         <div class="toolbar" id="bud-admin" hidden>
           <label for="bud-limit" style="font-weight:600">Posts per month</label><input type="text" id="bud-limit" inputmode="numeric" style="width:110px">
+          <label for="run-time" style="font-weight:600">Daily run (India time)</label><input type="time" id="run-time" value="09:00" style="width:120px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px">
           <span class="spacer"></span>
           <button class="btn" id="run-now" type="button">Run today's collection now</button>
         </div>
         <pre id="run-log" class="hint" hidden style="background:var(--sunk);border-radius:8px;padding:10px;max-height:220px;overflow:auto;font:12px/1.5 var(--f-mono);white-space:pre-wrap"></pre>
       </div></div>
 
-      <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Tracked accounts</h2><span class="hint">today's posts, collected daily after <span id="run-after">23:00</span> India time</span></div><div class="card-body">
+      <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Tracked accounts</h2><span class="hint">new posts since the previous run, collected daily at <span id="run-after">09:00</span> India time</span></div><div class="card-body">
         <div class="form" id="acct-form"></div>
         <div class="eyebrow" style="margin-top:6px">Keyword search (also counts toward the limit)</div>
         <div class="form">
@@ -1120,7 +1121,7 @@ function renderBudget(){
   $("bud-bar").style.width=Math.min(100,limit?used/limit*100:0)+"%";$("bud-bar").style.background=used>=limit?"var(--neg)":used>=limit*.8?"var(--c4)":"var(--accent)";
   const dl=daysLeftInMonth();const allow=Math.max(0,Math.floor((limit-used)/dl));
   $("bud-note").textContent=`${fmtInt(Math.max(0,limit-used))} left for ${dl} day${dl>1?"s":""}, so about ${fmtInt(allow)} posts per day. Apify charges for every result an actor returns, including older posts that are then dropped, and each run is capped at the day's allowance.`;
-  $("bud-runs").innerHTML=runs.length?tbl([["Date"],["Allowance","r"],["Results by platform"]],runs.slice().reverse().map(r=>[r.date,r.allowance,r.note?esc(r.note):Object.entries(r.jobs||{}).map(([k,v])=>`${esc(k)}${v.token?` <span class="hint">(${{meta:"FB & IG",x_linkedin:"X & LinkedIn",other:"other",default:"default"}[v.token]||esc(v.token)} token)</span>`:""}: ${v.error?`<span class="neg-c" title="${esc(v.error)}">failed</span>`:v.skipped?esc(v.skipped):`${v.billed} billed, ${v.kept_today} today`}`).join(" · ")||"no accounts set"])):`<p class="hint" style="margin:0">No daily runs yet this month.</p>`;
+  $("bud-runs").innerHTML=runs.length?tbl([["Date"],["Allowance","r"],["Results by platform"]],runs.slice().reverse().map(r=>[r.date+(r.time?" "+r.time:""),r.allowance,r.note?esc(r.note):Object.entries(r.jobs||{}).map(([k,v])=>`${esc(k)}${v.token?` <span class="hint">(${{meta:"FB & IG",x_linkedin:"X & LinkedIn",other:"other",default:"default"}[v.token]||esc(v.token)} token)</span>`:""}: ${v.error?`<span class="neg-c" title="${esc(v.error)}">failed</span>`:v.skipped?esc(v.skipped):`${v.billed} billed, ${v.kept_today} kept`}`).join(" · ")||"no accounts set"])):`<p class="hint" style="margin:0">No daily runs yet this month.</p>`;
   $("bud-admin").hidden=!ADM;if(ADM&&document.activeElement!==$("bud-limit"))$("bud-limit").value=limit;
   if(ADM){$("bud-note").textContent+=` The server allows at most ${fmtInt(ADM.max_monthly)} posts a month, and each Apify run is also capped in dollars.`+(ADM.next_manual_run_in?` Next manual run possible in ${Math.ceil(ADM.next_manual_run_in/60)} min.`:"");}
 }
@@ -1134,7 +1135,7 @@ function renderSources(){
   const ns=(LIVE&&LIVE.sources)||{};
   $("news-form").innerHTML=[["google_news","Google News (English, Malayalam, Hindi)"],["bing_news","Bing News (India)"]].map(([k,n])=>`<label><input type="checkbox" id="news-${k}" ${acctDraft.news[k]!==false?"checked":""}> <span class="src" style="background:var(--c2)">N</span> ${n}</label>`).join("");
   $("news-status").textContent=["google_news","bing_news"].filter(k=>ns[k]).map(k=>`${k==="google_news"?"Google News":"Bing News"}: last run ${relAgo(ns[k].last_run)}, ${ns[k].new||0} new, ${ns[k].duplicates||0} already tracked`).join(" · ");
-  $("run-after").textContent=st.run_after||"23:00";
+  $("run-after").textContent=st.run_after||"09:00";if(document.activeElement!==$("run-time"))$("run-time").value=st.run_after||"09:00";
   $("acct-form").innerHTML=SOC.map(([k,name,hint])=>`<label class="f"><span class="src" style="background:${PCOLOR[name]};margin-right:6px">${ABBR[name]}</span>${name}</label>
     <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox loc" id="acc-${k}"></div>
     <div class="toolbar"><span class="hint">Actor</span><input type="text" id="act-${k}" value="${esc(acctDraft.actors[k]||SOC_DEF[k])}" style="flex:1;min-width:200px" aria-label="${name} actor">${k==="youtube"?`<span class="hint">“youtube-data-api” uses your free YouTube key instead of Apify</span>`:""}</div></div>`).join("");
@@ -1163,7 +1164,7 @@ async function saveSources(){
   ["google_news","bing_news"].forEach(k=>acctDraft.news[k]=$("news-"+k).checked);
   KWJOBS.forEach(([k])=>{acctDraft.keyword_search[k]=$("kw-"+k).checked;acctDraft.actors[k]=$("act-"+k).value.trim()||SOC_DEF[k];});
   {const i=$("kw-terms").querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.search_terms.includes(v))acctDraft.search_terms.push(v);});i.value="";}}
-  const lim=parseInt($("bud-limit").value,10);
+  const lim=parseInt($("bud-limit").value,10);const rt=$("run-time").value;if(/^\d\d:\d\d$/.test(rt))acctDraft.run_after=rt;
   $("src-msg").textContent="Saving…";
   try{ADM=await adm("/settings",{method:"PUT",body:JSON.stringify(Object.assign({},acctDraft,isNaN(lim)?{}:{monthly_limit:lim}))});acctDraft=null;$("src-msg").textContent="Saved. The next daily run uses these settings.";renderSources();}
   catch(e){$("src-msg").textContent=e.message;}
@@ -1181,7 +1182,7 @@ $("key-save").onclick=async()=>{const b={};const F=[["key-apify","apify_token"],
   if(!Object.keys(b).length){$("key-msg").textContent="Paste a key to save it.";return;}
   try{ADM=await adm("/keys",{method:"POST",body:JSON.stringify(b)});F.forEach(([id])=>$(id).value="");$("key-msg").textContent="Saved on the server.";renderSources();}catch(e){$("key-msg").textContent=e.message;}};
 $("run-now").onclick=async()=>{
-  if(!runArm){runArm=true;const dl=daysLeftInMonth();$("run-now").textContent=`Run now: uses up to ${fmtInt(Math.floor((ADM.settings.monthly_limit-ADM.usage.used)/dl))} posts. Click again`;setTimeout(()=>{runArm=false;$("run-now").textContent="Run today's collection now";},6000);return;}
+  if(!runArm){runArm=true;const dl=daysLeftInMonth();$("run-now").textContent=`Run now (posts since the last run): uses up to ${fmtInt(Math.floor((ADM.settings.monthly_limit-ADM.usage.used)/dl))} posts. Click again`;setTimeout(()=>{runArm=false;$("run-now").textContent="Run today's collection now";},6000);return;}
   runArm=false;$("run-now").textContent="Run today's collection now";
   try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
 

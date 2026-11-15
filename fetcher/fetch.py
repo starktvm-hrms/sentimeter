@@ -356,7 +356,7 @@ DEFAULT_SETTINGS = {
     "search_terms": ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"],
     "monthly_limit": 5000,
     "news": {"google_news": True, "bing_news": True},
-    "run_after": "23:00",
+    "run_after": "09:00",
     "timezone": "Asia/Kolkata",
 }
 
@@ -492,10 +492,10 @@ def platform_input(platform, accounts, keywords, per, total, today):
         urls = [a if a.startswith("http") else f"https://www.youtube.com/{a if a.startswith('@') else '@' + a}" for a in accounts]
         half = max(1, per // 2)
         return {"startUrls": [{"url": u} for u in urls], "maxResults": half, "maxResultsShorts": half, "maxResultStreams": 0,
-                "sortVideosBy": "NEWEST", "oldestPostDate": "1 day"}
+                "sortVideosBy": "NEWEST", "oldestPostDate": "2 days"}
     if platform == "tiktok":
         return {"profiles": [a.lstrip("@") for a in accounts], "resultsPerPage": per, "profileSorting": "latest",
-                "excludePinnedPosts": True, "oldestPostDateUnified": today}
+                "excludePinnedPosts": True, "oldestPostDateUnified": today}  # "today" here is the since-date passed in
     if platform == "snapchat":
         return {"usernames": [a.lstrip("@").split("/")[-1] for a in accounts], "resultType": "spotlight", "maxItems": total}
     tags = sorted({k.lstrip("#").replace(" ", "").lower() for k in keywords if re.fullmatch(r"#?[\w ]+", k)})[:10]
@@ -552,10 +552,14 @@ def src_social(cfg, kws, force=False):
     st = load_settings()
     now_l = local_now(st.get("timezone", "Asia/Kolkata"))
     today = now_l.strftime("%Y-%m-%d")
-    day_start = now_l.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
     usage = load_usage()
+    # Each run covers the time since the previous run (24 hours if there was none, at most 48),
+    # so every hour is collected once and nothing is paid for twice.
+    prev = parse_date(usage.get("last_run_at"))
+    day_start = max(prev, NOW - timedelta(hours=48)) if prev else NOW - timedelta(hours=24)
+    since = (day_start.astimezone(now_l.tzinfo)).strftime("%Y-%m-%d")  # date filter for actors
     if not force:
-        hh, mm = (st.get("run_after") or "23:00").split(":")
+        hh, mm = (st.get("run_after") or "09:00").split(":")
         if now_l.hour * 60 + now_l.minute < int(hh) * 60 + int(mm) or usage.get("last_daily_run") == today:
             return "not_due"
     month = today[:7]
@@ -582,7 +586,7 @@ def src_social(cfg, kws, force=False):
     jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
     jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
     terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()] or kws[:10]
-    run_log = {"date": today, "allowance": allowance, "jobs": {}}
+    run_log = {"date": today, "time": now_l.strftime("%H:%M"), "allowance": allowance, "jobs": {}}
     if jobs and not any(token_for(p)[0] for p in jobs):
         log("social skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
         run_log["note"] = "no Apify token"
@@ -605,7 +609,7 @@ def src_social(cfg, kws, force=False):
                 run_log["jobs"][p] = {"skipped": "no Apify token for this platform"}
                 continue
             try:
-                payload = platform_input(p, accounts.get(p, []), terms, per, total, today)
+                payload = platform_input(p, accounts.get(p, []), terms, per, total, since)
                 items, billed = apify_run_capped(actor, payload, token, total)
             except Exception as e:
                 log(f"social {p} failed:", e)
@@ -627,10 +631,13 @@ def src_social(cfg, kws, force=False):
                     out.append(m)
                     kept += 1
             run_log["jobs"][p] = {"actor": actor, "billed": billed, "kept_today": kept, "token": tgroup}
-            log(f"social {p} ({tgroup} token): {billed} results billed, {kept} from today")
+            log(f"social {p} ({tgroup} token): {billed} results billed, {kept} since {iso(day_start)}")
     mu["runs"] = (mu["runs"] + [run_log])[-62:]
+    run_log["window_from"] = iso(day_start)
     if run_log.get("note") != "no Apify token":
         usage["last_daily_run"] = today
+        if any("billed" in j for j in run_log["jobs"].values()) or not jobs:
+            usage["last_run_at"] = iso(NOW)
     save_usage(usage)
     return out
 
