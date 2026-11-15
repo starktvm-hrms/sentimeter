@@ -161,7 +161,7 @@ mark.n{background:var(--neg-soft);color:var(--neg);font-weight:600}
 mark.m{text-decoration:underline dotted var(--muted);text-underline-offset:3px}
 mark.k{background:var(--accent-soft);color:var(--accent)}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-input[type="search"],input[type="text"]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+input[type="search"],input[type="text"],input[type="password"]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
 .empty{color:var(--muted);padding:18px 16px;font-size:14px}
 
 /* Settings */
@@ -498,6 +498,25 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         </div>
         <div id="live-status" class="hint"></div>
       </div></div>
+
+      <div class="card"><div class="card-head"><h2>Apify: X and Instagram</h2><span class="badge" id="ap-badge">Not connected</span></div><div class="card-body">
+        <p class="hint" style="margin:0">Collect posts from X and Instagram for this alert's keywords with your Apify account. Apify charges per result, so check each actor's pricing on apify.com. Your token is used only in this browser to call Apify directly. It is never sent to the Sentimeter server, and fetched posts are visible only on this device.</p>
+        <div class="form">
+          <label class="f" for="ap-token">API token</label>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+            <div class="toolbar"><input type="password" id="ap-token" autocomplete="off" spellcheck="false" placeholder="apify_api_…" style="flex:1;min-width:200px"><button class="btn" id="ap-show" type="button">Show</button><button class="btn" id="ap-test" type="button">Connect</button></div>
+            <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="ap-remember" style="accent-color:var(--accent)"> Remember the token on this device</label>
+            <span class="hint">Find it in the Apify Console under Settings, then API &amp; Integrations.</span>
+          </div>
+          <label class="f">Sources</label>
+          <div class="checks"><label><input type="checkbox" id="ap-x"> <span class="src" style="background:var(--c6)">X</span> X (Twitter) search</label><label><input type="checkbox" id="ap-ig"> <span class="src" style="background:var(--c5)">IG</span> Instagram hashtags</label></div>
+          <label class="f" for="ap-max">Results per source</label>
+          <div class="toolbar"><select class="select" id="ap-max"><option value="50">50</option><option value="100">100</option><option value="250">250</option><option value="500">500</option></select><span class="hint">Higher limits cost more.</span></div>
+          <label class="f">Actors</label>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="toolbar"><input type="text" id="ap-x-actor" aria-label="X actor ID" style="flex:1;min-width:200px"><input type="text" id="ap-ig-actor" aria-label="Instagram actor ID" style="flex:1;min-width:200px"></div><span class="hint">Apify actor IDs for X and Instagram. Change them only if you use different actors.</span></div>
+        </div>
+        <div class="form-actions"><span class="hint" id="ap-msg" role="status"></span><span class="spacer"></span><button class="btn" id="ap-clear" type="button">Remove fetched posts</button><button class="btn primary" id="ap-run" type="button">Fetch now</button></div>
+      </div></div>
     </section>
   </main>
 </div>
@@ -803,7 +822,7 @@ const SAMPLE_ALERTS=[
 
 /* ---------- State ---------- */
 const KEY="murmur-v2";
-let S={forceSample:false,meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
+let S={extra:[],apify:{x:true,ig:true,max:100,xActor:"apidojo~tweet-scraper",igActor:"apify~instagram-hashtag-scraper"},forceSample:false,meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
 let MENTIONS=[];let NOW_TS=Date.now();let LIVE=null;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
 function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}}
@@ -819,7 +838,7 @@ function prepare(raw){
   });
 }
 function dataMode(){return S.imported?"import":(LIVE&&LIVE.mentions.length&&!S.forceSample)?"live":"sample";}
-function setData(){const mode=dataMode();MENTIONS=prepare(mode==="import"?S.imported:mode==="live"?LIVE.mentions:makeSample());NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
+function setData(){const mode=dataMode();const base=mode==="import"?S.imported:mode==="live"?LIVE.mentions:makeSample();const seen=new Set(base.map(r=>r.id));MENTIONS=prepare(base.concat((S.extra||[]).filter(r=>!seen.has(r.id))));NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
 const getMeta=id=>S.meta[id]||{star:false,done:false,tags:[]};
 const M=id=>S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});
 const isHidden=m=>!!(S.meta[m.id]&&S.meta[m.id].del)||S.blocked.includes(m.author);
@@ -894,7 +913,7 @@ function renderChrome(){
   $("alert-list").innerHTML=S.alerts.map(a=>{const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}"><button class="alert-link" data-id="${a.id}" aria-current="${on}"><span>${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button><button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${on&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button></div>`;}).join("");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
-  const mode=dataMode();const lbl=mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts";
+  const mode=dataMode();const nx=(S.extra||[]).length;const lbl=(mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts")+(nx?` + ${nx} from Apify`:"");
   $("data-badge").textContent=lbl;$("data-badge2").textContent=lbl;
   $("side-foot").textContent=`${MENTIONS.length} mentions loaded · ${p.start?fmtDay(p.start):""} to ${p.end?fmtDay(p.end):""}`;
 }
@@ -1202,7 +1221,67 @@ function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
 function renderLiveStatus(){const el=$("live-status");if(!el)return;if(!LIVE){el.textContent="Live data: none on this server yet.";return;}
   const names={google_news:"Google News",reddit:"Reddit",bluesky:"Bluesky",youtube:"YouTube",apify:"X and Instagram (Apify)"};
   el.innerHTML=`<b>Live data</b> · ${LIVE.mentions.length} mentions · updated ${relAgo(LIVE.updated)}<br>`+Object.entries(LIVE.sources||{}).map(([k,v])=>`${names[k]||k}: ${v.note?esc(v.note):v.ok?`${v.count} fetched, last run ${relAgo(v.last_run)}`:"no results last run"}`).join(" · ");}
-function renderSettings(){renderLiveStatus();
+/* ---------- Apify (runs in the browser) ---------- */
+const AP_KEY="sentimeter-apify-token";const AP="https://api.apify.com/v2";let apToken="",apBusy=false;
+try{apToken=localStorage.getItem(AP_KEY)||sessionStorage.getItem(AP_KEY)||"";}catch(e){}
+function apSetToken(v,remember){apToken=v.trim();try{localStorage.removeItem(AP_KEY);sessionStorage.removeItem(AP_KEY);if(apToken)(remember?localStorage:sessionStorage).setItem(AP_KEY,apToken);}catch(e){}}
+async function apFetch(path,opts={}){
+  const r=await fetch(AP+path,Object.assign({},opts,{headers:Object.assign({"Authorization":"Bearer "+apToken},opts.body?{"Content-Type":"application/json"}:{})}));
+  let j=null;try{j=await r.json();}catch(e){}
+  if(!r.ok){const m=j&&j.error&&j.error.message||("HTTP "+r.status);const e=new Error(r.status===401?"Apify rejected the token. Check it in the Apify Console.":m);e.status=r.status;throw e;}
+  return j;
+}
+function apMsg(s){$("ap-msg").textContent=s;}
+function apUI(){const a=S.apify;$("ap-token").value=apToken;let rem=false;try{rem=!!localStorage.getItem(AP_KEY);}catch(e){}$("ap-remember").checked=rem;
+  $("ap-x").checked=a.x;$("ap-ig").checked=a.ig;$("ap-max").value=String(a.max);$("ap-x-actor").value=a.xActor;$("ap-ig-actor").value=a.igActor;
+  $("ap-run").textContent=`Fetch for “${activeAlert().name}”`;$("ap-run").disabled=apBusy;
+  const nx=(S.extra||[]).length;$("ap-clear").hidden=!nx;$("ap-clear").textContent=`Remove ${nx} fetched posts`;
+  if(!apToken)$("ap-badge").textContent="Not connected";}
+function apRead(){const a=S.apify;a.x=$("ap-x").checked;a.ig=$("ap-ig").checked;a.max=+$("ap-max").value;a.xActor=$("ap-x-actor").value.trim()||"apidojo~tweet-scraper";a.igActor=$("ap-ig-actor").value.trim()||"apify~instagram-hashtag-scraper";save();}
+async function apConnect(){
+  apSetToken($("ap-token").value,$("ap-remember").checked);
+  if(!apToken){apMsg("Paste your Apify API token first.");return false;}
+  apMsg("Checking the token…");
+  try{const j=await apFetch("/users/me");const u=j.data||{};$("ap-badge").textContent="Connected: "+(u.username||"Apify account");apMsg("Connected. Choose sources and fetch.");return true;}
+  catch(e){$("ap-badge").textContent="Not connected";apMsg(e.message);return false;}
+}
+function apMapX(t){const a=t.author||{};const text=t.fullText||t.text||"";if(!text)return null;
+  return{id:"ax"+hashStr(String(t.id||t.url||text)).toString(36),date:t.createdAt||new Date().toISOString(),platform:"X",author:a.name||a.userName||"X user",handle:a.userName||"",location:a.location||"",text,url:t.url||t.twitterUrl||"",lang:t.lang||"",reach:+(a.followers||0)};}
+function apMapIG(p){const text=p.caption||"";if(!text)return null;
+  return{id:"ai"+hashStr(String(p.id||p.url||text)).toString(36),date:p.timestamp||new Date().toISOString(),platform:"Instagram",author:p.ownerFullName||p.ownerUsername||"Instagram user",handle:p.ownerUsername||"",location:p.locationName||"",text,url:p.url||"",reach:(+p.likesCount||0)+(+p.commentsCount||0)};}
+async function apActor(label,actor,input,map,limit){
+  const t0=Date.now();apMsg(`${label}: starting run…`);
+  let run=(await apFetch(`/acts/${encodeURIComponent(actor)}/runs?waitForFinish=30`,{method:"POST",body:JSON.stringify(input)})).data;
+  while(run.status==="READY"||run.status==="RUNNING"){apMsg(`${label}: running (${Math.round((Date.now()-t0)/1000)}s)…`);run=(await apFetch(`/actor-runs/${run.id}?waitForFinish=30`)).data;}
+  if(run.status!=="SUCCEEDED"&&run.status!=="TIMED-OUT")throw new Error(`${label} run ${run.status.toLowerCase()}. See the run in the Apify Console.`);
+  const items=await apFetch(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json&limit=${limit}`);
+  return(Array.isArray(items)?items:[]).map(map).filter(Boolean);
+}
+async function apRun(){
+  if(apBusy)return;apRead();
+  if(!apToken||$("ap-token").value.trim()!==apToken){if(!(await apConnect()))return;}
+  const a=S.apify,al=activeAlert();
+  if(!a.x&&!a.ig){apMsg("Tick X or Instagram first.");return;}
+  if(!al.keywords.length){apMsg("This alert has no keywords yet.");return;}
+  apBusy=true;apUI();const got=[];const notes=[];
+  try{
+    if(a.x){try{const r=await apActor("X",a.xActor,{searchTerms:al.keywords,maxItems:a.max,sort:"Latest"},apMapX,a.max*2);got.push(...r);notes.push(`${r.length} from X`);}catch(e){notes.push("X failed: "+e.message);}}
+    if(a.ig){const tags=[...new Set(al.keywords.map(k=>k.replace(/^#/,"").replace(/\s+/g,"").toLowerCase()).filter(k=>/^[\p{L}\p{N}_]+$/u.test(k)))].slice(0,20);
+      if(tags.length){try{const r=await apActor("Instagram",a.igActor,{hashtags:tags,resultsLimit:Math.max(5,Math.floor(a.max/tags.length))},apMapIG,a.max*2);got.push(...r);notes.push(`${r.length} from Instagram`);}catch(e){notes.push("Instagram failed: "+e.message);}}}
+    const ex=(al.excluded||[]).map(kwRe);const keep=got.filter(r=>!ex.some(re=>re.test(r.text)));
+    const byId=new Map((S.extra||[]).map(r=>[r.id,r]));let fresh=0;keep.forEach(r=>{if(!byId.has(r.id))fresh++;byId.set(r.id,r);});
+    S.extra=[...byId.values()].sort((x,y)=>String(y.date).localeCompare(String(x.date))).slice(0,3000);
+    save();setData();renderChrome();apMsg(`${notes.join(" · ")}. ${fresh} new posts added.`);
+  }finally{apBusy=false;apUI();}
+}
+$("ap-show").onclick=()=>{const i=$("ap-token");const s=i.type==="password";i.type=s?"text":"password";$("ap-show").textContent=s?"Hide":"Show";};
+$("ap-test").onclick=apConnect;
+$("ap-remember").onchange=()=>apSetToken($("ap-token").value,$("ap-remember").checked);
+["ap-x","ap-ig","ap-max","ap-x-actor","ap-ig-actor"].forEach(id=>$(id).onchange=apRead);
+$("ap-run").onclick=()=>{apRun().catch(e=>{apBusy=false;apUI();apMsg(e.message);});};
+$("ap-clear").onclick=()=>{S.extra=[];save();setData();renderChrome();apUI();apMsg("Removed the posts fetched from Apify.");};
+
+function renderSettings(){renderLiveStatus();apUI();
   draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
   $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
   chipBox($("set-kw"),draft.keywords,"Add keyword");
