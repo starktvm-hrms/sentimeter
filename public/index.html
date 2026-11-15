@@ -478,10 +478,16 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       </div></div>
 
       <div class="card" id="src-keys" hidden><div class="card-head"><h2>API keys on the server</h2></div><div class="card-body">
-        <p class="hint" style="margin:0">Keys are saved in <code>/etc/sentimeter.env</code> on the server and are never shown again or sent to browsers.</p>
+        <p class="hint" style="margin:0">Keys are saved in <code>/etc/sentimeter.env</code> on the server and are never shown again or sent to browsers. Each Apify token runs its own platforms and is shared by every brand on this site. A platform group without its own token uses the default token.</p>
         <div class="form">
-          <label class="f" for="key-apify">Apify token</label>
-          <div class="toolbar"><input type="password" id="key-apify" autocomplete="off" placeholder="apify_api_…" style="flex:1;min-width:200px"><span class="pill" id="key-apify-state">Not set</span></div>
+          <label class="f" for="key-apify-meta"><span class="src" style="background:var(--c1);margin-right:4px">f</span><span class="src" style="background:var(--c5);margin-right:6px">IG</span>Facebook &amp; Instagram</label>
+          <div class="toolbar"><input type="password" id="key-apify-meta" autocomplete="off" placeholder="Apify token" style="flex:1;min-width:200px"><span class="pill" id="key-apify-meta-state">Not set</span></div>
+          <label class="f" for="key-apify-xli"><span class="src" style="background:var(--c6);margin-right:4px">X</span><span class="src" style="background:var(--c8);margin-right:6px">in</span>X &amp; LinkedIn</label>
+          <div class="toolbar"><input type="password" id="key-apify-xli" autocomplete="off" placeholder="Apify token" style="flex:1;min-width:200px"><span class="pill" id="key-apify-xli-state">Not set</span></div>
+          <label class="f" for="key-apify-other"><span class="src" style="background:var(--neg);margin-right:4px">YT</span><span class="src" style="background:var(--c3);margin-right:4px">TT</span><span class="src" style="background:var(--c9);margin-right:6px">SC</span>Other platforms</label>
+          <div class="toolbar"><input type="password" id="key-apify-other" autocomplete="off" placeholder="Apify token for YouTube, TikTok, Snapchat" style="flex:1;min-width:200px"><span class="pill" id="key-apify-other-state">Not set</span></div>
+          <label class="f" for="key-apify">Default Apify token</label>
+          <div class="toolbar"><input type="password" id="key-apify" autocomplete="off" placeholder="Used by any group without its own token" style="flex:1;min-width:200px"><span class="pill" id="key-apify-state">Not set</span></div>
           <label class="f" for="key-yt">YouTube API key</label>
           <div class="toolbar"><input type="password" id="key-yt" autocomplete="off" placeholder="AIza…" style="flex:1;min-width:200px"><span class="pill" id="key-yt-state">Not set</span></div>
         </div>
@@ -1288,7 +1294,7 @@ function renderBudget(){
   $("bud-bar").style.width=Math.min(100,limit?used/limit*100:0)+"%";$("bud-bar").style.background=used>=limit?"var(--neg)":used>=limit*.8?"var(--c4)":"var(--accent)";
   const dl=daysLeftInMonth();const allow=Math.max(0,Math.floor((limit-used)/dl));
   $("bud-note").textContent=`${fmtInt(Math.max(0,limit-used))} left for ${dl} day${dl>1?"s":""}, so about ${fmtInt(allow)} posts per day. Apify charges for every result an actor returns, including older posts that are then dropped, and each run is capped at the day's allowance.`;
-  $("bud-runs").innerHTML=runs.length?tbl([["Date"],["Allowance","r"],["Results by platform"]],runs.slice().reverse().map(r=>[r.date,r.allowance,r.note?esc(r.note):Object.entries(r.jobs||{}).map(([k,v])=>`${esc(k)}: ${v.error?`<span class="neg-c">failed</span>`:v.skipped?"skipped":`${v.billed} billed, ${v.kept_today} today`}`).join(" · ")||"no accounts set"])):`<p class="hint" style="margin:0">No daily runs yet this month.</p>`;
+  $("bud-runs").innerHTML=runs.length?tbl([["Date"],["Allowance","r"],["Results by platform"]],runs.slice().reverse().map(r=>[r.date,r.allowance,r.note?esc(r.note):Object.entries(r.jobs||{}).map(([k,v])=>`${esc(k)}${v.token?` <span class="hint">(${{meta:"FB & IG",x_linkedin:"X & LinkedIn",other:"other",default:"default"}[v.token]||esc(v.token)} token)</span>`:""}: ${v.error?`<span class="neg-c" title="${esc(v.error)}">failed</span>`:v.skipped?esc(v.skipped):`${v.billed} billed, ${v.kept_today} today`}`).join(" · ")||"no accounts set"])):`<p class="hint" style="margin:0">No daily runs yet this month.</p>`;
   $("bud-admin").hidden=!ADM;if(ADM&&document.activeElement!==$("bud-limit"))$("bud-limit").value=limit;
   if(ADM){$("bud-note").textContent+=` The server allows at most ${fmtInt(ADM.max_monthly)} posts a month, and each Apify run is also capped in dollars.`+(ADM.next_manual_run_in?` Next manual run possible in ${Math.ceil(ADM.next_manual_run_in/60)} min.`:"");}
 }
@@ -1313,6 +1319,8 @@ function renderSources(){
   chipBox($("kw-terms"),acctDraft.search_terms,"Add a search term",()=>{});
   const kset=(id,v)=>{const el=$(id);el.textContent=v?"Saved":"Not set";el.className="pill "+(v?"pos":"neu");};
   kset("key-apify-state",ADM.keys.apify);kset("key-yt-state",ADM.keys.youtube);
+  const grp=(id,own)=>{const el=$(id);if(own){el.textContent="Saved";el.className="pill pos";}else if(ADM.keys.apify){el.textContent="Uses default";el.className="pill neu";}else{el.textContent="Not set";el.className="pill neg";}};
+  grp("key-apify-meta-state",ADM.keys.apify_meta);grp("key-apify-xli-state",ADM.keys.apify_x_linkedin);grp("key-apify-other-state",ADM.keys.apify_other);
 }
 async function admConnect(silent){
   const v=$("adm-key").value.trim()||admKey;if(!v&&!silent){$("adm-msg").textContent="Paste the admin key first.";return;}
@@ -1342,9 +1350,10 @@ $("adm-connect").onclick=()=>admConnect(false);
 $("adm-key").onkeydown=e=>{if(e.key==="Enter")admConnect(false);};
 $("adm-forget").onclick=()=>{ADM=null;admKey="";acctDraft=null;try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(e){}$("adm-msg").textContent="Disconnected.";renderSources();};
 $("src-save").onclick=saveSources;
-$("key-save").onclick=async()=>{const b={};const a=$("key-apify").value.trim(),y=$("key-yt").value.trim();if(a)b.apify_token=a;if(y)b.youtube_api_key=y;
-  if(!a&&!y){$("key-msg").textContent="Paste a key to save it.";return;}
-  try{ADM=await adm("/keys",{method:"POST",body:JSON.stringify(b)});$("key-apify").value="";$("key-yt").value="";$("key-msg").textContent="Saved on the server.";renderSources();}catch(e){$("key-msg").textContent=e.message;}};
+$("key-save").onclick=async()=>{const b={};const F=[["key-apify","apify_token"],["key-apify-meta","apify_token_meta"],["key-apify-xli","apify_token_x_linkedin"],["key-apify-other","apify_token_other"],["key-yt","youtube_api_key"]];
+  F.forEach(([id,f])=>{const v=$(id).value.trim();if(v)b[f]=v;});
+  if(!Object.keys(b).length){$("key-msg").textContent="Paste a key to save it.";return;}
+  try{ADM=await adm("/keys",{method:"POST",body:JSON.stringify(b)});F.forEach(([id])=>$(id).value="");$("key-msg").textContent="Saved on the server.";renderSources();}catch(e){$("key-msg").textContent=e.message;}};
 $("run-now").onclick=async()=>{
   if(!runArm){runArm=true;const dl=daysLeftInMonth();$("run-now").textContent=`Run now: uses up to ${fmtInt(Math.floor((ADM.settings.monthly_limit-ADM.usage.used)/dl))} posts. Click again`;setTimeout(()=>{runArm=false;$("run-now").textContent="Run today's collection now";},6000);return;}
   runArm=false;$("run-now").textContent="Run today's collection now";

@@ -93,6 +93,19 @@ bash /var/www/sentimeter/deploy/setup-sources.sh
 
 It installs `fetcher/admin.py` as the `sentimeter-admin` service on 127.0.0.1:8787 and forwards `/api/` to it from nginx. Settings are stored in `/etc/sentimeter/settings.json`, usage in `/var/lib/sentimeter/usage.json`, keys in `/etc/sentimeter.env`.
 
+## Apify tokens per platform
+
+Three Apify tokens split the work, shared by every brand on the site:
+
+| Token (`/etc/sentimeter.env`) | Runs |
+| --- | --- |
+| `APIFY_TOKEN_META` | Facebook and Instagram accounts, Facebook post search, Instagram hashtags |
+| `APIFY_TOKEN_X_LINKEDIN` | X and LinkedIn accounts, X keyword search, LinkedIn post search |
+| `APIFY_TOKEN_OTHER` | YouTube (when an Apify actor is used), TikTok and Snapchat |
+| `APIFY_TOKEN` | Default for any group without its own token |
+
+Set them on the Sources page under API keys. The monthly post limit is one total across all tokens.
+
 ## News and duplicates
 
 News (Google News and Bing News) is checked every hour for any alert keyword or Sources search term, keeps articles from the last 24 hours, and does not count toward the Apify limit. Both can be switched off on the Sources page.

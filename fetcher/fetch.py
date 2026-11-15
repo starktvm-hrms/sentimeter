@@ -332,6 +332,21 @@ DEFAULT_ACTORS = {
     "tiktok_hashtags": "clockworks~tiktok-scraper",
     "snapchat_hashtags": "w3crawler~snapchat-hashtag-scraper",
 }
+TOKEN_GROUPS = {
+    "meta": ["facebook", "instagram", "facebook_search", "instagram_hashtags"],
+    "x_linkedin": ["x", "linkedin", "x_search", "linkedin_search"],
+    "other": ["youtube", "tiktok", "snapchat", "tiktok_hashtags", "snapchat_hashtags"],
+}
+TOKEN_ENV = {"meta": "APIFY_TOKEN_META", "x_linkedin": "APIFY_TOKEN_X_LINKEDIN", "other": "APIFY_TOKEN_OTHER"}
+
+
+def token_for(job):
+    """The Apify token for a job: its group's own token, else the default APIFY_TOKEN."""
+    grp = next((g for g, jobs in TOKEN_GROUPS.items() if job in jobs), "other")
+    own = os.environ.get(TOKEN_ENV[grp], "").strip()
+    return (own or os.environ.get("APIFY_TOKEN", "").strip()), (grp if own else "default")
+
+
 KEYWORD_JOBS = ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]
 DEFAULT_SEARCH_TERMS = ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"]
 DEFAULT_SETTINGS = {
@@ -535,7 +550,6 @@ def youtube_api_channel_posts(handles, key, day_start):
 
 def src_social(cfg, kws, force=False):
     st = load_settings()
-    token = os.environ.get("APIFY_TOKEN", "")
     now_l = local_now(st.get("timezone", "Asia/Kolkata"))
     today = now_l.strftime("%Y-%m-%d")
     day_start = now_l.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
@@ -569,7 +583,7 @@ def src_social(cfg, kws, force=False):
     jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
     terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()] or kws[:10]
     run_log = {"date": today, "allowance": allowance, "jobs": {}}
-    if jobs and not token:
+    if jobs and not any(token_for(p)[0] for p in jobs):
         log("social skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
         run_log["note"] = "no Apify token"
     elif jobs and allowance < 1:
@@ -586,12 +600,16 @@ def src_social(cfg, kws, force=False):
             n = len(accounts.get(p) or [1])
             per = max(1, total // n)
             actor = actors.get(p) or DEFAULT_ACTORS[p]
+            token, tgroup = token_for(p)
+            if not token:
+                run_log["jobs"][p] = {"skipped": "no Apify token for this platform"}
+                continue
             try:
                 payload = platform_input(p, accounts.get(p, []), terms, per, total, today)
                 items, billed = apify_run_capped(actor, payload, token, total)
             except Exception as e:
                 log(f"social {p} failed:", e)
-                run_log["jobs"][p] = {"error": str(e)[:200]}
+                run_log["jobs"][p] = {"error": str(e)[:200], "token": tgroup}
                 continue
             left -= billed
             mu["posts"] += billed
@@ -608,8 +626,8 @@ def src_social(cfg, kws, force=False):
                 if m["date"] >= iso(day_start):
                     out.append(m)
                     kept += 1
-            run_log["jobs"][p] = {"actor": actor, "billed": billed, "kept_today": kept}
-            log(f"social {p}: {billed} results billed, {kept} from today")
+            run_log["jobs"][p] = {"actor": actor, "billed": billed, "kept_today": kept, "token": tgroup}
+            log(f"social {p} ({tgroup} token): {billed} results billed, {kept} from today")
     mu["runs"] = (mu["runs"] + [run_log])[-62:]
     if run_log.get("note") != "no Apify token":
         usage["last_daily_run"] = today

@@ -12,7 +12,7 @@ are rate limited per visitor.
 
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
-  POST /api/keys       set APIFY_TOKEN / YOUTUBE_API_KEY (write-only)
+  POST /api/keys       set the Apify tokens (default, meta, x_linkedin, other) and YOUTUBE_API_KEY (write-only)
   POST /api/run        start today's social collection now (counts toward the limit)
   GET  /api/status     whether a run is going, and the end of the fetch log
   GET  /api/shared     shared alerts, label corrections, stars, tags, hidden posts, blocked authors
@@ -214,7 +214,8 @@ class H(BaseHTTPRequestHandler):
         u = fetch.load_usage()
         month = fetch.local_now(s.get("timezone", "Asia/Kolkata")).strftime("%Y-%m")
         mu = u.get("months", {}).get(month, {"posts": 0, "runs": []})
-        return {"settings": s, "keys": {"apify": bool(env.get("APIFY_TOKEN")), "youtube": bool(env.get("YOUTUBE_API_KEY"))},
+        return {"settings": s, "keys": {"apify": bool(env.get("APIFY_TOKEN")), "apify_meta": bool(env.get("APIFY_TOKEN_META")), "apify_x_linkedin": bool(env.get("APIFY_TOKEN_X_LINKEDIN")),
+                         "apify_other": bool(env.get("APIFY_TOKEN_OTHER")), "youtube": bool(env.get("YOUTUBE_API_KEY"))},
                 "usage": {"month": month, "used": mu.get("posts", 0), "runs": mu.get("runs", [])[-10:], "last_daily_run": u.get("last_daily_run")},
                 "running": running(), "public": read_env().get("SENTIMETER_REQUIRE_KEY") != "1", "max_monthly": max_monthly(),
                 "next_manual_run_in": max(0, int(LAST_MANUAL_RUN[0] + 1800 - time.time()))}
@@ -338,7 +339,8 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send(400, {"error": str(e)})
             up = {}
-            for field, var in (("apify_token", "APIFY_TOKEN"), ("youtube_api_key", "YOUTUBE_API_KEY")):
+            for field, var in (("apify_token", "APIFY_TOKEN"), ("apify_token_meta", "APIFY_TOKEN_META"), ("apify_token_x_linkedin", "APIFY_TOKEN_X_LINKEDIN"),
+                               ("apify_token_other", "APIFY_TOKEN_OTHER"), ("youtube_api_key", "YOUTUBE_API_KEY")):
                 if field in b and b[field] is not None:
                     v = str(b[field]).strip()
                     if not re.fullmatch(r"[A-Za-z0-9_\-\.]{0,200}", v):
