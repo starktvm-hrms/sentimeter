@@ -1,0 +1,1141 @@
+<title>Murmur Sentiment Reader</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: dark alert rail on the left, filter bar on top, dashboard cards in a 3-up grid (2-up, then 1-up on narrow screens). */
+:root{
+  --bg:#f1f3f7; --surface:#ffffff; --sunk:#eceff4; --ink:#141b27; --muted:#5b6576; --line:#dce1e8;
+  --accent:#2a46d1; --accent-soft:#e5e9fb; --on-accent:#ffffff;
+  --pos:#1b8456; --pos-soft:#dcf2e6; --neg:#c93b31; --neg-soft:#fae3e0; --neu:#8a94a3; --neu-soft:#e8ecf1;
+  --c1:#2a46d1; --c2:#138f9f; --c3:#8656d1; --c4:#d99a12; --c5:#d4457a; --c6:#46505f; --c7:#9b7354;
+  --side-bg:#131a29; --side-ink:#d5dcea; --side-muted:#8792a8; --side-hover:#1d2638; --side-active:#26324b; --side-line:#222c3f;
+  --shadow:0 1px 2px rgba(20,27,39,.05),0 3px 12px rgba(20,27,39,.04);
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --surface:#161d27; --sunk:#1d2632; --ink:#e6ebf2; --muted:#98a3b3; --line:#29333f;
+  --accent:#8299ff; --accent-soft:#222b4b; --on-accent:#0e131a;
+  --pos:#47c28c; --pos-soft:#163326; --neg:#ff7b6f; --neg-soft:#3a1f1d; --neu:#7f8a9a; --neu-soft:#252e3a;
+  --c1:#8299ff; --c2:#3cc4d2; --c3:#b48cf2; --c4:#f0b93c; --c5:#f278a6; --c6:#9aa6b8; --c7:#c99a76;
+  --side-bg:#0a0e14; --side-ink:#d5dcea; --side-muted:#7f8aa0; --side-hover:#141b26; --side-active:#1c2535; --side-line:#1a222e;
+  --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --surface:#161d27; --sunk:#1d2632; --ink:#e6ebf2; --muted:#98a3b3; --line:#29333f;
+  --accent:#8299ff; --accent-soft:#222b4b; --on-accent:#0e131a;
+  --pos:#47c28c; --pos-soft:#163326; --neg:#ff7b6f; --neg-soft:#3a1f1d; --neu:#7f8a9a; --neu-soft:#252e3a;
+  --c1:#8299ff; --c2:#3cc4d2; --c3:#b48cf2; --c4:#f0b93c; --c5:#f278a6; --c6:#9aa6b8; --c7:#c99a76;
+  --side-bg:#0a0e14; --side-ink:#d5dcea; --side-muted:#7f8aa0; --side-hover:#141b26; --side-active:#1c2535; --side-line:#1a222e;
+  --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh;background:linear-gradient(90deg,var(--side-bg) 236px,var(--bg) 236px)}
+/* Sidebar */
+.side{background:var(--side-bg);color:var(--side-ink);display:flex;flex-direction:column;gap:4px;padding-block:18px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 10px 16px;font-family:var(--f-display);font-weight:700;font-size:21px;letter-spacing:-.02em;color:#fff}
+.brand svg{flex:none}
+.nav a,.alert-link{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--side-ink);text-decoration:none;font-weight:600;font-size:14px}
+.nav a:hover,.alert-link:hover{background:var(--side-hover)}
+.nav a[aria-current="page"]{background:var(--side-active);color:#fff}
+.nav a svg{flex:none;opacity:.85}
+.side-head{display:flex;justify-content:space-between;align-items:center;padding:16px 10px 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--side-muted);font-weight:600}
+.side-head button{background:none;border:1px solid var(--side-line);color:var(--side-ink);border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1}
+.alert-row{display:flex;align-items:center;gap:2px;border-radius:8px}
+.alert-row:hover{background:var(--side-hover)}
+.alert-row.on{background:var(--side-active)}
+.alert-row .alert-link{flex:1;min-width:0}
+.alert-row .alert-link:hover{background:none}
+.gear{background:none;border:0;color:var(--side-muted);width:30px;height:30px;border-radius:6px;cursor:pointer;display:grid;place-items:center;flex:none}
+.gear:hover,.alert-row.on .gear{color:#fff}
+.gear[aria-current="page"]{background:var(--accent);color:var(--on-accent)}
+.alert-link{font-weight:500;justify-content:space-between;cursor:pointer;background:none;border:0;width:100%;text-align:left}
+.alert-link[aria-current="true"]{background:var(--side-active);color:#fff}
+.alert-link span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.count{font-family:var(--f-mono);font-size:11px;background:var(--side-hover);color:var(--side-ink);padding:1px 7px;border-radius:999px;flex:none}
+.alert-link[aria-current="true"] .count{background:var(--accent);color:var(--on-accent)}
+.side-foot{margin-top:auto;padding:14px 10px 0;font-size:12px;color:var(--side-muted);border-top:1px solid var(--side-line)}
+
+/* Main */
+main{min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-block:14px;padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.select{appearance:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23889' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;border:1px solid var(--line);border-radius:8px;padding:8px 30px 8px 12px;font-weight:600;min-width:0;max-width:100%}
+.srcs{display:flex;gap:6px;flex-wrap:wrap}
+.src{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border-radius:7px;font:600 11px/1 var(--f-mono);color:#fff;flex:none}
+.src-toggle{border:0;padding:3px;border-radius:9px;background:none;cursor:pointer;display:inline-flex}
+.src-toggle[aria-pressed="false"] .src{background:var(--neu-soft)!important;color:var(--muted)}
+.s-X{background:var(--c6)} .s-Facebook{background:var(--c1)} .s-Instagram{background:var(--c5)} .s-YouTube{background:var(--neg)} .s-Reddit{background:var(--c4)} .s-News\/Blogs{background:var(--c2)} .s-Web{background:var(--c7)}
+.spacer{flex:1}
+.badge{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;position:relative;overflow:hidden;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+a.btn{text-decoration:none;color:inherit}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--neg)}
+.btn input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.content{padding-block:20px 56px;padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+.page-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px}
+h1{font-family:var(--f-display);font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1.1;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:16px;font-weight:500;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:4px 0 0}
+.hint{color:var(--muted);font-size:13px}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.pos-c{color:var(--pos)} .neg-c{color:var(--neg)} .neu-c{color:var(--muted)}
+
+/* Cards */
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.span2{grid-column:span 2}
+@media (max-width:1180px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.span2{grid-column:span 2}}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}.span2{grid-column:auto}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0;display:flex;flex-direction:column}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:14px 16px 0;flex-wrap:wrap}
+.card-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;min-width:0;flex:1}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;background:var(--sunk);border:0;padding:12px;cursor:pointer;color:var(--muted);font-weight:600;border-radius:0}
+.tabs button:first-child{border-top-left-radius:11px}.tabs button:last-child{border-top-right-radius:11px}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:inset 0 -2px 0 var(--accent)}
+.kpi{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.kpi .big{font-family:var(--f-display);font-weight:700;font-size:34px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.delta{font:500 12px var(--f-mono);padding:2px 7px;border-radius:5px}
+.delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
+.sent-top{display:flex;gap:22px;flex-wrap:wrap}
+.sent-top .v{font-family:var(--f-display);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px}
+.donut-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.donut-row svg{width:140px;height:140px;flex:none}
+.legend{display:flex;flex-direction:column;gap:6px;flex:1;min-width:150px}
+.legend div{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.bars{display:grid;grid-template-columns:minmax(80px,auto) 1fr 48px;gap:8px 12px;align-items:center;font-size:13px}
+.bars .track{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden;display:flex}
+.bars .track div{height:100%}
+.bars .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .num{text-align:right;font-size:12px}
+.cloud{display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:2px 10px;line-height:1.05;padding:6px 0}
+.cloud button{background:none;border:0;padding:0;cursor:pointer;font-family:var(--f-display);font-weight:500;letter-spacing:-.01em}
+.cloud button:hover{text-decoration:underline}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;border:1px solid var(--line);background:var(--surface);padding:4px 10px;border-radius:999px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip b{font:500 11px var(--f-mono);color:var(--muted)}
+.chip.pos{background:var(--pos-soft);border-color:transparent}.chip.neg{background:var(--neg-soft);border-color:transparent}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--sunk)}
+.emo{display:grid;grid-template-columns:72px 1fr 30px;gap:6px 10px;align-items:center;font-size:13px}
+.emo .bar{height:7px;border-radius:4px;background:var(--sunk);overflow:hidden}
+.emo .bar div{height:100%;background:var(--c3)}
+.scroll{max-height:440px;overflow-y:auto}
+
+/* Mentions */
+.mention{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.mention:last-child{border-bottom:0}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;font-size:14px}
+.m-head{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.m-head b{font-weight:600}
+.m-meta{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.m-text{margin:6px 0 8px;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.m-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill.pos{background:var(--pos-soft);color:var(--pos)}.pill.neg{background:var(--neg-soft);color:var(--neg)}.pill.neu{background:var(--neu-soft);color:var(--muted)}
+.flag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+.mini-select{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:2px 6px;font-size:12px}
+mark{background:none;color:inherit;border-radius:3px;padding:0 2px}
+mark.p{background:var(--pos-soft);color:var(--pos);font-weight:600}
+mark.n{background:var(--neg-soft);color:var(--neg);font-weight:600}
+mark.m{text-decoration:underline dotted var(--muted);text-underline-offset:3px}
+mark.k{background:var(--accent-soft);color:var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+input[type="search"],input[type="text"]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.empty{color:var(--muted);padding:18px 16px;font-size:14px}
+
+/* Settings */
+.form{display:grid;grid-template-columns:180px minmax(0,1fr);gap:18px 20px;align-items:start}
+@media (max-width:760px){.form{grid-template-columns:minmax(0,1fr);gap:8px}}
+.form label.f{font-weight:600;padding-top:8px}
+.chipbox{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);min-height:46px;align-items:center}
+.chipbox .kw{display:inline-flex;align-items:center;gap:4px;background:var(--pos-soft);color:var(--ink);border-radius:6px;padding:4px 4px 4px 9px;font-weight:600;font-size:13px}
+.chipbox.ex .kw{background:var(--neg-soft)}
+.chipbox.loc .kw{background:var(--accent-soft)}
+.chipbox .kw button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:0 4px;border-radius:4px}
+.chipbox input{border:0;outline:0;background:transparent;flex:1;min-width:140px;padding:4px}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+.checks input{accent-color:var(--accent)}
+.form-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:16px}
+
+/* Analyze */
+textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono);background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:12px}
+.gauge{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--neg),var(--neu-soft) 47.5%,var(--neu-soft) 52.5%,var(--pos))}
+.gauge .marker{position:absolute;top:-6px;width:4px;height:24px;border-radius:2px;background:var(--ink);transform:translateX(-50%);transition:left .25s ease}
+.gauge-scale{display:flex;justify-content:space-between;font:11px var(--f-mono);color:var(--muted)}
+.hl{font-size:16px;line-height:1.8;padding:14px;background:var(--sunk);border-radius:9px;overflow-wrap:anywhere}
+.contrib div{display:grid;grid-template-columns:minmax(80px,1fr) 2fr 56px;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.contrib div:last-child{border-bottom:0}
+.contrib .w{font-family:var(--f-mono);font-weight:500;overflow-wrap:anywhere}
+.method{color:var(--muted);max-width:78ch}
+.method p{margin:0 0 8px}
+
+/* Mention split view */
+.split{display:grid;grid-template-columns:minmax(300px,410px) minmax(0,1fr);gap:18px;align-items:start}
+.list-card{overflow:hidden}
+.list{max-height:calc(100vh - 230px);min-height:300px;overflow-y:auto}
+.item{display:flex;flex-direction:column;gap:4px;color:inherit;text-decoration:none;padding:12px 14px 12px 12px;border-bottom:1px solid var(--line);border-left:3px solid transparent}
+.item:hover{background:var(--sunk)}
+.item[aria-current="true"]{background:var(--accent-soft);border-left-color:var(--accent)}
+.item.done .snip,.item.done .t{opacity:.55}
+.item .row1{display:flex;gap:8px;align-items:center;min-width:0}
+.item .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.item .when{color:var(--muted);font-size:12px;flex:none;font-family:var(--f-mono)}
+.item .snip{font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.item .row2{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12px;color:var(--muted)}
+.detail{display:flex;flex-direction:column;gap:18px;min-width:0}
+.d-title{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.015em;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+.d-author{display:flex;gap:12px;align-items:center;min-width:0}
+.d-text{font-size:16px;line-height:1.75;overflow-wrap:anywhere;padding:14px 16px;background:var(--sunk);border-radius:10px}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.meta-grid > div{border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:0}
+.meta-grid .v{font-weight:600;overflow-wrap:anywhere}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.act{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.act:hover{border-color:var(--muted)}
+.act[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.act.warn{color:var(--neg)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:6px 12px;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.pos[aria-pressed="true"]{background:var(--pos-soft);color:var(--pos)}
+.seg button.neu[aria-pressed="true"]{background:var(--neu-soft);color:var(--ink)}
+.seg button.neg[aria-pressed="true"]{background:var(--neg-soft);color:var(--neg)}
+.name-link{color:inherit;text-decoration:none}.name-link:hover{text-decoration:underline}
+.back{display:none;align-self:flex-start;text-decoration:none}
+.orig{color:var(--accent);font-weight:600;text-decoration:none}
+@media (max-width:1050px){
+  .split{grid-template-columns:minmax(0,1fr)}
+  .split.has-sel .list-card{display:none}
+  .split:not(.has-sel) .detail{display:none}
+  .back{display:inline-flex}
+  .list{max-height:none}
+}
+/* Reports */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .big{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tbl-wrap{overflow-x:auto}
+.tbl{border-collapse:collapse;width:100%;font-size:13px}
+.tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.tbl th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tbl td.r,.tbl th.r{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td.wrap{white-space:normal;min-width:160px}
+.grid2r{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:1000px){.grid2r{grid-template-columns:minmax(0,1fr)}}
+.legend-inline{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr);background:var(--bg)}
+  .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding-block:10px;padding-right:max(12px,env(safe-area-inset-right,0px));gap:6px}
+  .brand{padding:0 8px 0 4px;font-size:18px}
+  .nav{display:flex;gap:2px;overflow-x:auto;max-width:100%}
+  .nav a{white-space:nowrap;padding:7px 10px}
+  .side-head,.alert-list,.side-foot{display:none}
+}
+@media (prefers-reduced-motion: reduce){.gauge .marker{transition:none}}
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="#2a46d1"/><path d="M5 15c2-5 4-5 5 0s3 5 4 0 3-6 4-1 2 3 3 1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+      Murmur
+    </div>
+    <nav class="nav" aria-label="Main">
+      <a href="#dashboard" data-view="dashboard"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="7" rx="1.5"/><rect x="10" y="2" width="6" height="4" rx="1.5"/><rect x="2" y="11" width="6" height="5" rx="1.5"/><rect x="10" y="8" width="6" height="8" rx="1.5"/></svg>Dashboard</a>
+      <a href="#mentions" data-view="mentions"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h12v8H8l-3 3v-3H3z" stroke-linejoin="round"/></svg>Mentions</a>
+      <a href="#reports" data-view="reports"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2" width="13" height="14" rx="2"/><path d="M6 12V9M9 12V6M12 12v-2" stroke-linecap="round"/></svg>Reports</a>
+      <a href="#analyze" data-view="analyze"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 6-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 5h4v4" stroke-linecap="round"/></svg>Analyze text</a>
+    </nav>
+    <div class="side-head"><span>Alerts</span><button id="new-alert" title="New alert" aria-label="New alert">+</button></div>
+    <div class="alert-list" id="alert-list"></div>
+    <div class="side-foot" id="side-foot"></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <select class="select" id="alert-select" aria-label="Alert"></select>
+      <div class="srcs" id="src-toggles" aria-label="Sources"></div>
+      <span class="spacer"></span>
+      <span class="badge" id="data-badge"></span>
+      <select class="select" id="range" aria-label="Date range">
+        <option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option><option value="0">All time</option>
+      </select>
+      <label class="btn">Import data<input type="file" id="file-top" accept=".csv,.tsv,.txt,.json"></label>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section class="content" id="v-dashboard">
+      <div class="page-head">
+        <div><h1 id="dash-title">Dashboard</h1><p class="sub" id="dash-sub"></p></div>
+        <a class="btn" href="#alert-setup"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg> Alert settings</a>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="tabs" role="tablist"><button role="tab" data-mtab="mentions" aria-selected="true">Mentions</button><button role="tab" data-mtab="reach" aria-selected="false">Reach</button></div>
+          <div class="card-body">
+            <div class="kpi"><span class="big" id="m-total">0</span><span class="delta flat" id="m-delta">0%</span><span class="hint" id="m-vs"></span></div>
+            <div class="chart" id="m-chart"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Sentiment</h2><span class="hint">share of mentions</span></div>
+          <div class="card-body">
+            <div class="sent-top">
+              <div><div class="hint"><span class="dot" style="background:var(--pos)"></span>Positive</div><div class="v pos-c" id="s-pos">0%</div></div>
+              <div><div class="hint"><span class="dot" style="background:var(--neg)"></span>Negative</div><div class="v neg-c" id="s-neg">0%</div></div>
+              <div><div class="hint"><span class="dot" style="background:var(--neu)"></span>Neutral</div><div class="v neu-c" id="s-neu">0%</div></div>
+            </div>
+            <div class="chart" id="s-chart"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Net sentiment</h2><span class="hint">% positive − % negative</span></div>
+          <div class="card-body">
+            <div class="kpi"><span class="big" id="net">0</span><span class="delta flat" id="net-delta">0</span><span class="hint">points vs previous period</span></div>
+            <div class="eyebrow">Emotion signals</div>
+            <div class="emo" id="emo"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tabs" role="tablist"><button role="tab" data-ttab="mentions" aria-selected="true">Top mentions</button><button role="tab" data-ttab="influencers" aria-selected="false">Top influencers</button></div>
+          <div class="scroll" id="top-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Locations</h2><span class="hint">by state or region</span></div>
+          <div class="card-body"><div class="bars" id="loc"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Topic cloud</h2><span class="hint">colored by sentiment, click to filter</span></div>
+          <div class="card-body"><div class="cloud" id="cloud"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Languages</h2></div>
+          <div class="card-body"><div class="donut-row" id="langs"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Sources</h2></div>
+          <div class="card-body"><div class="donut-row" id="sources"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Sentiment by source</h2><span class="hint">net score</span></div>
+          <div class="card-body"><div class="bars" id="by-src"></div></div>
+        </div>
+
+        <div class="card span2">
+          <div class="card-head"><h2>What drives sentiment</h2><span class="hint">click a term to see its mentions</span></div>
+          <div class="card-body">
+            <div><div class="eyebrow" style="margin-bottom:6px">Pulling up</div><div class="chips" id="drv-pos"></div></div>
+            <div><div class="eyebrow" style="margin-bottom:6px">Dragging down</div><div class="chips" id="drv-neg"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Needs attention</h2><span class="hint">negative, highest reach</span></div>
+          <div id="attention"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MENTIONS -->
+    <section class="content" id="v-mentions" hidden>
+      <div class="page-head">
+        <div><h1>Mentions</h1><p class="sub" id="ment-sub"></p></div>
+        <div class="toolbar"><a class="btn" href="#alert-setup"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg> Alert settings</a><button class="btn" id="copy-csv">Copy as CSV</button></div>
+      </div>
+      <div class="toolbar">
+        <div class="chips" id="sent-filter">
+          <button class="chip" data-f="all" aria-pressed="true">All</button>
+          <button class="chip" data-f="pos" aria-pressed="false">Positive</button>
+          <button class="chip" data-f="neu" aria-pressed="false">Neutral</button>
+          <button class="chip" data-f="neg" aria-pressed="false">Negative</button>
+          <button class="chip" data-f="flag" aria-pressed="false">Flagged</button>
+          <button class="chip" data-f="star" aria-pressed="false">Starred</button>
+        </div>
+        <input type="search" id="search" placeholder="Search mentions" aria-label="Search mentions">
+        <select class="select" id="sort" aria-label="Sort">
+          <option value="new">Newest first</option><option value="reach">Highest reach</option><option value="negative">Most negative</option><option value="positive">Most positive</option>
+        </select>
+        <span class="chip" id="term-chip" hidden></span>
+        <button class="btn" id="restore" hidden></button>
+      </div>
+      <textarea id="copy-out" readonly hidden aria-label="CSV output"></textarea>
+      <div class="split" id="split">
+        <div class="card list-card"><div class="list" id="feed"></div><div style="padding:10px 14px;border-top:1px solid var(--line)" id="more-wrap"><button class="btn" id="more">Show more</button></div></div>
+        <div class="detail" id="detail"></div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="content" id="v-reports" hidden>
+      <div class="page-head">
+        <div><div class="eyebrow">Mention statistics</div><h1 id="r-title"></h1><p class="sub" id="r-sub"></p></div>
+        <div class="toolbar"><button class="btn" id="r-copy-sum">Copy summary</button><button class="btn" id="r-copy-csv">Copy daily data (CSV)</button></div>
+      </div>
+      <textarea id="r-out" readonly hidden aria-label="Copied report text"></textarea>
+      <div class="tiles" id="r-tiles"></div>
+      <div class="card">
+        <div class="tabs" role="tablist"><button role="tab" data-rtab="mentions" aria-selected="true">Mentions per day</button><button role="tab" data-rtab="reach" aria-selected="false">Reach per day</button></div>
+        <div class="card-head"><span class="hint" id="r-daily-h">by sentiment</span><div class="legend-inline" id="r-daily-leg"><span><span class="dot" style="background:var(--pos)"></span>Positive</span><span><span class="dot" style="background:var(--neu)"></span>Neutral</span><span><span class="dot" style="background:var(--neg)"></span>Negative</span></div></div>
+        <div class="card-body"><div class="chart" id="r-daily"></div></div>
+      </div>
+      <div class="grid2r">
+        <div class="card"><div class="card-head"><h2>Activity by hour</h2><span class="hint">mentions, UTC</span></div><div class="card-body"><div class="chart" id="r-hour"></div></div></div>
+        <div class="card"><div class="card-head"><h2>Activity by weekday</h2><span class="hint">mentions, UTC</span></div><div class="card-body"><div class="chart" id="r-week"></div></div></div>
+      </div>
+      <div class="grid2r">
+        <div class="card"><div class="card-head"><h2>Period comparison</h2><span class="hint" id="r-cmp-h"></span></div><div class="card-body"><div class="tbl-wrap" id="r-cmp"></div></div></div>
+        <div class="card"><div class="card-head"><h2>By source</h2></div><div class="card-body"><div class="tbl-wrap" id="r-src"></div></div></div>
+      </div>
+      <div class="grid2r">
+        <div class="card"><div class="card-head"><h2>Top influencers</h2><span class="hint">by reach</span></div><div class="card-body"><div class="tbl-wrap" id="r-auth"></div></div></div>
+        <div class="card"><div class="card-head"><h2>Most active</h2><span class="hint">by number of mentions</span></div><div class="card-body"><div class="tbl-wrap" id="r-active"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Authors by source</h2><select class="select" id="r-src-sel" aria-label="Source"></select></div>
+        <div class="card-body"><div class="grid2r">
+          <div><div class="eyebrow" style="margin-bottom:6px">Top influencers</div><div class="tbl-wrap" id="r-src-inf"></div></div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Most active</div><div class="tbl-wrap" id="r-src-act"></div></div>
+        </div></div>
+      </div>
+      <div class="grid2r">
+        <div class="card"><div class="card-head"><h2>Account types</h2><span class="hint" id="r-acct-h"></span></div><div class="card-body"><div class="bars" id="r-acct"></div></div></div>
+        <div class="card"><div class="card-head"><h2>Audience</h2><span class="hint">gender and age</span></div><div class="card-body" id="r-demo"></div></div>
+      </div>
+      <div class="grid2r">
+        <div class="card"><div class="card-head"><h2>Keyword performance</h2><span class="hint">mentions matching each keyword</span></div><div class="card-body"><div class="tbl-wrap" id="r-kw"></div><p class="hint" id="r-kw-zero" style="margin:0"></p></div></div>
+      </div>
+      <div class="grid2r">
+        <div class="card"><div class="card-head"><h2>Top hashtags</h2></div><div class="card-body"><div class="tbl-wrap" id="r-tags"></div></div></div>
+        <div class="card"><div class="card-head"><h2>Languages, countries and regions</h2></div><div class="card-body"><div class="tbl-wrap" id="r-lang"></div><div class="tbl-wrap" id="r-country"></div><div class="tbl-wrap" id="r-loc"></div></div></div>
+      </div>
+      <div class="card"><div class="card-head"><h2>Alert comparison</h2><span class="hint">same period and sources, all alerts</span></div><div class="card-body"><div class="tbl-wrap" id="r-alerts"></div></div></div>
+    </section>
+
+    <!-- ANALYZE -->
+    <section class="content" id="v-analyze" hidden>
+      <div class="page-head"><div><h1>Analyze text</h1><p class="sub">Paste any post, comment or review to see how it is scored, word by word.</p></div></div>
+      <div class="card"><div class="card-body"><textarea id="single-input" spellcheck="false" aria-label="Post text"></textarea></div></div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">
+        <div class="card"><div class="card-body">
+          <div class="kpi"><span class="big" id="a-score">0.00</span><span class="pill neu" id="a-label">Neutral</span><span id="a-flags"></span></div>
+          <div><div class="gauge"><div class="marker" id="a-marker" style="left:50%"></div></div>
+          <div class="gauge-scale" style="margin-top:8px"><span>−1 negative</span><span>0</span><span>+1 positive</span></div></div>
+          <div class="hl" id="a-hl"></div>
+          <div class="hint">Green and red marks are scored words. Dotted underlines are modifiers: boosters, dampeners and negations.</div>
+        </div></div>
+        <div class="card"><div class="card-head"><h2>Why this score</h2></div><div class="card-body">
+          <div class="contrib" id="a-contrib"></div>
+          <div class="eyebrow">Emotion signals</div><div class="chips" id="a-emo"></div>
+        </div></div>
+      </div>
+      <div class="card method"><div class="card-body">
+        <h2 style="color:var(--ink)">How scoring works</h2>
+        <p>Each word, emoji and emoticon is looked up in a lexicon rated from −4 to +4. Scores are raised by boosters ("really", "so"), lowered by dampeners ("kinda"), flipped by negations within three words ("not", "isn't", "never"), lifted for ALL CAPS and stretched spelling ("sooo"), and weighted toward the clause after "but". The total becomes a compound score from −1 to +1: +0.05 or above is positive, −0.05 or below is negative. This follows the VADER approach used for social media text.</p>
+        <p>The lexicon is English. Hindi, Malayalam, Tamil and other scripts are detected and flagged, and their scores rely only on emoji and English hashtags, so review them or correct the label on the Mentions page.</p>
+      </div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="content" id="v-alert-setup" hidden>
+      <div class="page-head"><div><h1>Settings for <span style="color:var(--accent)" id="set-name-h"></span></h1><p class="sub">These settings apply only to this alert. Choose the keywords to collect; excluded keywords drop any mention that contains them.</p></div><a class="btn" href="#mentions">View this alert's mentions</a></div>
+      <div class="card"><div class="card-body">
+        <div class="form">
+          <label class="f" for="set-name">Alert name</label>
+          <input type="text" id="set-name">
+          <label class="f">Keywords</label>
+          <div><div class="chipbox" id="set-kw"></div><div class="hint" style="margin-top:4px">Press Enter or comma to add. Phrases match as written; hashtags match the tag.</div></div>
+          <label class="f">Excluded keywords</label>
+          <div class="chipbox ex" id="set-ex"></div>
+          <label class="f">Languages</label>
+          <div><div class="checks" id="set-lang"></div><div class="hint" style="margin-top:4px">Leave all unchecked to include every language.</div></div>
+          <label class="f">Locations</label>
+          <div style="display:flex;flex-direction:column;gap:8px"><div class="chipbox loc" id="set-loc"></div>
+            <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="set-unknown" style="accent-color:var(--accent)"> Include results with unknown location</label></div>
+          <label class="f">Sources</label>
+          <div class="checks" id="set-src"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn danger" id="del-alert">Delete alert</button>
+          <span class="hint" id="set-preview"></span>
+          <span class="spacer"></span>
+          <button class="btn" id="cancel-set">Cancel</button>
+          <button class="btn primary" id="save-set">Save settings</button>
+        </div>
+      </div></div>
+
+      <div class="card"><div class="card-head"><h2>Data</h2><span class="badge" id="data-badge2"></span></div><div class="card-body">
+        <p class="hint" style="margin:0">Murmur scores mentions you bring in. Export them from your listening tool, platform analytics or a scraper as CSV or JSON. Recognized columns: <b>text</b> (or content, message, comment, review, body), <b>platform</b> (or source), <b>date</b>, <b>author</b>, <b>handle</b>, <b>location</b> (or country), <b>language</b> and <b>reach</b> (or followers). Only text is required. Data stays in this browser.</p>
+        <div class="toolbar">
+          <label class="btn primary">Import CSV or JSON<input type="file" id="file-set" accept=".csv,.tsv,.txt,.json"></label>
+          <button class="btn" id="load-sample">Load sample data</button>
+          <button class="btn danger" id="clear-data">Clear data</button>
+          <span class="hint" id="import-msg"></span>
+        </div>
+      </div></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+"use strict";
+/*ENGINE*/
+
+/* ---------- Constants ---------- */
+const PLATFORMS=["X","Facebook","Instagram","YouTube","Reddit","News/Blogs","Web"];
+const ABBR={X:"X",Facebook:"f",Instagram:"IG",YouTube:"YT",Reddit:"R","News/Blogs":"N",Web:"W"};
+const PCOLOR={X:"var(--c6)",Facebook:"var(--c1)",Instagram:"var(--c5)",YouTube:"var(--neg)",Reddit:"var(--c4)","News/Blogs":"var(--c2)",Web:"var(--c7)"};
+const LANGS=["English","Hindi","Malayalam","Tamil","Arabic","Other"];
+const LCOLOR={English:"var(--c1)",Hindi:"var(--c2)",Malayalam:"var(--c3)",Tamil:"var(--c5)",Arabic:"var(--c4)",Other:"var(--c7)"};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const STOP=new Set(("a an the and or but if of to in on at by for with from as is are was were be been being it its it's this that these those i me my we our you your he she they them their his her im i'm so very just not no yes do does did done have has had will would can could should may might must there here what which who whom when where why how all any some more most other such only own same than too also into out up down over under again then once about after before while because until during through between both each few nor off very s t don't can't won't us am get got go going one two three new day days time today tonight now still even really much many like").split(" "));
+function normPlatform(s){s=String(s||"").toLowerCase().trim();if(!s)return"Web";if(/^(x|twitter|tweet)/.test(s))return"X";if(s.includes("face")||s==="fb")return"Facebook";if(s.includes("insta")||s==="ig")return"Instagram";if(s.includes("youtu")||s==="yt")return"YouTube";if(s.includes("reddit"))return"Reddit";if(/news|blog|article|press|media/.test(s))return"News/Blogs";return"Web";}
+function normGender(g){g=String(g||"").toLowerCase().trim();if(/^(m|male|man)$/.test(g))return"Male";if(/^(f|female|woman)$/.test(g))return"Female";return"";}
+const AGE_BUCKETS=["18-24","25-34","35-44","45-54","55-64","65+"];
+function normAge(a){a=String(a||"").trim();if(!a)return"";const hit=AGE_BUCKETS.find(b=>a.replace(/\s|–/g,"-").startsWith(b));if(hit)return hit;const n=parseInt(a,10);if(!(n>=13))return"";return n<25?"18-24":n<35?"25-34":n<45?"35-44":n<55?"45-54":n<65?"55-64":"65+";}
+function acctType(m){const v=String(m.acct||"").toLowerCase();if(/comp|org|brand|business|media/.test(v))return{t:"Company",est:false};if(/pers|indiv|user/.test(v))return{t:"Personal",est:false};
+  const p=normPlatform(m.platform);const n=(m.author||"")+" "+(m.handle||"");
+  if(p==="News/Blogs"||p==="Web"||/\.(com|in|org|net|co)\b/i.test(n)||/\b(news|tv|times|media|tourism|hotels?|resorts?|travels?|holidays?|tours?|ayurveda|hospital|official|ltd|pvt|inc|agency|channel|magazine|daily|desk|blog|foundation|wellness|hub|diaries|notes|living|chronicle|trails)\b/i.test(n))return{t:"Company",est:true};
+  return{t:"Personal",est:true};}
+function detectLang(t){if(/[ഀ-ൿ]/.test(t))return"Malayalam";if(/[஀-௿]/.test(t))return"Tamil";if(/[ऀ-ॿ]/.test(t))return"Hindi";if(/[؀-ۿ]/.test(t))return"Arabic";return"English";}
+function normLang(s,t){s=String(s||"").toLowerCase();if(!s)return detectLang(t);if(/^en/.test(s))return"English";if(/^hi/.test(s))return"Hindi";if(/^(ml|mal)/.test(s))return"Malayalam";if(/^ta/.test(s))return"Tamil";if(/^ar/.test(s))return"Arabic";return"Other";}
+function compact(n){n=+n||0;if(n>=1e6)return(n/1e6).toFixed(n>=1e7?0:1).replace(/\.0$/,"")+"M";if(n>=1e3)return(n/1e3).toFixed(n>=1e4?0:1).replace(/\.0$/,"")+"K";return String(Math.round(n));}
+function dayStr(d){return d.toISOString().slice(0,10);}
+function addDays(s,n){const d=new Date(s+"T00:00:00Z");d.setUTCDate(d.getUTCDate()+n);return dayStr(d);}
+function fmtDay(s){const d=new Date(s+"T00:00:00Z");return MON[d.getUTCMonth()]+" "+d.getUTCDate();}
+function fmtStamp(iso){const d=new Date(iso);if(isNaN(d))return"";return MON[d.getUTCMonth()]+" "+d.getUTCDate()+", "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");}
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+
+/* ---------- Sample data (fictional) ---------- */
+const AUTHORS=[
+ ["Backwater Diaries","backwaterdiaries","Instagram","Alappuzha, Kerala, India",48000],
+ ["Meera Wanders","meerawanders","Instagram","Bengaluru, Karnataka, India",120000],
+ ["Coastal Chronicle","coastalchronicle","News/Blogs","Kochi, Kerala, India",260000],
+ ["The Spice Route Blog","spiceroute.blog","News/Blogs","Mumbai, Maharashtra, India",35000],
+ ["Arjun Nair","arjun_n","X","Thiruvananthapuram, Kerala, India",2100],
+ ["Priya Menon","priyamenon","X","Chennai, Tamil Nadu, India",5400],
+ ["Rahul Verma","rverma_travels","X","New Delhi, Delhi, India",18000],
+ ["Hill Station Hopper","hillstationhopper","YouTube","Pune, Maharashtra, India",310000],
+ ["South Trails","southtrails","YouTube","Hyderabad, Telangana, India",92000],
+ ["Anjali K","anjali.k","Facebook","Kozhikode, Kerala, India",900],
+ ["Kerala Food Notes","keralafoodnotes","Facebook","Thrissur, Kerala, India",64000],
+ ["monsoonmiles","u/monsoonmiles","Reddit","",1500],
+ ["Sam Whitfield","samwhitfield","X","London, England, United Kingdom",3200],
+ ["Lena Hoffmann","lena.hoffmann","Instagram","Munich, Bavaria, Germany",7800],
+ ["Gulf Malayali Hub","gulfmalayalihub","Facebook","Dubai, Dubai, United Arab Emirates",140000],
+ ["Vikram S","vikram_s","X","Kolkata, West Bengal, India",1200],
+ ["Nithya Travels","nithyatravels","Instagram","Coimbatore, Tamil Nadu, India",22000],
+ ["Daily Kerala Desk","dailykeraladesk","News/Blogs","Kozhikode, Kerala, India",180000],
+ ["Ayur Living","ayurliving","Instagram","Kochi, Kerala, India",56000],
+ ["Nomad Ben","nomadben","YouTube","Sydney, New South Wales, Australia",450000],
+ ["kochi_local","u/kochi_local","Reddit","Kochi, Kerala, India",800],
+ ["Deepa R","deepa.r","X","Bengaluru, Karnataka, India",3900]
+];
+const PLACES=["Munnar","Varkala","Kovalam","Kumarakom","Vagamon","Wayanad","Fort Kochi","Alleppey"];
+const TAGS=["#keralatourism","#kerala","#munnar","#varkala","#ayurveda","#ItsKeralaSeason","#wayanad","#visitkerala","#KeralaCuisine"];
+const TPL=[
+ // positive
+ ["p","Woke up to mist rolling over the tea hills in Munnar. Absolutely stunning 😍"],
+ ["p","Our houseboat night in Kumarakom was the best part of the trip. Fresh karimeen, calm water, zero stress ✨"],
+ ["p","Five days of Ayurveda treatment and I feel brand new. The doctors were so helpful and kind 🙏"],
+ ["p","Varkala cliff sunsets never get old 🔥"],
+ ["p","Booked a homestay in {P} and the family treated us like their own. Highly recommend!"],
+ ["p","Kerala Sadya on a banana leaf, 26 dishes and every one was delicious. Love this place ❤️"],
+ ["p","Just wrapped an intimate wedding shoot in Fort Kochi. Gorgeous light, wonderful couple 💕 #IntimateWeddings"],
+ ["p","Kerala waterfalls are in full flow after the rain. Athirappilly was incredible, worth every hairpin bend!"],
+ ["p","Kerala road trip day 4: smooth roads, great food, friendly people everywhere 👍"],
+ ["p","Our Wayanad treehouse stay was magical. Kids loved it 🥰"],
+ ["p","Destination wedding in Kumarakom last weekend. Backwater mandap at sunset, guests loved every minute 💕 #WeddingDestination"],
+ ["p","Fort Kochi street art walk was such a fun morning. Great cafes too"],
+ ["p","Vagamon meadows in November are perfect. Cool breeze, no crowds, pure peace"],
+ ["p","New vlog: 48 hours in Kovalam. Clean beach, amazing seafood, lovely people 🎬"],
+ ["p","Kerala resorts really get hospitality right. Staff remembered our names by day two 😊"],
+ ["p","The tourism helpdesk at Kochi airport sorted our taxi in minutes. Thank you!"],
+ ["p","Kerala hill stations > every other winter trip I've done. Munnar was a dream ✨"],
+ // neutral
+ ["u","{P} weather update: light showers expected through the weekend."],
+ ["u","Which is better in December, Munnar or Vagamon? Planning a 3-day trip."],
+ ["u","A new airport shuttle to {P} starts Monday, according to the operator."],
+ ["u","Thread: Kerala homestays under ₹3000 a night, sorted by district"],
+ ["u","Snake boat race practice spotted near Alleppey this morning"],
+ ["u","Kerala travel guide for first-timers, link in bio"],
+ ["u","How many days do you need for Kerala backwater plus Munnar? Itinerary help please"],
+ // negative
+ ["n","Stuck in traffic on the {P} ghat road for 3 hours. Terrible planning 😤"],
+ ["n","Resort in {P} looked nothing like the photos. Dirty room and rude staff. Avoid."],
+ ["n","Plastic waste all over the beach at {P}. Sad to see 😞"],
+ ["n","Paid premium for an Ayurveda package that was just a basic spa. Total ripoff."],
+ ["n","Overpriced houseboat, broken AC, and the food was cold. Disappointed."],
+ ["n","Booking site cancelled our Kumarakom stay last minute with no refund 😡"],
+ ["n","Landslide warnings again for Wayanad. Worried about our trip next week"],
+ ["n","Kerala hotels hiking prices 3x for the holiday season is ridiculous"],
+ // off-topic noise caught by broad tags
+ ["x","Fuel price debate heats up in the state assembly today #kerala"],
+ ["x","Cricket: Kerala beat Karnataka by 6 wickets in the opener #kerala"],
+ ["x","Traffic diversions in Thiruvananthapuram for the rally today #kerala"],
+ ["x","Best massage spa in Kovalam, DM for offers #kerala"],
+ // other languages
+ ["ml","മൂന്നാറിലെ മഞ്ഞ് അതിമനോഹരം 😍 #munnar #keralatourism"],
+ ["ml","വർക്കല ബീച്ചിൽ ഒരു സായാഹ്നം ✨ #varkala"],
+ ["ml","കുമരകത്ത് ഹൗസ്ബോട്ട് വളരെ ചെലവേറിയതാണ് 😞 #kerala"],
+ ["hi","केरल की बैकवॉटर यात्रा बहुत शानदार रही 😍 #keralatourism"],
+ ["hi","मुन्नार में बहुत भीड़ थी, होटल बहुत महंगे 😤 #munnar"],
+ ["ta","மூணாறு பயணம் அருமை 👍 #munnar #keralatourism"]
+];
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function makeSample(){
+  const R=mulberry(20261115),pick=a=>a[Math.floor(R()*a.length)];
+  const end="2026-11-15",out=[];let id=0;
+  const langAuthors={ml:[0,4,9,10,17,18,20,14],hi:[3,6,7,15],ta:[5,16]};
+  for(let d=29;d>=0;d--){
+    const day=addDays(end,-d);
+    let n=6+Math.floor(R()*8);
+    if(day==="2026-11-12")n+=12; if(day==="2026-11-13")n+=6;
+    for(let k=0;k<n;k++){
+      const roll=R();
+      const kind=roll<.48?"p":roll<.68?"u":roll<.86?"n":roll<.93?"x":pick(["ml","hi","ta","ml"]);
+      const pool=TPL.filter(t=>t[0]===kind);
+      let text=pick(pool)[1].replace("{P}",pick(PLACES));
+      if(kind==="p"||kind==="u"||kind==="n"){const t1=pick(TAGS);text+=" "+t1;if(R()<.4){const t2=pick(TAGS);if(t2!==t1)text+=" "+t2;}}
+      const a=AUTHORS[langAuthors[kind]?pick(langAuthors[kind]):Math.floor(R()*AUTHORS.length)];
+      const h=Math.floor(R()*24),mi=Math.floor(R()*60);
+      out.push({id:"s"+(id++),date:day+"T"+String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0")+":00Z",author:a[0],handle:a[1],platform:a[2],location:a[3],reach:Math.round(a[4]*(.5+R())),text,lang:""});
+    }
+  }
+  return out;
+}
+const SAMPLE_ALERTS=[
+ {id:"a1",name:"#keralatourism",keywords:["Kovalam","#keralatourism","Ayurveda","Varkala","Kerala holiday","#ItsKeralaSeason","#KeralaUr2026Destination","#IndiasSummerCamp","Kerala vacation","#KeralaCuisine","Kerala Nature","kerala summer vacation","Kerala road trip","#wayanad","kerala travel","#KeralaReels2025","kerala hill stations","#WeddingDestination","Fortkochi","Kerala waterfalls","Kerala homestays","Kerala resorts","Kerala hotels","Kumarakom","Vagamon","KeralaResorts","kerala blog express","#kerala","kerala backwater","#KeralaSnack","#IntimateWeddings","munnar"],excluded:["massage"],langs:[],locations:["India"],unknown:false,sources:PLATFORMS.slice()},
+ {id:"a2",name:"Kerala Ayurveda",keywords:["Ayurveda","#ayurveda","Panchakarma","wellness retreat"],excluded:["massage"],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()},
+ {id:"a3",name:"Kerala Weddings",keywords:["#WeddingDestination","#IntimateWeddings","destination wedding","wedding shoot"],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()}
+];
+
+/* ---------- State ---------- */
+const KEY="murmur-v2";
+let S={meta:{},blocked:[],alerts:JSON.parse(JSON.stringify(SAMPLE_ALERTS)),active:"a1",overrides:{},range:7,srcOff:[],imported:null,dataLabel:"Sample data"};
+let MENTIONS=[];let NOW_TS=Date.now();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{const c=Object.assign({},S,{imported:null});localStorage.setItem(KEY,JSON.stringify(c));}catch(_){}}}
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||"null");if(v&&v.alerts&&v.alerts.length)S=Object.assign(S,v);}catch(e){}}
+function prepare(raw){
+  return raw.map((m,i)=>{
+    const text=String(m.text||"");
+    const loc=String(m.location||"").trim();
+    const parts=loc.split(",").map(x=>x.trim()).filter(Boolean);
+    const d=new Date(m.date);const iso=isNaN(d)?new Date().toISOString():d.toISOString();
+    return{id:m.id||("m"+i),text,author:m.author||m.handle||"Unknown author",handle:m.handle||"",platform:normPlatform(m.platform),location:loc,
+      country:parts.length?parts[parts.length-1]:"",region:parts.length>=3?parts[parts.length-2]:parts.length===2?parts[0]:parts[0]||"",
+      gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
+  });
+}
+function setData(){MENTIONS=prepare(S.imported||makeSample());NOW_TS=MENTIONS.reduce((a,m)=>Math.max(a,+new Date(m.date)),0)||Date.now();}
+const getMeta=id=>S.meta[id]||{star:false,done:false,tags:[]};
+const M=id=>S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});
+const isHidden=m=>!!(S.meta[m.id]&&S.meta[m.id].del)||S.blocked.includes(m.author);
+const labelOf=m=>S.overrides[m.id]||m.a.label;
+const activeAlert=()=>S.alerts.find(a=>a.id===S.active)||S.alerts[0];
+
+/* ---------- Matching ---------- */
+const reCache=new Map();
+function kwRe(k){if(reCache.has(k))return reCache.get(k);const e=k.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");const r=new RegExp("(?<![\\p{L}\\p{N}_])"+e+"(?![\\p{L}\\p{N}_])","iu");reCache.set(k,r);return r;}
+function matches(m,al){
+  if(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text)))return false;
+  if(al.excluded.some(k=>kwRe(k).test(m.text)))return false;
+  if(al.langs.length&&!al.langs.includes(m.lang))return false;
+  if(al.locations.length){if(!m.location){if(!al.unknown)return false;}else if(!al.locations.some(l=>m.location.toLowerCase().includes(l.toLowerCase())))return false;}
+  if(!al.sources.includes(m.platform))return false;
+  return true;
+}
+function maxDay(){return MENTIONS.reduce((a,m)=>m.day>a?m.day:a,"0000");}
+function periods(){
+  const end=maxDay();const r=+S.range;
+  if(!r||!MENTIONS.length){const min=MENTIONS.reduce((a,m)=>m.day<a?m.day:a,"9999");return{start:min,end,pStart:null,pEnd:null};}
+  const start=addDays(end,-(r-1));return{start,end,pStart:addDays(start,-r),pEnd:addDays(start,-1)};
+}
+function pools(al){
+  al=al||activeAlert();const p=periods();
+  const base=MENTIONS.filter(m=>!S.srcOff.includes(m.platform)&&!isHidden(m)&&matches(m,al));
+  return{p,cur:base.filter(m=>m.day>=p.start&&m.day<=p.end),prev:p.pStart?base.filter(m=>m.day>=p.pStart&&m.day<=p.pEnd):[]};
+}
+function dayList(p){const out=[];let d=p.start;let guard=0;while(d<=p.end&&guard++<400){out.push(d);d=addDays(d,1);}return out;}
+function splits(arr){const c={pos:0,neu:0,neg:0};arr.forEach(m=>c[labelOf(m)]++);const n=arr.length||1;return{c,p:c.pos/n,u:c.neu/n,n:c.neg/n,net:Math.round((c.pos-c.neg)/n*100)};}
+
+/* ---------- Charts ---------- */
+function niceTicks(max){if(!(max>0))max=1;const raw=max/4;const p=Math.pow(10,Math.floor(Math.log10(raw)));const step=[1,2,2.5,5,10].map(x=>x*p).find(x=>x>=raw);return{step,top:Math.ceil(max/step)*step};}
+function lineChart(days,series,{area=false,H=150}={}){
+  const W=380,L=34,R=10,T=8,B=22;
+  const max=Math.max(1,...series.flatMap(s=>s.values));const{step,top}=niceTicks(max);
+  const x=i=>L+(days.length<=1?(W-L-R)/2:i*(W-L-R)/(days.length-1));
+  const y=v=>T+(H-T-B)*(1-v/top);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let v=0;v<=top+1e-9;v+=step){s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end">${compact(v)}</text>`;}
+  const idx=days.length<=3?days.map((_,i)=>i):[0,Math.floor((days.length-1)/2),days.length-1];
+  idx.forEach((i,k)=>{s+=`<text x="${x(i)}" y="${H-6}" text-anchor="${k===0&&days.length>3?"start":k===idx.length-1&&days.length>3?"end":"middle"}">${fmtDay(days[i])}</text>`;});
+  series.forEach(se=>{
+    const pts=se.values.map((v,i)=>[x(i),y(v)]);
+    const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+    if(area&&pts.length)s+=`<path d="${d}L${pts[pts.length-1][0]} ${y(0)}L${pts[0][0]} ${y(0)}Z" fill="${se.color}" fill-opacity=".16"/>`;
+    s+=`<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(pts.length<=31)pts.forEach((p,i)=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?3.5:2.2}" fill="${se.color}"><title>${fmtDay(days[i])}: ${compact(se.values[i])} ${se.label}</title></circle>`;});
+  });
+  return s+"</svg>";
+}
+function donut(segs){
+  const total=segs.reduce((a,b)=>a+b.value,0)||1;const r=52,C=2*Math.PI*r;let off=0;
+  let s=`<svg viewBox="0 0 140 140" role="img"><circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--sunk)" stroke-width="22"/>`;
+  segs.forEach(g=>{const len=g.value/total*C;if(len>0)s+=`<circle cx="70" cy="70" r="${r}" fill="none" stroke="${g.color}" stroke-width="22" stroke-dasharray="${Math.max(0,len-1.5)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"><title>${esc(g.label)}: ${g.value}</title></circle>`;off+=len;});
+  return s+`<text x="70" y="68" text-anchor="middle" style="font-size:20px;font-family:var(--f-display);font-weight:700;fill:var(--ink)">${compact(total)}</text><text x="70" y="86" text-anchor="middle">mentions</text></svg>`;
+}
+function donutBlock(map,colors){
+  const segs=Object.entries(map).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:k,value:v,color:colors[k]||"var(--c7)"}));
+  const t=segs.reduce((a,b)=>a+b.value,0)||1;
+  if(!segs.length)return `<p class="empty">No mentions in this period.</p>`;
+  return donut(segs)+`<div class="legend">${segs.map(g=>`<div><span><span class="dot" style="background:${g.color}"></span>${esc(g.label)}</span><span class="num">${(g.value/t*100).toFixed(1)}%</span></div>`).join("")}</div>`;
+}
+function stack(p,u,n){return `<div style="width:${p*100}%;background:var(--pos)"></div><div style="width:${u*100}%;background:var(--neu)"></div><div style="width:${n*100}%;background:var(--neg)"></div>`;}
+const signed=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
+
+/* ---------- Render: chrome ---------- */
+function renderChrome(){
+  const al=activeAlert();
+  $("alert-select").innerHTML=S.alerts.map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(a.name)}</option>`).join("");
+  const p=periods();
+  $("alert-list").innerHTML=S.alerts.map(a=>{const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}"><button class="alert-link" data-id="${a.id}" aria-current="${on}"><span>${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button><button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${on&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button></div>`;}).join("");
+  $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
+  $("range").value=String(S.range);
+  const lbl=S.imported?S.dataLabel:"Sample data: fictional posts";
+  $("data-badge").textContent=lbl;$("data-badge2").textContent=lbl;
+  $("side-foot").textContent=`${MENTIONS.length} mentions loaded · ${p.start?fmtDay(p.start):""} to ${p.end?fmtDay(p.end):""}`;
+}
+
+/* ---------- Render: dashboard ---------- */
+let mTab="mentions",tTab="mentions";
+function renderDashboard(){
+  const al=activeAlert();const{p,cur,prev}=pools(al);const days=dayList(p);
+  $("dash-title").textContent=al.name;
+  $("dash-sub").textContent=`${fmtDay(p.start)} to ${fmtDay(p.end)}${p.end?", "+p.end.slice(0,4):""} · ${cur.length} mentions · ${al.keywords.length} keywords`;
+  // mentions / reach
+  const byDay=f=>days.map(d=>cur.filter(m=>m.day===d).reduce((a,m)=>a+f(m),0));
+  const isR=mTab==="reach";const val=isR?cur.reduce((a,m)=>a+m.reach,0):cur.length;const pv=isR?prev.reduce((a,m)=>a+m.reach,0):prev.length;
+  $("m-total").textContent=isR?compact(val):val;
+  const dl=$("m-delta");
+  if(p.pStart&&pv){const ch=Math.round((val-pv)/pv*100);dl.textContent=(ch>0?"+":"")+ch+"%";dl.className="delta "+(ch>0?"up":ch<0?"down":"flat");$("m-vs").textContent="vs previous "+S.range+" days";}
+  else{dl.textContent="n/a";dl.className="delta flat";$("m-vs").textContent=p.pStart?"no earlier data":"";}
+  $("m-chart").innerHTML=lineChart(days,[{label:isR?"reach":"mentions",color:"var(--accent)",values:byDay(isR?m=>m.reach:()=>1)}],{area:true});
+  // sentiment
+  const sp=splits(cur);
+  $("s-pos").textContent=Math.round(sp.p*100)+"%";$("s-neg").textContent=Math.round(sp.n*100)+"%";$("s-neu").textContent=Math.round(sp.u*100)+"%";
+  $("s-chart").innerHTML=lineChart(days,[{label:"positive",color:"var(--pos)",values:byDay(m=>labelOf(m)==="pos"?1:0)},{label:"negative",color:"var(--neg)",values:byDay(m=>labelOf(m)==="neg"?1:0)}]);
+  // net
+  $("net").textContent=signed(sp.net);$("net").className="big "+(sp.net>=5?"pos-c":sp.net<=-5?"neg-c":"");
+  const nd=$("net-delta");if(prev.length){const d=sp.net-splits(prev).net;nd.textContent=signed(d);nd.className="delta "+(d>0?"up":d<0?"down":"flat");}else{nd.textContent="n/a";nd.className="delta flat";}
+  const ec={};Object.keys(EMOTIONS).forEach(k=>ec[k]=0);cur.forEach(m=>Object.keys(m.a.emo).forEach(k=>ec[k]++));
+  const em=Math.max(1,...Object.values(ec));
+  $("emo").innerHTML=Object.entries(ec).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div>${k}</div><div class="bar"><div style="width:${v/em*100}%"></div></div><div class="num" style="text-align:right">${v}</div>`).join("");
+  // top list
+  if(tTab==="mentions"){
+    const top=cur.slice().sort((a,b)=>b.reach-a.reach).slice(0,12);
+    $("top-list").innerHTML=top.length?top.map(m=>mentionHTML(m,false)).join(""):`<p class="empty">No mentions in this period.</p>`;
+  }else{
+    const g=new Map();cur.forEach(m=>{const k=m.author+"|"+m.platform;const o=g.get(k)||{m,n:0,reach:0,c:0};o.n++;o.reach=Math.max(o.reach,m.reach);o.c+=m.a.compound;g.set(k,o);});
+    const top=[...g.values()].sort((a,b)=>b.reach-a.reach).slice(0,12);
+    $("top-list").innerHTML=top.length?top.map(o=>{const avg=o.c/o.n;const lb=avg>=.05?"pos":avg<=-.05?"neg":"neu";return `<div class="mention">${avatar(o.m.author)}<div><div class="m-head"><span class="src" style="background:${PCOLOR[o.m.platform]}">${ABBR[o.m.platform]}</span><b>${esc(o.m.author)}</b></div><div class="m-meta">${o.m.handle?"@"+esc(o.m.handle.replace(/^@/,""))+" · ":""}${esc(o.m.location||"Unknown location")}</div><div class="m-foot" style="margin-top:6px"><span class="num">${compact(o.reach)} reach</span><span class="hint">· ${o.n} mention${o.n>1?"s":""}</span><span class="pill ${lb}">avg ${fmt(avg)}</span></div></div></div>`;}).join(""):`<p class="empty">No authors in this period.</p>`;
+  }
+  // locations
+  const lc={};cur.forEach(m=>{const k=m.location?(m.country&&m.country!=="India"?m.country:m.region||m.country):"Unknown";lc[k]=(lc[k]||0)+1;});
+  const lt=Object.entries(lc).sort((a,b)=>b[1]-a[1]).slice(0,8);const lm=Math.max(1,...lt.map(x=>x[1]));
+  $("loc").innerHTML=lt.length?lt.map(([k,v])=>`<div class="lbl" title="${esc(k)}">${esc(k)}</div><div class="track"><div style="width:${v/lm*100}%;background:var(--accent)"></div></div><div class="num">${v}</div>`).join(""):`<p class="empty" style="grid-column:1/-1">No mentions in this period.</p>`;
+  // cloud
+  renderCloud(cur);
+  // langs & sources
+  const lg={};cur.forEach(m=>lg[m.lang]=(lg[m.lang]||0)+1);$("langs").innerHTML=donutBlock(lg,LCOLOR);
+  const sg={};cur.forEach(m=>sg[m.platform]=(sg[m.platform]||0)+1);$("sources").innerHTML=donutBlock(sg,PCOLOR);
+  // by source
+  const bs=PLATFORMS.map(pl=>[pl,cur.filter(m=>m.platform===pl)]).filter(x=>x[1].length).sort((a,b)=>b[1].length-a[1].length);
+  $("by-src").innerHTML=bs.length?bs.map(([pl,arr])=>{const s=splits(arr);return `<div class="lbl">${pl} <span class="hint">${arr.length}</span></div><div class="track" style="height:10px">${stack(s.p,s.u,s.n)}</div><div class="num ${s.net>=5?"pos-c":s.net<=-5?"neg-c":""}">${signed(s.net)}</div>`;}).join(""):`<p class="empty" style="grid-column:1/-1">No mentions in this period.</p>`;
+  // drivers
+  const dm={};cur.forEach(m=>{const seen=new Set();m.a.items.forEach(it=>{const k=it.negated?"not "+it.key:it.key;const o=dm[k]||(dm[k]={k,sum:0,n:0});o.sum+=it.v;if(!seen.has(k)){o.n++;seen.add(k);}});});
+  const all=Object.values(dm);const chip=(o,c)=>`<button class="chip ${c}" data-term="${esc(o.k)}">${esc(o.k)} <b>${o.n}</b></button>`;
+  const dp=all.filter(o=>o.sum>0).sort((a,b)=>b.sum-a.sum).slice(0,14),dn=all.filter(o=>o.sum<0).sort((a,b)=>a.sum-b.sum).slice(0,14);
+  $("drv-pos").innerHTML=dp.length?dp.map(o=>chip(o,"pos")).join(""):`<span class="hint">None in this period</span>`;
+  $("drv-neg").innerHTML=dn.length?dn.map(o=>chip(o,"neg")).join(""):`<span class="hint">None in this period</span>`;
+  // attention
+  const att=cur.filter(m=>labelOf(m)==="neg").sort((a,b)=>b.reach-a.reach).slice(0,3);
+  $("attention").innerHTML=att.length?att.map(m=>mentionHTML(m,false)).join(""):`<p class="empty">No negative mentions in this period.</p>`;
+}
+function renderCloud(cur){
+  const m=new Map();
+  cur.forEach(x=>{const seen=new Set();(x.text.toLowerCase().replace(/https?:\/\/\S+/g," ").match(/#?[\p{L}\p{M}][\p{L}\p{M}\p{N}']*/gu)||[]).forEach(w=>{w=w.replace(/'s$/,"");if(w.length<3||STOP.has(w)||seen.has(w))return;seen.add(w);const o=m.get(w)||{w,n:0,c:0};o.n++;o.c+=x.a.compound;m.set(w,o);});});
+  const top=[...m.values()].filter(o=>o.n>1||cur.length<15).sort((a,b)=>b.n-a.n).slice(0,36);
+  if(!top.length){$("cloud").innerHTML=`<p class="empty">No topics in this period.</p>`;return;}
+  const mx=top[0].n,mn=top[top.length-1].n;
+  top.sort((a,b)=>hashStr(a.w)-hashStr(b.w));
+  $("cloud").innerHTML=top.map(o=>{const avg=o.c/o.n;const col=avg>=.15?"var(--pos)":avg<=-.1?"var(--neg)":"var(--c1)";const t=mx===mn?.5:Math.sqrt((o.n-mn)/(mx-mn));const size=13+t*25;return `<button data-term-text="${esc(o.w)}" style="font-size:${size.toFixed(1)}px;color:${col};opacity:${(.65+t*.35).toFixed(2)}" title="${o.n} mentions · avg ${fmt(avg)}">${esc(o.w)}</button>`;}).join("");
+}
+function avatar(name){const ini=(name.replace(/^u\//,"").match(/[\p{L}\p{N}]+/gu)||["?"]).slice(0,2).map(w=>w[0].toUpperCase()).join("");return `<div class="avatar" style="background:hsl(${hashStr(name)%360} 42% 44%)">${esc(ini)}</div>`;}
+function keywordMark(html,al){return html;}
+function mentionHTML(m,full){
+  const lb=labelOf(m);const ov=!!S.overrides[m.id];
+  const flags=m.a.flags.slice();if(m.lang!=="English")flags.push(m.lang+": limited scoring");
+  return `<article class="mention">${avatar(m.author)}<div style="min-width:0">
+    <div class="m-head"><span class="src" style="background:${PCOLOR[m.platform]}">${ABBR[m.platform]}</span><a class="name-link" href="#m-${m.id}"><b>${esc(m.author)}</b></a></div>
+    <div class="m-meta">${m.handle?"@"+esc(m.handle.replace(/^@/,""))+" · ":""}${esc(m.location||"Unknown location")} · ${fmtStamp(m.date)}${m.reach?" · "+compact(m.reach)+" reach":""}</div>
+    <div class="m-text">${highlight(m.a)}</div>
+    <div class="m-foot">${full?`<select class="mini-select" data-ov="${m.id}" aria-label="Sentiment label"><option value="pos" ${lb==="pos"?"selected":""}>Positive</option><option value="neu" ${lb==="neu"?"selected":""}>Neutral</option><option value="neg" ${lb==="neg"?"selected":""}>Negative</option></select>`:`<span class="pill ${lb}">${LABEL[lb]}</span>`}
+      <span class="num hint">${fmt(m.a.compound)}</span>${ov?`<span class="flag">Edited</span>`:""}${m.a.topEmo?`<span class="hint">· ${m.a.topEmo}</span>`:""}${flags.map(f=>`<span class="flag">${esc(f)}</span>`).join("")}<a class="orig" href="#m-${m.id}" style="margin-left:auto">Open</a></div>
+  </div></article>`;
+}
+
+/* ---------- Render: mentions ---------- */
+let F={s:"all",q:"",sort:"new",term:null,termText:null,limit:40};
+function feedList(){
+  let arr=pools().cur;
+  if(F.s==="flag")arr=arr.filter(m=>m.a.flags.length||m.lang!=="English");else if(F.s==="star")arr=arr.filter(m=>getMeta(m.id).star);else if(F.s!=="all")arr=arr.filter(m=>labelOf(m)===F.s);
+  if(F.q){const q=F.q.toLowerCase();arr=arr.filter(m=>(m.text+" "+m.author+" "+m.location).toLowerCase().includes(q));}
+  if(F.term)arr=arr.filter(m=>m.a.items.some(it=>(it.negated?"not "+it.key:it.key)===F.term));
+  if(F.termText)arr=arr.filter(m=>m.text.toLowerCase().includes(F.termText));
+  const k={new:(a,b)=>b.date.localeCompare(a.date),reach:(a,b)=>b.reach-a.reach,negative:(a,b)=>a.a.compound-b.a.compound,positive:(a,b)=>b.a.compound-a.a.compound}[F.sort];
+  return arr.sort(k);
+}
+function relTime(iso){const h=(NOW_TS-new Date(iso))/36e5;if(h<1)return Math.max(1,Math.round(h*60))+"m";if(h<24)return Math.round(h)+"h";return Math.round(h/24)+"d";}
+function normKey(x){return x.toLowerCase().replace(/https?:\/\/\S+/g," ").replace(/[#@][\p{L}\p{N}_]+/gu," ").replace(/[^\p{L}\p{N}]+/gu," ").trim();}
+function titleOf(m){if(m.title)return m.title;if(m.platform==="News/Blogs"){const s=m.text.split(/(?<=[.!?])\s/)[0];return s.length>120?s.slice(0,117)+"…":s;}return m.author;}
+function itemHTML(m,sel,simN){const lb=labelOf(m),mt=getMeta(m.id);
+  return `<a class="item${mt.done?" done":""}" href="#m-${m.id}" aria-current="${sel}">
+  <div class="row1"><span class="src" style="background:${PCOLOR[m.platform]}">${ABBR[m.platform]}</span><span class="t">${esc(titleOf(m))}</span><span class="when">${relTime(m.date)}</span></div>
+  ${m.platform==="News/Blogs"||m.title?`<div class="m-meta">${esc(m.author)}${m.location?" · "+esc(m.location):""}</div>`:""}
+  <div class="snip">${esc(m.text)}</div>
+  <div class="row2"><span class="pill ${lb}">${LABEL[lb]}</span><span class="num">${compact(m.reach)} reach</span>${simN?`<span>+${simN} similar</span>`:""}${mt.star?`<span style="color:var(--c4)">★ Starred</span>`:""}${mt.done?"<span>✓ Done</span>":""}${(mt.tags||[]).map(x=>`<span class="flag">${esc(x)}</span>`).join("")}</div></a>`;}
+let arm=null;
+function renderMentions(){
+  const arr=feedList();const s=splits(arr);const all=pools().cur;
+  $("ment-sub").textContent=`${activeAlert().name} · ${arr.length} mentions · ${s.c.pos} positive, ${s.c.neu} neutral, ${s.c.neg} negative`;
+  const tc=$("term-chip");const tm=F.term||F.termText;
+  if(tm){tc.hidden=false;tc.innerHTML=`Term: ${esc(tm)} <button class="chip" id="clear-term" style="padding:0 6px" aria-label="Clear term">×</button>`;}else tc.hidden=true;
+  const nh=MENTIONS.filter(isHidden).length;const rb=$("restore");rb.hidden=!nh;rb.textContent=`Restore ${nh} hidden`;
+  const keyCount=new Map();all.forEach(m=>{const k=normKey(m.text);keyCount.set(k,(keyCount.get(k)||0)+1);});
+  const sid=selId();let sel=sid?MENTIONS.find(m=>m.id===sid):null;
+  const wide=window.innerWidth>1050;
+  if(!sel&&wide)sel=arr[0]||null;
+  $("split").classList.toggle("has-sel",!!sid&&!!sel);
+  if(sel&&!arr.slice(0,F.limit).includes(sel)){const i=arr.indexOf(sel);if(i>=F.limit)F.limit=i+1;}
+  const feed=$("feed");const sc=feed.scrollTop;
+  feed.innerHTML=arr.length?arr.slice(0,F.limit).map(m=>itemHTML(m,sel&&m.id===sel.id,(keyCount.get(normKey(m.text))||1)-1)).join(""):`<p class="empty">No mentions match these filters. Try a wider date range or a different alert.</p>`;
+  feed.scrollTop=sc;
+  $("more-wrap").hidden=arr.length<=F.limit;$("more").textContent=`Show more (${arr.length-F.limit} left)`;
+  $("detail").innerHTML=sel?detailHTML(sel,all):`<div class="card"><p class="empty">Select a mention to see it in full.</p></div>`;
+  if(sel){chipBox($("tagbox"),M(sel.id).tags,"Add a tag, e.g. complaint, press, follow up",()=>{save();const it=feed.querySelector(`[href="#m-${sel.id}"] .row2`);if(it)it.outerHTML=itemHTML(sel,true,(keyCount.get(normKey(sel.text))||1)-1).match(/<div class="row2">[\s\S]*?<\/div><\/a>$/)[0].replace("</a>","");});
+    if(!S.meta[sel.id].tags.length&&!S.meta[sel.id].star&&!S.meta[sel.id].done)delete S.meta[sel.id];}
+}
+function detailHTML(m,all){
+  const lb=labelOf(m),mt=getMeta(m.id),a=m.a,al=activeAlert();
+  const kws=al.keywords.filter(k=>kwRe(k).test(m.text));
+  const key=normKey(m.text);
+  const sim=all.filter(x=>x.id!==m.id&&normKey(x.text)===key).sort((p,q)=>q.reach-p.reach);
+  const same=MENTIONS.filter(x=>x.id!==m.id&&x.author===m.author&&!isHidden(x)).sort((p,q)=>q.date.localeCompare(p.date)).slice(0,4);
+  const flags=a.flags.slice();if(m.lang!=="English")flags.push(m.lang+": limited scoring");
+  const handle=m.handle?"@"+esc(m.handle.replace(/^@/,"")):"";
+  const armTxt=act=>arm&&arm.id===m.id&&arm.act===act;
+  const host=m.url?m.url.replace(/^https?:\/\/(www\.)?/i,"").split("/")[0]:"";
+  return `<div class="card"><div class="card-body" style="gap:14px">
+    <a class="btn back" href="#mentions">← All mentions</a>
+    <div class="m-head"><span class="src" style="background:${PCOLOR[m.platform]}">${ABBR[m.platform]}</span><span class="hint">${m.platform}${host?" · "+esc(host):""}${m.location?" · "+esc(m.location):""}</span></div>
+    <div class="d-author" style="display:none"></div>
+    <h2 class="d-title">${esc(titleOf(m))}</h2>
+    <div class="d-author">${avatar(m.author)}<div style="min-width:0">${titleOf(m)!==m.author?`<b>${esc(m.author)}</b>`:""}<div class="m-meta">${handle?handle+" · ":""}${fmtStamp(m.date)} UTC · ${relTime(m.date)} ago</div></div></div>
+    <div class="d-text">${highlight(a)}</div>
+    ${m.url?`<a class="orig" href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">See original post ↗</a>`:""}
+    <div class="meta-grid">
+      <div><div class="eyebrow">Reach</div><div class="v num">${m.reach?compact(m.reach):"Unknown"}</div></div>
+      <div><div class="eyebrow">Language</div><div class="v">${m.lang}</div></div>
+      <div><div class="eyebrow">Location</div><div class="v">${esc(m.location||"Unknown")}</div></div>
+      <div><div class="eyebrow">Similar posts</div><div class="v num">${sim.length}</div></div>
+    </div>
+    <div><div class="eyebrow" style="margin-bottom:6px">Matched keywords in “${esc(al.name)}”</div><div class="chips">${kws.length?kws.map(k=>`<span class="chip" style="cursor:default;background:var(--pos-soft);border-color:transparent">${esc(k)}</span>`).join(""):`<span class="hint">None. This mention is outside the active alert.</span>`}</div></div>
+    <div class="acts">
+      <div class="seg" role="group" aria-label="Sentiment label">${["pos","neu","neg"].map(k=>`<button class="${k}" data-setlab="${k}" aria-pressed="${lb===k}">${LABEL[k]}</button>`).join("")}</div>
+      ${S.overrides[m.id]?`<button class="act" data-act="reset">Reset to model (${LABEL[a.label]})</button>`:""}
+      <button class="act" data-act="star" aria-pressed="${mt.star}">★ ${mt.star?"Starred":"Star"}</button>
+      <button class="act" data-act="done" aria-pressed="${mt.done}">✓ ${mt.done?"Done":"Mark done"}</button>
+      <button class="act warn" data-act="block">${armTxt("block")?"Click again to block "+esc(m.author):"Block author"}</button>
+      <button class="act warn" data-act="delete">${armTxt("delete")?"Click again to delete":"Delete"}</button>
+    </div>
+    <div><div class="eyebrow" style="margin-bottom:6px">Tags</div><div class="chipbox loc" id="tagbox"></div></div>
+  </div></div>
+  <div class="card"><div class="card-head"><h2>Why this score</h2><span class="hint">model says ${LABEL[a.label]}${S.overrides[m.id]?", you set "+LABEL[lb]:""}</span></div><div class="card-body">
+    <div class="kpi"><span class="big ${a.label}-c">${fmt(a.compound)}</span>${flags.map(f=>`<span class="flag">${esc(f)}</span>`).join(" ")}</div>
+    <div><div class="gauge"><div class="marker" style="left:${(a.compound+1)/2*100}%"></div></div><div class="gauge-scale" style="margin-top:8px"><span>−1</span><span>0</span><span>+1</span></div></div>
+    <div class="contrib">${a.items.length?a.items.map(it=>`<div><span class="w ${it.v>0?"pos-c":"neg-c"}">${esc(it.tok.t)}</span><span class="hint">base ${fmt(it.base)}${it.notes.length?" · "+esc(it.notes.join(", ")):""}</span><span class="num ${it.v>0?"pos-c":"neg-c"}" style="text-align:right">${fmt(it.v)}</span></div>`).join(""):`<p class="hint">No sentiment-bearing words, so the model reads it as neutral.</p>`}</div>
+    <div class="chips">${Object.entries(a.emo).sort((p,q)=>q[1]-p[1]).map(([k,v])=>`<span class="chip" style="cursor:default">${k} <b>${v}</b></span>`).join("")||`<span class="hint">No emotion signals</span>`}</div>
+  </div></div>
+  ${sim.length?`<div class="card"><div class="card-head"><h2>Similar mentions</h2><span class="hint">${sim.length} with the same text</span></div><div style="padding-top:8px">${sim.slice(0,5).map(x=>itemHTML(x,false,0)).join("")}</div></div>`:""}
+  ${same.length?`<div class="card"><div class="card-head"><h2>More from ${esc(m.author)}</h2></div><div style="padding-top:8px">${same.map(x=>itemHTML(x,false,0)).join("")}</div></div>`:""}`;
+}
+
+/* ---------- Render: reports ---------- */
+const pct=x=>Math.round(x*100)+"%";
+function stats(arr){return{n:arr.length,reach:arr.reduce((a,m)=>a+m.reach,0),authors:new Set(arr.map(m=>m.author)).size,s:splits(arr)};}
+function dlt(cur,prev,{pts=false,invert=false}={}){
+  if(prev==null)return `<span class="delta flat">n/a</span>`;
+  let d,txt;if(pts){d=Math.round(cur-prev);txt=signed(d)+" pts";}else{if(!prev)return `<span class="delta flat">${cur?"new":"0%"}</span>`;d=Math.round((cur-prev)/prev*100);txt=(d>0?"+":"")+d+"%";}
+  const good=invert?d<0:d>0,bad=invert?d>0:d<0;return `<span class="delta ${good?"up":bad?"down":"flat"}">${txt}</span>`;}
+function tbl(head,rows){if(!rows.length)return `<p class="empty" style="padding:6px 0">No mentions in this period.</p>`;return `<table class="tbl"><thead><tr>${head.map(h=>`<th class="${h[1]||""}">${h[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${head[i][1]||""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;}
+const netCell=n=>`<span class="${n>=5?"pos-c":n<=-5?"neg-c":""}">${signed(n)}</span>`;
+function barChart(labels,values,{stacks=null,H=200,every=1,W=760}={}){
+  const L=34,R=8,T=10,B=24;const tot=stacks?stacks.map(s=>s.pos+s.neu+s.neg):values;
+  const{step,top}=niceTicks(Math.max(1,...tot));const n=labels.length;const bw=(W-L-R)/n;const gap=Math.min(6,bw*.25);
+  const y=v=>T+(H-T-B)*(1-v/top);let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${compact(v)}</text>`;
+  labels.forEach((lb,i)=>{const x=L+i*bw+gap/2,w=bw-gap;
+    if(stacks){let base=0;[["neg","var(--neg)"],["neu","var(--neu)"],["pos","var(--pos)"]].forEach(([k,c])=>{const v=stacks[i][k];if(v>0){s+=`<rect x="${x}" y="${y(base+v)}" width="${w}" height="${y(base)-y(base+v)}" fill="${c}"><title>${lb}: ${v} ${LABEL[k].toLowerCase()}</title></rect>`;}base+=v;});}
+    else if(values[i]>0)s+=`<rect x="${x}" y="${y(values[i])}" width="${w}" height="${y(0)-y(values[i])}" rx="2" fill="var(--accent)"><title>${lb}: ${values[i]}</title></rect>`;
+    if(i%every===0)s+=`<text x="${x+w/2}" y="${H-7}" text-anchor="middle">${lb}</text>`;});
+  return s+"</svg>";
+}
+let REPORT={sum:"",csv:""};let rTab="mentions",rSrc="";
+function renderReports(){
+  const al=activeAlert();const{p,cur,prev}=pools(al);const days=dayList(p);const hasPrev=!!p.pStart;
+  const A=stats(cur),B=hasPrev?stats(prev):null;
+  $("r-title").textContent=al.name;
+  const per=`${fmtDay(p.start)} to ${fmtDay(p.end)}${p.end?", "+p.end.slice(0,4):""}`;
+  const prevTxt=hasPrev?`${fmtDay(p.pStart)} to ${fmtDay(p.pEnd)}`:"";
+  $("r-sub").textContent=`${per}${hasPrev?" · compared with "+prevTxt:""} · ${S.srcOff.length?PLATFORMS.filter(x=>!S.srcOff.includes(x)).join(", "):"all sources"} · ${S.imported?S.dataLabel:"sample data (fictional)"}`;
+  const daily=days.map(d=>{const arr=cur.filter(m=>m.day===d);const o={day:d,pos:0,neu:0,neg:0,reach:0};arr.forEach(m=>{o[labelOf(m)]++;o.reach+=m.reach;});return o;});
+  const peak=daily.reduce((a,b)=>(b.pos+b.neu+b.neg)>(a.pos+a.neu+a.neg)?b:a,daily[0]||{day:"",pos:0,neu:0,neg:0});
+  const peakN=peak.pos+peak.neu+peak.neg;
+  const tiles=[
+    ["Mentions",A.n,dlt(A.n,B&&B.n)],["Reach",compact(A.reach),dlt(A.reach,B&&B.reach)],
+    ["Net sentiment",`<span class="${A.s.net>=5?"pos-c":A.s.net<=-5?"neg-c":""}">${signed(A.s.net)}</span>`,dlt(A.s.net,B&&B.n?B.s.net:null,{pts:true})],
+    ["Positive",`<span class="pos-c">${pct(A.s.p)}</span>`,dlt(A.s.p*100,B&&B.n?B.s.p*100:null,{pts:true})],
+    ["Negative",`<span class="neg-c">${pct(A.s.n)}</span>`,dlt(A.s.n*100,B&&B.n?B.s.n*100:null,{pts:true,invert:true})],
+    ["Unique authors",A.authors,dlt(A.authors,B&&B.authors)],
+    ["Mentions per day",days.length?(A.n/days.length).toFixed(1):"0",""],
+    ["Peak day",peakN?fmtDay(peak.day):"None",peakN?`<span class="hint">${peakN} mentions</span>`:""]];
+  $("r-tiles").innerHTML=tiles.map(([k,v,d])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${d}</div></div>`).join("");
+  $("r-daily-leg").hidden=rTab!=="mentions";$("r-daily-h").textContent=rTab==="mentions"?"by sentiment":`total ${compact(A.reach)} · estimated audience of each mention`;
+  $("r-daily").innerHTML=rTab==="mentions"?barChart(days.map(fmtDay),null,{stacks:daily,every:Math.ceil(days.length/10)}):lineChart(days,[{label:"reach",color:"var(--accent)",values:daily.map(o=>o.reach)}],{area:true,H:200});
+  const hours=new Array(24).fill(0),wk=new Array(7).fill(0);cur.forEach(m=>{const d=new Date(m.date);hours[d.getUTCHours()]++;wk[(d.getUTCDay()+6)%7]++;});
+  $("r-hour").innerHTML=barChart(hours.map((_,i)=>String(i).padStart(2,"0")),hours,{every:3,W:520,H:180});
+  $("r-week").innerHTML=barChart(["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],wk,{W:520,H:180});
+  // comparison
+  $("r-cmp-h").textContent=hasPrev?prevTxt+" vs "+per:"needs a fixed date range";
+  const cmpRows=[["Mentions",A.n,B?B.n:"–",dlt(A.n,B&&B.n)],["Reach",compact(A.reach),B?compact(B.reach):"–",dlt(A.reach,B&&B.reach)],["Positive",A.s.c.pos,B?B.s.c.pos:"–",dlt(A.s.c.pos,B&&B.s.c.pos)],["Neutral",A.s.c.neu,B?B.s.c.neu:"–",dlt(A.s.c.neu,B&&B.s.c.neu)],["Negative",A.s.c.neg,B?B.s.c.neg:"–",dlt(A.s.c.neg,B&&B.s.c.neg,{invert:true})],["Net sentiment",signed(A.s.net),B&&B.n?signed(B.s.net):"–",dlt(A.s.net,B&&B.n?B.s.net:null,{pts:true})],["Unique authors",A.authors,B?B.authors:"–",dlt(A.authors,B&&B.authors)]];
+  $("r-cmp").innerHTML=tbl([["Metric"],["This period","r"],["Previous","r"],["Change","r"]],cur.length||prev.length?cmpRows:[]);
+  // groups
+  const grp=(arr,f)=>{const m=new Map();arr.forEach(x=>{const k=f(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x);});return[...m].sort((a,b)=>b[1].length-a[1].length);};
+  const grpRow=(k,arr)=>{const s=splits(arr);return[k,arr.length,pct(arr.length/(A.n||1)),compact(arr.reduce((a,m)=>a+m.reach,0)),pct(s.p),pct(s.n),netCell(s.net)];};
+  const gh=[["Name"],["Mentions","r"],["Share","r"],["Reach","r"],["Pos","r"],["Neg","r"],["Net","r"]];
+  const totReach=A.reach||1;
+  $("r-src").innerHTML=tbl([["Source"],["Mentions","r"],["vs prev","r"],["Share","r"],["Reach","r"],["vs prev","r"],["Reach share","r"],["Net","r"]],grp(cur,m=>m.platform).map(([k,a])=>{const pa=prev.filter(m=>m.platform===k);const r=a.reduce((s,m)=>s+m.reach,0),pr=pa.reduce((s,m)=>s+m.reach,0);
+    return[`<span class="src" style="background:${PCOLOR[k]};margin-right:6px">${ABBR[k]}</span>${k}`,a.length,dlt(a.length,hasPrev?pa.length:null),pct(a.length/(A.n||1)),compact(r),dlt(r,hasPrev?pr:null),pct(r/totReach),netCell(splits(a).net)];}));
+  $("r-lang").innerHTML=tbl([["Language"]].concat(gh.slice(1)),grp(cur,m=>m.lang).map(([k,a])=>grpRow(k,a)));
+  $("r-country").innerHTML=`<div style="height:12px"></div>`+tbl([["Country"]].concat(gh.slice(1)),grp(cur,m=>m.country||"Unknown").slice(0,8).map(([k,a])=>grpRow(esc(k),a)));
+  $("r-loc").innerHTML=`<div style="height:12px"></div>`+tbl([["Region"]].concat(gh.slice(1)),grp(cur,m=>m.location?(m.country&&m.country!=="India"?m.country:m.region||m.country):"Unknown").slice(0,10).map(([k,a])=>grpRow(esc(k),a)));
+  // authors
+  const au=grp(cur,m=>m.author+"|"+m.platform).map(([k,a])=>({m:a[0],n:a.length,reach:Math.max(...a.map(x=>x.reach)),avg:a.reduce((s,x)=>s+x.a.compound,0)/a.length})).sort((a,b)=>b.reach-a.reach).slice(0,10);
+  $("r-auth").innerHTML=tbl([["Author"],["Source"],["Mentions","r"],["Reach","r"],["Avg score","r"]],au.map(o=>[`<a class="name-link" href="#m-${o.m.id}">${esc(o.m.author)}</a>`,o.m.platform,o.n,compact(o.reach),`<span class="${o.avg>=.05?"pos-c":o.avg<=-.05?"neg-c":""}">${fmt(o.avg)}</span>`]));
+  // most active, per source
+  const authorRows=arr=>grp(arr,m=>m.author+"|"+m.platform).map(([k,a])=>({m:a[0],n:a.length,reach:Math.max(...a.map(x=>x.reach)),avg:a.reduce((s,x)=>s+x.a.compound,0)/a.length}));
+  const ar=authorRows(cur);
+  const scoreCell=v=>`<span class="${v>=.05?"pos-c":v<=-.05?"neg-c":""}">${fmt(v)}</span>`;
+  const nameCell=o=>`<a class="name-link" href="#m-${o.m.id}">${esc(o.m.author)}</a>${o.m.acct&&o.m.acct.t==="Company"?' <span class="hint">· org</span>':""}`;
+  $("r-active").innerHTML=tbl([["Author"],["Source"],["Mentions","r"],["Reach","r"],["Avg score","r"]],ar.slice().sort((a,b)=>b.n-a.n||b.reach-a.reach).slice(0,10).map(o=>[nameCell(o),o.m.platform,o.n,compact(o.reach),scoreCell(o.avg)]));
+  const plats=PLATFORMS.filter(pl=>cur.some(m=>m.platform===pl));if(!plats.includes(rSrc))rSrc=plats[0]||"";
+  $("r-src-sel").innerHTML=plats.map(pl=>`<option ${pl===rSrc?"selected":""}>${pl}</option>`).join("")||`<option>No sources</option>`;
+  const sr=authorRows(cur.filter(m=>m.platform===rSrc));
+  $("r-src-inf").innerHTML=tbl([["Author"],["Reach","r"],["Mentions","r"]],sr.slice().sort((a,b)=>b.reach-a.reach).slice(0,8).map(o=>[nameCell(o),compact(o.reach),o.n]));
+  $("r-src-act").innerHTML=tbl([["Author"],["Mentions","r"],["Reach","r"]],sr.slice().sort((a,b)=>b.n-a.n||b.reach-a.reach).slice(0,8).map(o=>[nameCell(o),o.n,compact(o.reach)]));
+  // account types
+  const est=cur.some(m=>m.acct.est);$("r-acct-h").textContent=est?"estimated from source and name":"from imported data";
+  const at=grp(cur,m=>m.acct.t);
+  $("r-acct").innerHTML=at.length?at.map(([k,a])=>`<div class="lbl">${k}</div><div class="track"><div style="width:${a.length/(A.n||1)*100}%;background:${k==="Company"?"var(--c4)":"var(--c1)"}"></div></div><div class="num">${pct(a.length/(A.n||1))}</div>`).join("")+`<div class="hint" style="grid-column:1/-1">Organisations: ${at.find(x=>x[0]==="Company")?.[1].length||0} mentions, net ${signed(splits(at.find(x=>x[0]==="Company")?.[1]||[]).net)}. People: ${at.find(x=>x[0]==="Personal")?.[1].length||0} mentions, net ${signed(splits(at.find(x=>x[0]==="Personal")?.[1]||[]).net)}.</div>`:`<p class="empty" style="grid-column:1/-1">No mentions in this period.</p>`;
+  // demographics
+  const gd=cur.filter(m=>m.gender),ag=cur.filter(m=>m.age);
+  const barsOf=(rows,total,color)=>`<div class="bars">${rows.map(([k,v])=>`<div class="lbl">${k}</div><div class="track"><div style="width:${total?v/total*100:0}%;background:${color}"></div></div><div class="num">${total?(v/total*100).toFixed(1)+"%":"0%"}</div>`).join("")}</div>`;
+  $("r-demo").innerHTML=(gd.length||ag.length)?
+    (gd.length?`<div class="eyebrow">Gender · ${gd.length} of ${A.n} mentions known</div>`+barsOf([["Male",gd.filter(m=>m.gender==="Male").length],["Female",gd.filter(m=>m.gender==="Female").length]],gd.length,"var(--c3)"):"")+
+    (ag.length?`<div class="eyebrow">Age · ${ag.length} of ${A.n} mentions known</div>`+barsOf(AGE_BUCKETS.map(b=>[b,ag.filter(m=>m.age===b).length]),ag.length,"var(--c2)"):"")
+    :`<p class="hint" style="margin:0">This data has no gender or age columns. Murmur does not guess demographics from names or text, because those guesses are unreliable. If your export includes <b>gender</b> or <b>age</b> columns (Awario exports estimates), import it and this card fills in with the share of mentions where they are known.</p>`;
+  // keywords
+  const kw=al.keywords.map(k=>{const a=cur.filter(m=>kwRe(k).test(m.text));return{k,a};});
+  const used=kw.filter(o=>o.a.length).sort((a,b)=>b.a.length-a.a.length);const zero=kw.filter(o=>!o.a.length);
+  $("r-kw").innerHTML=tbl([["Keyword"],["Mentions","r"],["Reach","r"],["Net","r"]],used.map(o=>[esc(o.k),o.a.length,compact(o.a.reduce((s,m)=>s+m.reach,0)),netCell(splits(o.a).net)]));
+  $("r-kw-zero").textContent=zero.length?`${zero.length} keyword${zero.length>1?"s":""} found nothing in this period: ${zero.map(o=>o.k).join(", ")}.`:"";
+  // hashtags
+  const tg=new Map();cur.forEach(m=>{new Set((m.text.match(/#[\p{L}\p{N}_]+/gu)||[]).map(x=>x.toLowerCase())).forEach(h=>{if(!tg.has(h))tg.set(h,[]);tg.get(h).push(m);});});
+  $("r-tags").innerHTML=tbl([["Hashtag"],["Mentions","r"],["Reach","r"],["Net","r"]],[...tg].sort((a,b)=>b[1].length-a[1].length).slice(0,12).map(([h,a])=>[`<a class="name-link" href="#mentions" data-rtag="${esc(h)}">${esc(h)}</a>`,a.length,compact(a.reduce((s,m)=>s+m.reach,0)),netCell(splits(a).net)]));
+  // alerts
+  $("r-alerts").innerHTML=tbl([["Alert"],["Mentions","r"],["Reach","r"],["Pos","r"],["Neg","r"],["Net","r"],["vs prev","r"]],S.alerts.map(a=>{const q=pools(a),x=stats(q.cur),y=hasPrev?stats(q.prev):null;return[`<span style="font-weight:${a.id===al.id?700:400}">${esc(a.name)}</span>`,x.n,compact(x.reach),pct(x.s.p),pct(x.s.n),netCell(x.s.net),dlt(x.n,y&&y.n)];}));
+  // exports
+  const topSrc=grp(cur,m=>m.platform)[0];const negTerms={};cur.forEach(m=>m.a.items.forEach(it=>{if(it.v<0){const k=it.negated?"not "+it.key:it.key;negTerms[k]=(negTerms[k]||0)+1;}}));
+  const chg=(a,b)=>b?` (${a>=b?"+":""}${Math.round((a-b)/b*100)}% vs previous)`:"";
+  REPORT.sum=[`Mention statistics: ${al.name}`,`${per}${hasPrev?" (previous: "+prevTxt+")":""}`,``,
+    `Mentions: ${A.n}${B?chg(A.n,B.n):""}`,`Reach: ${compact(A.reach)}${B?chg(A.reach,B.reach):""}`,
+    `Net sentiment: ${signed(A.s.net)}${B&&B.n?` (${signed(A.s.net-B.s.net)} pts)`:""}`,
+    `Positive ${pct(A.s.p)} · Neutral ${pct(A.s.u)} · Negative ${pct(A.s.n)}`,
+    topSrc?`Top source: ${topSrc[0]} (${topSrc[1].length} mentions)`:"",
+    peakN?`Peak day: ${fmtDay(peak.day)} (${peakN} mentions)`:"",
+    Object.keys(negTerms).length?`Main negative themes: ${Object.entries(negTerms).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]).join(", ")}`:"",
+    zero.length?`Keywords with no results: ${zero.length}`:""].filter((l,i)=>l!==""||i===2).join("\n");
+  REPORT.csv=["date,mentions,positive,neutral,negative,reach,net_sentiment"].concat(daily.map(o=>{const n=o.pos+o.neu+o.neg;return[o.day,n,o.pos,o.neu,o.neg,o.reach,n?Math.round((o.pos-o.neg)/n*100):0].join(",");})).join("\n");
+}
+function copyOut(text,btn,label){const out=$("r-out");const fb=()=>{out.hidden=false;out.value=text;out.focus();out.select();btn.textContent="Select all and copy";};
+  try{navigator.clipboard.writeText(text).then(()=>{out.hidden=true;btn.textContent="Copied";setTimeout(()=>btn.textContent=label,1600);},fb);}catch(e){fb();}}
+
+/* ---------- Render: analyze ---------- */
+function renderAnalyze(){
+  const r=analyze($("single-input").value);
+  $("a-score").textContent=fmt(r.compound);$("a-score").className="big "+r.label+"-c";
+  $("a-label").textContent=LABEL[r.label];$("a-label").className="pill "+r.label;
+  const lang=detectLang(r.text);const fl=r.flags.slice();if(lang!=="English"&&r.text.trim())fl.push(lang+": limited scoring");
+  $("a-flags").innerHTML=fl.map(f=>`<span class="flag">${esc(f)}</span>`).join(" ");
+  $("a-marker").style.left=((r.compound+1)/2*100)+"%";
+  $("a-hl").innerHTML=r.text.trim()?highlight(r):`<span class="hint">Type or paste a post above.</span>`;
+  $("a-contrib").innerHTML=r.items.length?r.items.map(it=>`<div><span class="w ${it.v>0?"pos-c":"neg-c"}">${esc(it.tok.t)}</span><span class="hint">base ${fmt(it.base)}${it.notes.length?" · "+esc(it.notes.join(", ")):""}</span><span class="num ${it.v>0?"pos-c":"neg-c"}" style="text-align:right">${fmt(it.v)}</span></div>`).join(""):`<p class="hint">No sentiment-bearing words found, so the text reads as neutral.</p>`;
+  const em=Object.entries(r.emo).sort((a,b)=>b[1]-a[1]);
+  $("a-emo").innerHTML=em.length?em.map(([k,v])=>`<span class="chip">${k} <b>${v}</b></span>`).join(""):`<span class="hint">None detected</span>`;
+}
+
+/* ---------- Render: settings ---------- */
+let draft=null,delArm=false;
+function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
+  const draw=()=>{el.innerHTML=arr.map((k,i)=>`<span class="kw">${esc(k)}<button data-i="${i}" aria-label="Remove ${esc(k)}">×</button></span>`).join("")+`<input type="text" placeholder="${placeholder}" aria-label="${placeholder}">`;
+    const inp=el.querySelector("input");
+    inp.onkeydown=e=>{if((e.key==="Enter"||e.key===",")&&inp.value.trim()){e.preventDefault();inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.some(a=>a.toLowerCase()===v.toLowerCase()))arr.push(v);});draw();el.querySelector("input").focus();ch();}
+      else if(e.key==="Backspace"&&!inp.value&&arr.length){arr.pop();draw();el.querySelector("input").focus();ch();}};
+    inp.onblur=()=>{if(inp.value.trim()){inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.includes(v))arr.push(v);});draw();ch();}};};
+  el.onclick=e=>{const b=e.target.closest("button[data-i]");if(b){arr.splice(+b.dataset.i,1);draw();ch();}else if(e.target===el)el.querySelector("input").focus();};
+  draw();
+}
+function renderSettings(){
+  draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
+  $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
+  chipBox($("set-kw"),draft.keywords,"Add keyword");
+  chipBox($("set-ex"),draft.excluded,"Add excluded keyword");
+  chipBox($("set-loc"),draft.locations,"Any location (add a country, state or city)");
+  $("set-unknown").checked=draft.unknown;
+  $("set-lang").innerHTML=LANGS.map(l=>`<label><input type="checkbox" value="${l}" ${draft.langs.includes(l)?"checked":""}> ${l}</label>`).join("");
+  $("set-src").innerHTML=PLATFORMS.map(p=>`<label><input type="checkbox" value="${p}" ${draft.sources.includes(p)?"checked":""}> <span class="src" style="background:${PCOLOR[p]}">${ABBR[p]}</span> ${p}</label>`).join("");
+  preview();
+}
+function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.unknown=$("set-unknown").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
+function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,draft)).length;const ex=draft.excluded.length?MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&draft.keywords.some(k=>kwRe(k).test(m.text))&&draft.excluded.some(k=>kwRe(k).test(m.text))).length:0;
+  $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
+
+/* ---------- Routing ---------- */
+const VIEWS=["dashboard","mentions","reports","analyze","alert-setup"];
+function current(){const h=location.hash.slice(1);if(h.startsWith("m-"))return"mentions";return VIEWS.includes(h)?h:"dashboard";}
+function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
+function render(){
+  const v=current();
+  VIEWS.forEach(x=>$("v-"+x).hidden=x!==v);
+  document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.view===v?"page":"false"));
+  renderChrome();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="analyze")renderAnalyze();else renderSettings();
+}
+function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
+let lastView=null;window.addEventListener("hashchange",()=>{const v=current();if(v!==lastView||window.innerWidth<=1050)window.scrollTo(0,0);lastView=v;arm=null;render();});
+
+/* ---------- Import ---------- */
+function parseCSV(text,delim){const rows=[];let row=[],f="",q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}else if(c==='"')q=true;else if(c===delim){row.push(f);f="";}else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f="";}else f+=c;}if(f!==""||row.length){row.push(f);rows.push(row);}return rows.filter(r=>r.some(x=>x.trim()!==""));}
+const COLS={text:["text","content","message","comment","comments","review","body","post","tweet","caption","full_text","snippet","mention"],platform:["platform","source","channel","network","site","social_network"],date:["date","created_at","published","published_at","timestamp","time","datetime","posted_at"],author:["author","name","author_name","user","username","user_name","account"],handle:["handle","screen_name","author_handle","user_handle"],location:["location","country","city","place","region"],lang:["language","lang"],reach:["reach","followers","follower_count","impressions","audience","views"],url:["url","link","permalink","post_url"],title:["title","headline"],gender:["gender","author_gender"],age:["age","author_age","age_group","age_range"],acct:["account_type","account type","author_type","author type"]};
+function fromObjects(arr){return arr.map(o=>{const low={};Object.keys(o).forEach(k=>low[k.toLowerCase().trim()]=o[k]);const g=f=>{for(const c of COLS[f])if(low[c]!=null&&String(low[c]).trim()!=="")return String(low[c]);return"";};return{text:g("text"),platform:g("platform"),date:g("date"),author:g("author"),handle:g("handle"),location:g("location"),lang:g("lang"),reach:parseFloat(g("reach").replace(/,/g,""))||0,url:g("url"),title:g("title"),gender:g("gender"),age:g("age"),acct:g("acct")};}).filter(r=>r.text.trim());}
+function parseFile(raw){
+  raw=raw.replace(/^﻿/,"");const t=raw.trim();
+  if(t.startsWith("[")||t.startsWith("{")){try{let j=JSON.parse(t);if(!Array.isArray(j))j=j.data||j.items||j.mentions||[];return fromObjects(j.map(x=>typeof x==="string"?{text:x}:x));}catch(e){}}
+  const first=raw.split(/\r?\n/)[0].toLowerCase();
+  for(const d of [",","\t",";"]){const hs=first.split(d).map(h=>h.trim().replace(/"/g,""));if(hs.length>1&&hs.some(h=>COLS.text.includes(h))){const rows=parseCSV(raw,d);const head=rows[0].map(h=>h.trim().replace(/^﻿/,""));return fromObjects(rows.slice(1).map(r=>{const o={};head.forEach((h,i)=>o[h]=r[i]);return o;}));}}
+  return raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^\[([^\]]{1,30})\]\s*(.+)$/);return m?{platform:m[1],text:m[2]}:{text:l};});
+}
+function importFile(f){
+  const rd=new FileReader();
+  rd.onload=()=>{const rows=parseFile(String(rd.result));
+    if(!rows.length){$("import-msg").textContent=`No posts found in ${f.name}. Check that it has a text column.`;go("alert-setup");return;}
+    const now=new Date().toISOString();rows.forEach((r,i)=>{r.id="u"+i;if(!r.date)r.date=now;});
+    S.imported=rows;S.dataLabel=f.name;S.overrides={};S.meta={};S.blocked=[];if(!rows.some(r=>r.date!==now))S.range=0;
+    setData();save();
+    const al=activeAlert();const p=periods();const hit=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,al)).length;
+    $("import-msg").textContent=`Imported ${rows.length} posts from ${f.name}. ${hit} match “${al.name}”.${hit<rows.length?" Adjust keywords or locations to include more.":""}`;
+    render();};
+  rd.readAsText(f);
+}
+$("file-top").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
+$("file-set").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value="";};
+$("load-sample").onclick=()=>{S.imported=null;S.dataLabel="Sample data";S.overrides={};S.meta={};S.blocked=[];S.range=7;setData();save();$("import-msg").textContent="Sample data loaded.";render();};
+$("clear-data").onclick=()=>{S.imported=[];S.dataLabel="No data";S.overrides={};S.meta={};S.blocked=[];setData();save();$("import-msg").textContent="Data cleared. Import a file to start.";render();};
+
+/* ---------- Events ---------- */
+$("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
+$("alert-list").onclick=e=>{const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports")render();else if(selId())go("mentions");else render();};
+$("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
+$("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
+$("range").onchange=e=>{S.range=+e.target.value;save();render();};
+document.querySelectorAll("[data-mtab]").forEach(b=>b.onclick=()=>{mTab=b.dataset.mtab;document.querySelectorAll("[data-mtab]").forEach(x=>x.setAttribute("aria-selected",x===b));renderDashboard();});
+document.querySelectorAll("[data-ttab]").forEach(b=>b.onclick=()=>{tTab=b.dataset.ttab;document.querySelectorAll("[data-ttab]").forEach(x=>x.setAttribute("aria-selected",x===b));renderDashboard();});
+function toTerm(t,txt){F=Object.assign(F,{s:"all",q:"",term:t||null,termText:txt||null,limit:40});$("search").value="";[...$("sent-filter").children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.f==="all"));go("mentions");}
+$("drv-pos").onclick=$("drv-neg").onclick=e=>{const b=e.target.closest("[data-term]");if(b)toTerm(b.dataset.term);};
+$("cloud").onclick=e=>{const b=e.target.closest("[data-term-text]");if(b)toTerm(null,b.dataset.termText);};
+$("sent-filter").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;F.s=b.dataset.f;F.limit=40;[...$("sent-filter").children].forEach(c=>c.setAttribute("aria-pressed",c===b));renderMentions();};
+$("search").oninput=e=>{F.q=e.target.value;F.limit=40;renderMentions();};
+$("sort").onchange=e=>{F.sort=e.target.value;renderMentions();};
+$("term-chip").onclick=e=>{if(e.target.id==="clear-term"){F.term=null;F.termText=null;renderMentions();}};
+$("more").onclick=()=>{F.limit+=40;renderMentions();};
+$("detail").onclick=e=>{
+  const id=selId()||((feedList()[0]||{}).id);const m=MENTIONS.find(x=>x.id===id);if(!m)return;
+  const lb=e.target.closest("[data-setlab]");if(lb){const v=lb.dataset.setlab;if(v===m.a.label)delete S.overrides[m.id];else S.overrides[m.id]=v;save();renderMentions();return;}
+  const b=e.target.closest("[data-act]");if(!b)return;const act=b.dataset.act;
+  if(act==="reset"){delete S.overrides[m.id];}
+  else if(act==="star"){M(m.id).star=!M(m.id).star;}
+  else if(act==="done"){M(m.id).done=!M(m.id).done;}
+  else if(act==="block"||act==="delete"){
+    if(!(arm&&arm.id===m.id&&arm.act===act)){arm={id:m.id,act};renderMentions();return;}
+    arm=null;if(act==="block")S.blocked.push(m.author);else M(m.id).del=true;
+    const list=feedList();save();const nx=list[0];if(nx)location.hash="m-"+nx.id;else location.hash="mentions";return;
+  }
+  save();renderMentions();
+};
+$("restore").onclick=()=>{Object.values(S.meta).forEach(x=>delete x.del);S.blocked=[];save();render();};
+window.addEventListener("resize",()=>{if(current()==="mentions")renderMentions();});
+$("copy-csv").onclick=()=>{
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const csv=["date,platform,author,handle,location,language,reach,text,compound,label,edited,top_emotion,flags,starred,done,tags"].concat(feedList().map(m=>[m.date,q(m.platform),q(m.author),q(m.handle),q(m.location),m.lang,m.reach,q(m.text),m.a.compound.toFixed(4),LABEL[labelOf(m)],S.overrides[m.id]?"yes":"no",q(m.a.topEmo),q(m.a.flags.join("; ")),getMeta(m.id).star?"yes":"no",getMeta(m.id).done?"yes":"no",q((getMeta(m.id).tags||[]).join("; "))].join(","))).join("\n");
+  const out=$("copy-out"),btn=$("copy-csv");const fb=()=>{out.hidden=false;out.value=csv;out.focus();out.select();btn.textContent="Select all and copy";};
+  try{navigator.clipboard.writeText(csv).then(()=>{btn.textContent="Copied";setTimeout(()=>btn.textContent="Copy as CSV",1600);},fb);}catch(e){fb();}
+};
+$("single-input").oninput=renderAnalyze;
+document.querySelectorAll("[data-rtab]").forEach(b=>b.onclick=()=>{rTab=b.dataset.rtab;document.querySelectorAll("[data-rtab]").forEach(x=>x.setAttribute("aria-selected",x===b));renderReports();});
+$("r-src-sel").onchange=e=>{rSrc=e.target.value;renderReports();};
+$("r-copy-sum").onclick=e=>copyOut(REPORT.sum,e.currentTarget,"Copy summary");
+$("r-copy-csv").onclick=e=>copyOut(REPORT.csv,e.currentTarget,"Copy daily data (CSV)");
+$("v-reports").addEventListener("click",e=>{const a=e.target.closest("[data-rtag]");if(!a)return;e.preventDefault();toTerm(null,a.dataset.rtag);});
+$("set-name").oninput=()=>{$("set-name-h").textContent=$("set-name").value||"Untitled alert";};
+$("set-unknown").onchange=preview;$("set-lang").onchange=preview;$("set-src").onchange=preview;
+$("save-set").onclick=()=>{readDraft();const i=S.alerts.findIndex(a=>a.id===draft.id);S.alerts[i]=draft;save();go("dashboard");};
+$("cancel-set").onclick=()=>go("dashboard");
+$("del-alert").onclick=()=>{
+  if(S.alerts.length<=1){$("set-preview").textContent="Keep at least one alert. Edit this one instead.";return;}
+  if(!delArm){delArm=true;$("del-alert").textContent="Click again to delete";return;}
+  S.alerts=S.alerts.filter(a=>a.id!==draft.id);S.active=S.alerts[0].id;save();go("dashboard");
+};
+
+/* ---------- Boot ---------- */
+load();setData();
+$("single-input").value="Honestly the houseboat in Kumarakom was AMAZING 🔥 but the booking app kept crashing and support wasn't helpful at all 😤";
+lastView=current();render();
+window.MurmurAnalyze=analyze;
+})();
+</script>
