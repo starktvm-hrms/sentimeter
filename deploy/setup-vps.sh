@@ -9,6 +9,8 @@ DOMAIN="sentimeter.starkpeople.in"
 DIR="/var/www/sentimeter"
 
 command -v git >/dev/null || apt-get install -y git
+# The checkout is owned by www-data but updated by root: tell git that is intended.
+git config --system --get-all safe.directory 2>/dev/null | grep -qx "$DIR" || git config --system --add safe.directory "$DIR"
 if [ -d "$DIR/.git" ]; then
   git -C "$DIR" fetch --quiet origin "$BRANCH" && git -C "$DIR" reset --quiet --hard "origin/$BRANCH"
 else
