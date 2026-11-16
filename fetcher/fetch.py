@@ -23,6 +23,7 @@ NOW = datetime.now(timezone.utc)
 SETTINGS_PATH = os.environ.get("SENTIMETER_SETTINGS", "/etc/sentimeter/settings.json")
 USAGE_PATH = os.environ.get("SENTIMETER_USAGE", "/var/lib/sentimeter/usage.json")
 LOCK_PATH = os.environ.get("SENTIMETER_LOCK", "/tmp/sentimeter-fetch.lock")
+DATA_DIR = os.environ.get("SENTIMETER_DATA_DIR", "/var/lib/sentimeter/data")
 
 
 def log(*a):
@@ -678,7 +679,7 @@ SOURCES = {"google_news": src_google_news, "bing_news": src_bing_news, "reddit":
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=os.path.join(ROOT, "fetcher/config.json"))
-    ap.add_argument("--out", default=os.path.join(ROOT, "public/data/mentions.json"))
+    ap.add_argument("--out", default=os.path.join(DATA_DIR, "mentions.json"))
     ap.add_argument("--only", default="")
     ap.add_argument("--skip", default="")
     ap.add_argument("--force", action="store_true", help="ignore schedules (every_hours, daily run time)")

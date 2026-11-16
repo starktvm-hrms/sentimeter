@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Sentimeter settings service: shared settings and edits for everyone who uses the site.
+"""Sentimeter settings service: login, shared settings and edits, and the collected data.
 
-Listens on 127.0.0.1 only; nginx forwards /api/ to it. Open to the public by
-default. Set SENTIMETER_REQUIRE_KEY=1 in /etc/sentimeter.env to require
-"Authorization: Bearer <SENTIMETER_ADMIN_KEY>" again.
+Listens on 127.0.0.1 only; nginx forwards /api/ to it. Every endpoint except
+/api/auth/* needs a logged-in session (cookie) or "Authorization: Bearer
+<SENTIMETER_ADMIN_KEY>". Users live in /var/lib/sentimeter/users.json with
+scrypt password hashes. The first admin is created once with /api/auth/setup,
+which needs a one-time secret whose SHA-256 is SETUP_TOKEN_SHA256 below.
 
 Safeguards that apply to everyone: the monthly post limit cannot exceed
 SENTIMETER_MAX_MONTHLY (default 5000), each Apify run is capped in posts and in
 dollars (fetch.py), manual runs are limited to one per 30 minutes, and writes
 are rate limited per visitor.
 
+  POST /api/auth/login | logout, GET /api/auth/me, POST /api/auth/setup (first admin only)
+  GET  /api/data/mentions.json | imported.json   collected data (login only)
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
   POST /api/keys       set the Apify tokens (default, meta, x_linkedin, other) and YOUTUBE_API_KEY (write-only)
@@ -21,7 +25,8 @@ are rate limited per visitor.
   POST /api/import?step=start|append|finish   upload an imported file in chunks (100 rows each)
   DELETE /api/import              remove the imported file
 """
-import hmac, json, os, re, subprocess, sys, threading, time
+import hashlib, hmac, json, os, re, secrets, subprocess, sys, threading, time
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -32,7 +37,14 @@ LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
 FETCH_CMD = os.environ.get("SENTIMETER_FETCH_CMD", "/usr/local/bin/sentimeter-fetch --only social --force").split()
 SCHEDULED_CMD = os.environ.get("SENTIMETER_SCHEDULED_CMD", "/usr/local/bin/sentimeter-fetch --only social").split()
 SHARED_PATH = os.environ.get("SENTIMETER_SHARED", "/var/lib/sentimeter/shared.json")
-DATA_DIR = os.environ.get("SENTIMETER_DATA_DIR", os.path.join(fetch.ROOT, "public/data"))
+DATA_DIR = fetch.DATA_DIR
+OLD_PUBLIC_DATA = os.path.join(fetch.ROOT, "public/data")
+USERS_PATH = os.environ.get("SENTIMETER_USERS", "/var/lib/sentimeter/users.json")
+SESSIONS_PATH = os.environ.get("SENTIMETER_SESSIONS", "/var/lib/sentimeter/sessions.json")
+SETUP_TOKEN_SHA256 = "8fa8c2a8630c85283fb7e86444d444cb55694efbaa90ae379ea2af1d11aeda12"
+SESSION_DAYS = 30
+COOKIE = "sm_session"
+FAILS = {}
 LOCK = threading.Lock()
 RATE = {}
 LAST_MANUAL_RUN = [0.0]
@@ -118,6 +130,82 @@ def now_local(s):
         return datetime.now(ZoneInfo(s.get("timezone", "Asia/Kolkata")))
     except Exception:
         return datetime.now(timezone(timedelta(hours=5, minutes=30)))
+
+
+# ---------------- users and sessions ----------------
+
+def _load(path, default):
+    try:
+        return json.load(open(path))
+    except Exception:
+        return default
+
+
+def _save(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+def hash_pw(password, salt=None):
+    salt = salt or secrets.token_hex(16)
+    h = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2 ** 14, r=8, p=1, dklen=32).hex()
+    return salt, h
+
+
+def check_pw(user, password):
+    _, h = hash_pw(password, user["salt"])
+    return hmac.compare_digest(h, user["hash"])
+
+
+def users():
+    return _load(USERS_PATH, {"users": []}).get("users", [])
+
+
+def new_session(email):
+    tok = secrets.token_urlsafe(32)
+    with LOCK:
+        s = _load(SESSIONS_PATH, {})
+        now = time.time()
+        s = {k: v for k, v in s.items() if v.get("exp", 0) > now}
+        s[hashlib.sha256(tok.encode()).hexdigest()] = {"email": email, "exp": now + SESSION_DAYS * 86400}
+        _save(SESSIONS_PATH, s)
+    return tok
+
+
+def session_user(tok):
+    if not tok:
+        return None
+    s = _load(SESSIONS_PATH, {}).get(hashlib.sha256(tok.encode()).hexdigest())
+    if not s or s.get("exp", 0) < time.time():
+        return None
+    u = next((u for u in users() if u["email"] == s["email"]), None)
+    return {"email": u["email"], "role": u.get("role", "admin")} if u else None
+
+
+def end_session(tok):
+    if tok:
+        with LOCK:
+            s = _load(SESSIONS_PATH, {})
+            s.pop(hashlib.sha256(tok.encode()).hexdigest(), None)
+            _save(SESSIONS_PATH, s)
+
+
+def migrate_public_data():
+    """Collected data used to sit in the public web folder. Move it behind login."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    for f in ("mentions.json", "imported.json"):
+        old, new = os.path.join(OLD_PUBLIC_DATA, f), os.path.join(DATA_DIR, f)
+        try:
+            if os.path.exists(old):
+                if not os.path.exists(new):
+                    os.replace(old, new)
+                else:
+                    os.remove(old)
+        except Exception as e:
+            sys.stderr.write(f"data migration {f}: {e}\n")
 
 
 def max_monthly():
@@ -206,17 +294,97 @@ class H(BaseHTTPRequestHandler):
             return True
         return False
 
+    def token(self):
+        c = SimpleCookie()
+        try:
+            c.load(self.headers.get("Cookie", ""))
+        except Exception:
+            return ""
+        return c[COOKIE].value if COOKIE in c else ""
+
+    def set_cookie(self, tok, max_age):
+        secure = "" if os.environ.get("SENTIMETER_INSECURE_COOKIE") == "1" else "; Secure"
+        self._cookie = f"{COOKIE}={tok}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure}"
+
+    def end_headers(self):
+        if getattr(self, "_cookie", None):
+            self.send_header("Set-Cookie", self._cookie)
+            self._cookie = None
+        super().end_headers()
+
     def authed(self):
-        env = read_env()
-        if env.get("SENTIMETER_REQUIRE_KEY") != "1":
+        self.user = session_user(self.token())
+        if self.user:
             return True
+        env = read_env()
         key = env.get("SENTIMETER_ADMIN_KEY", "")
         got = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()
         if len(key) >= 24 and hmac.compare_digest(got.encode(), key.encode()):
             return True
-        time.sleep(1.5)
-        self.send(401, {"error": "Wrong admin key."})
+        if got:
+            time.sleep(1.5)
+        self.send(401, {"error": "Please log in."})
         return False
+
+    def auth_routes(self):
+        """Handle /api/auth/*. Returns True when the request was handled."""
+        path = self.path.split("?")[0]
+        if not path.startswith("/api/auth/"):
+            return False
+        if path == "/api/auth/me" and self.command == "GET":
+            u = session_user(self.token())
+            self.send(200 if u else 401, {"user": u} if u else {"error": "Not logged in", "setup_needed": not users()})
+            return True
+        if path == "/api/auth/logout" and self.command == "POST":
+            end_session(self.token())
+            self.set_cookie("", 0)
+            self.send(200, {"ok": True})
+            return True
+        if path == "/api/auth/login" and self.command == "POST":
+            ip = self.client()
+            now = time.time()
+            fails = [x for x in FAILS.get(ip, []) if now - x < 900]
+            if len(fails) >= 8:
+                self.send(429, {"error": "Too many attempts. Try again in 15 minutes."})
+                return True
+            try:
+                b = self.body()
+            except Exception:
+                b = {}
+            email = str(b.get("email", "")).strip().lower()
+            pw = str(b.get("password", ""))
+            u = next((u for u in users() if u["email"] == email), None)
+            if not u or not check_pw(u, pw):
+                FAILS[ip] = fails + [now]
+                time.sleep(1)
+                self.send(401, {"error": "Email or password is incorrect."})
+                return True
+            FAILS.pop(ip, None)
+            self.set_cookie(new_session(u["email"]), SESSION_DAYS * 86400)
+            self.send(200, {"user": {"email": u["email"], "role": u.get("role", "admin")}})
+            return True
+        if path == "/api/auth/setup" and self.command == "POST":
+            try:
+                b = self.body()
+            except Exception:
+                b = {}
+            tok = str(b.get("token", ""))
+            if users() or not hmac.compare_digest(hashlib.sha256(tok.encode()).hexdigest(), SETUP_TOKEN_SHA256):
+                time.sleep(1.5)
+                self.send(403, {"error": "Setup is not available."})
+                return True
+            email = str(b.get("email", "")).strip().lower()
+            pw = str(b.get("password", ""))
+            if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email) or len(pw) < 8:
+                self.send(400, {"error": "Valid email and a password of 8+ characters required."})
+                return True
+            salt, h = hash_pw(pw)
+            with LOCK:
+                _save(USERS_PATH, {"users": [{"email": email, "salt": salt, "hash": h, "role": "admin", "created": int(time.time())}]})
+            self.send(200, {"ok": True, "email": email})
+            return True
+        self.send(404, {"error": "Not found"})
+        return True
 
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -233,11 +401,23 @@ class H(BaseHTTPRequestHandler):
         return {"settings": s, "keys": {"apify": bool(env.get("APIFY_TOKEN")), "apify_meta": bool(env.get("APIFY_TOKEN_META")), "apify_x_linkedin": bool(env.get("APIFY_TOKEN_X_LINKEDIN")),
                          "apify_other": bool(env.get("APIFY_TOKEN_OTHER")), "youtube": bool(env.get("YOUTUBE_API_KEY"))},
                 "usage": {"month": month, "used": mu.get("posts", 0), "runs": mu.get("runs", [])[-10:], "last_daily_run": u.get("last_daily_run")},
-                "running": running(), "public": read_env().get("SENTIMETER_REQUIRE_KEY") != "1", "max_monthly": max_monthly(),
+                "running": running(), "public": True, "user": getattr(self, "user", None), "max_monthly": max_monthly(),
                 "next_manual_run_in": max(0, int(LAST_MANUAL_RUN[0] + 1800 - time.time()))}
 
     def do_GET(self):
-        if not self.authed():
+        if self.auth_routes() or not self.authed():
+            return
+        if self.path.split("?")[0] in ("/api/data/mentions.json", "/api/data/imported.json"):
+            f = os.path.join(DATA_DIR, os.path.basename(self.path.split("?")[0]))
+            if not os.path.exists(f):
+                return self.send(404, {"error": "No data yet"})
+            body = open(f, "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
         if self.path == "/api/settings":
             return self.send(200, self.overview())
@@ -253,7 +433,7 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {"error": "Not found"})
 
     def do_PUT(self):
-        if not self.authed() or self.limited():
+        if self.auth_routes() or not self.authed() or self.limited():
             return
         if self.path == "/api/shared/alerts":
             try:
@@ -282,7 +462,7 @@ class H(BaseHTTPRequestHandler):
         self.send(200, self.overview())
 
     def do_DELETE(self):
-        if not self.authed() or self.limited():
+        if self.auth_routes() or not self.authed() or self.limited():
             return
         if self.path == "/api/import":
             for f in ("imported.json",):
@@ -294,7 +474,7 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {"error": "Not found"})
 
     def do_POST(self):
-        if not self.authed() or self.limited(240):
+        if self.auth_routes() or not self.authed() or self.limited(240):
             return
         if self.path == "/api/shared/edits":
             try:
@@ -403,6 +583,7 @@ def scheduler():
 
 
 if __name__ == "__main__":
+    migrate_public_data()
     threading.Thread(target=scheduler, daemon=True).start()
     port = int(os.environ.get("SENTIMETER_ADMIN_PORT", "8787"))
     print(f"sentimeter-admin on 127.0.0.1:{port}", file=sys.stderr)

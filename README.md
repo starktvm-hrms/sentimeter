@@ -121,11 +121,20 @@ News (Google News and Bing News) is checked every hour for any alert keyword or 
 
 Each post is stored once. News articles are identified by headline, so the same article from both sources, several searches or several Google News editions is one mention. Social posts are identified by their URL without tracking parameters, or by author and text when there is no URL. A post found by both account tracking and keyword search is stored once and keeps the "Tracked" mark. Apify still bills for a result returned twice in a day, so avoid tracking an account and also searching for terms it always uses.
 
-## Public, shared use
+## Login
 
-The site is open to everyone, with no login, and works the same on every device:
+The homepage (`#home`) is public. Everything else (dashboard, mentions, reports, Sources, and the data) needs a login.
 
-- Sources settings, API keys (write-only), and "Run today's collection now" need no key.
+- Users are stored in `/var/lib/sentimeter/users.json` with scrypt password hashes (file mode 600). Sessions last 30 days (`/var/lib/sentimeter/sessions.json`, HttpOnly, Secure, SameSite=Lax cookie).
+- Collected data lives in `/var/lib/sentimeter/data/` and is served only to logged-in users through `/api/data/`. It is no longer in the public web folder.
+- Login attempts are limited to 8 per 15 minutes per visitor.
+- The first admin is created once through `POST /api/auth/setup` with a one-time secret (only its SHA-256 is in `fetcher/admin.py`). Setup is refused once a user exists.
+- The `SENTIMETER_ADMIN_KEY` bearer key still works for scripts.
+
+## Shared use
+
+Everyone who logs in shares the same settings and edits on any device:
+
 - Alerts, label corrections, stars, tags, deleted posts and blocked authors are stored on the server (`/var/lib/sentimeter/shared.json`) and shared by everyone.
 - Imported files are uploaded to the server (`public/data/imported.json`) and shown to everyone.
 
@@ -135,7 +144,6 @@ Safeguards that apply to everyone, set in `/etc/sentimeter.env`:
 | --- | --- | --- |
 | `SENTIMETER_MAX_MONTHLY` | 5000 | Highest monthly post limit the Sources page can set |
 | `SENTIMETER_MAX_USD_PER_RUN` | 1 | Apify cost cap for each actor run (`maxTotalChargeUsd`) |
-| `SENTIMETER_REQUIRE_KEY` | unset | Set to `1` to require the admin key again |
 
 Manual runs are limited to one every 30 minutes, and changes are rate limited per visitor.
 

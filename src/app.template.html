@@ -184,6 +184,45 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 .method{color:var(--muted);max-width:78ch}
 .method p{margin:0 0 8px}
 
+/* Public pages: homepage and login */
+.app.public{grid-template-columns:minmax(0,1fr);background:var(--bg)}
+.app.public .side,.app.public .topbar{display:none}
+.pub{min-height:100vh;display:flex;flex-direction:column}
+.pub-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:18px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));max-width:1120px;width:100%;margin:0 auto}
+.pub-nav .brand{padding:0;color:var(--ink)}
+.hero{max-width:1120px;width:100%;margin:0 auto;padding-block:56px 40px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px;align-items:center}
+@media (max-width:900px){.hero{grid-template-columns:minmax(0,1fr);padding-block:28px 24px;gap:28px}}
+.hero h1{font-size:clamp(32px,4.6vw,52px);line-height:1.05;letter-spacing:-.035em;font-weight:700;max-width:16ch}
+.hero h1 span{color:var(--accent)}
+.hero p.lead{font-size:17px;color:var(--muted);max-width:54ch;margin:18px 0 26px;line-height:1.6}
+.cta{display:flex;gap:10px;flex-wrap:wrap}
+.btn.lg{padding:12px 20px;font-size:15px;border-radius:12px}
+.plats{display:flex;gap:6px;flex-wrap:wrap;margin-top:22px;align-items:center}
+.preview{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.preview .row{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px}
+.preview .row p{margin:2px 0 0;font-size:13.5px;line-height:1.5}
+.preview .meter{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden;display:flex}
+.features{max-width:1120px;width:100%;margin:0 auto;padding-block:16px 64px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+@media (max-width:1000px){.features{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.features{grid-template-columns:minmax(0,1fr)}}
+.feature{border-top:2px solid var(--accent);padding-top:14px}
+.feature h3{margin:0 0 6px;font-size:15px;font-weight:600}
+.feature p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.pub-foot{margin-top:auto;border-top:1px solid var(--line);color:var(--muted);font-size:13px;padding-block:18px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));text-align:center}
+.login-wrap{flex:1;display:grid;place-items:center;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.login{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:16px}
+.login h1{font-size:22px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:600;font-size:13px}
+.field input{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;width:100%}
+.field input:focus{border-color:var(--accent);outline:3px solid var(--accent-soft);outline-offset:0}
+.pw{position:relative}
+.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;padding:6px 8px}
+.login .err{color:var(--neg);font-size:13px;min-height:1em;margin:0}
+.login .btn.primary{justify-content:center;padding:12px}
+.user-chip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.user-chip button{background:none;border:0;color:var(--side-strong);font-weight:600;cursor:pointer;padding:0;font-size:12px}
+
 /* Mention split view */
 .split{display:grid;grid-template-columns:minmax(300px,410px) minmax(0,1fr);gap:18px;align-items:start}
 .list-card{overflow:hidden}
@@ -270,7 +309,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
     </nav>
     <div class="side-head"><span>Alerts</span><button id="new-alert" title="New alert" aria-label="New alert">+</button></div>
     <div class="alert-list" id="alert-list"></div>
-    <div class="side-foot" id="side-foot"></div>
+    <div class="side-foot"><div id="side-foot"></div><div class="user-chip" id="user-chip" hidden><span id="user-email" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0"></span><button type="button" id="logout">Log out</button></div></div>
   </aside>
 
   <main>
@@ -288,6 +327,58 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
+
+    <!-- HOME -->
+    <section class="pub" id="v-home" hidden>
+      <nav class="pub-nav" aria-label="Site">
+        <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" style="fill:var(--accent)"/><path d="M5 15c2-5 4-5 5 0s3 5 4 0 3-6 4-1 2 3 3 1" fill="none" style="stroke:var(--on-accent)" stroke-width="2" stroke-linecap="round"/></svg>Sentimeter</div>
+        <div class="toolbar"><button class="btn theme-btn" type="button" data-theme-toggle aria-label="Switch light / dark mode"><svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><a class="btn primary" id="home-login" href="#login">Log in</a></div>
+      </nav>
+      <div class="hero">
+        <div>
+          <div class="eyebrow" style="color:var(--accent)">Social listening and sentiment</div>
+          <h1>Know what people say about your brand, <span>every day</span>.</h1>
+          <p class="lead">Sentimeter collects your brand's own posts, public conversations and news from Facebook, Instagram, X, LinkedIn, YouTube, TikTok and Snapchat, and scores the sentiment of every mention so you can see what is working and what needs a reply.</p>
+          <div class="cta"><a class="btn primary lg" id="home-cta" href="#login">Log in</a><button class="btn lg" type="button" id="home-more">See what it does</button></div>
+          <div class="plats" aria-label="Platforms">
+            <span class="src" style="background:var(--c1)">f</span><span class="src" style="background:var(--c5)">IG</span><span class="src" style="background:var(--c6)">X</span><span class="src" style="background:var(--c8)">in</span><span class="src" style="background:var(--neg)">YT</span><span class="src" style="background:var(--c3)">TT</span><span class="src" style="background:var(--c9)">SC</span><span class="src" style="background:var(--c2)">N</span>
+            <span class="hint" style="margin-left:6px">7 platforms and news</span>
+          </div>
+        </div>
+        <div class="preview" aria-label="Example of scored mentions (illustration)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="eyebrow">Example mentions</span><span class="hint">illustration</span></div>
+          <div class="row"><span class="src" style="background:var(--c5)">IG</span><div style="min-width:0"><b style="font-size:13.5px">A traveller</b><p>Sunrise over the tea hills was <mark class="p">beautiful</mark>, the homestay family were so <mark class="p">kind</mark>.</p></div><span class="pill pos" style="margin-left:auto">+0.82</span></div>
+          <div class="row"><span class="src" style="background:var(--c6)">X</span><div style="min-width:0"><b style="font-size:13.5px">A customer</b><p>Booking site <mark class="n">cancelled</mark> our stay, still waiting on a refund.</p></div><span class="pill neg" style="margin-left:auto">−0.54</span></div>
+          <div class="row"><span class="src" style="background:var(--c2)">N</span><div style="min-width:0"><b style="font-size:13.5px">A news site</b><p>New airport shuttle to the hill station starts Monday.</p></div><span class="pill neu" style="margin-left:auto">0.00</span></div>
+          <div><div class="meter"><div style="width:58%;background:var(--pos)"></div><div style="width:26%;background:var(--neu)"></div><div style="width:16%;background:var(--neg)"></div></div><div class="hint" style="margin-top:6px">Positive, neutral and negative share of mentions</div></div>
+        </div>
+      </div>
+      <div class="features" id="home-features">
+        <div class="feature"><h3>Every source in one feed</h3><p>Brand profile posts, public posts that match your keywords or mention your brand, and news, collected daily without duplicates.</p></div>
+        <div class="feature"><h3>Sentiment you can check</h3><p>Each mention shows which words drove its score. Correct a label in one click and the reports follow.</p></div>
+        <div class="feature"><h3>Alerts for each brand</h3><p>Keywords, exclusions, languages and locations per alert, shared by your whole team on any device.</p></div>
+        <div class="feature"><h3>Reports and limits</h3><p>Daily trends, top authors, sources and keywords, with a monthly post limit that keeps scraping costs predictable.</p></div>
+      </div>
+      <footer class="pub-foot">Sentimeter · social listening and sentiment analysis</footer>
+    </section>
+
+    <!-- LOGIN -->
+    <section class="pub" id="v-login" hidden>
+      <nav class="pub-nav" aria-label="Site">
+        <a class="brand" href="#home" style="text-decoration:none"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" style="fill:var(--accent)"/><path d="M5 15c2-5 4-5 5 0s3 5 4 0 3-6 4-1 2 3 3 1" fill="none" style="stroke:var(--on-accent)" stroke-width="2" stroke-linecap="round"/></svg>Sentimeter</a>
+        <button class="btn theme-btn" type="button" data-theme-toggle aria-label="Switch light / dark mode"><svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      </nav>
+      <div class="login-wrap">
+        <form class="login" id="login-form" novalidate>
+          <div><h1>Log in</h1><p class="sub" style="margin-top:6px">Use your Sentimeter account to open the dashboard.</p></div>
+          <div class="field"><label for="login-email">Email</label><input type="email" id="login-email" autocomplete="username" required></div>
+          <div class="field"><label for="login-password">Password</label><div class="pw"><input type="password" id="login-password" autocomplete="current-password" required style="padding-right:64px"><button type="button" id="login-show" aria-label="Show password">Show</button></div></div>
+          <p class="err" id="login-err" role="alert"></p>
+          <button class="btn primary" id="login-submit" type="submit">Log in</button>
+          <a class="hint" href="#home" style="text-align:center">Back to home</a>
+        </form>
+      </div>
+    </section>
 
     <!-- DASHBOARD -->
     <section class="content" id="v-dashboard">
@@ -442,7 +533,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 
     <!-- SOURCES -->
     <section class="content" id="v-sources" hidden>
-      <div class="page-head"><div><h1>Sources</h1><p class="sub">Social accounts collected every day by the server, the Apify actor for each platform, and the monthly post limit. Anyone who opens this site can change these settings, and changes apply for everyone.</p></div></div>
+      <div class="page-head"><div><h1>Sources</h1><p class="sub">Social accounts collected every day by the server, the Apify actor for each platform, and the monthly post limit. Changes apply for everyone who logs in.</p></div></div>
 
       <div class="card" id="src-connect"><div class="card-head"><h2>Admin access</h2><span class="badge" id="src-badge">Not connected</span></div><div class="card-body">
         <p class="hint" style="margin:0">Enter the admin key printed by <code>setup-sources.sh</code> on the server. Find it again with <code>grep ADMIN /etc/sentimeter.env</code>.</p>
@@ -1125,6 +1216,7 @@ const KWJOBS=[["x_search","X","X keyword search","Searches X posts"],["instagram
 async function adm(path,opts={}){
   const r=await fetch("api"+path,Object.assign({},opts,{headers:Object.assign({"Authorization":"Bearer "+admKey},opts.body?{"Content-Type":"application/json"}:{})}));
   let j=null;try{j=await r.json();}catch(e){}
+  if(r.status===401&&AUTH_MODE==="server"){AUTH=null;go("login");}
   if(!r.ok){const err=new Error(j&&j.error||(r.status===404||r.status===405?"The settings service is not set up on this server yet. Run deploy/setup-sources.sh on the VPS.":"Server error "+r.status));err.status=r.status;throw err;}
   return j;
 }
@@ -1191,7 +1283,7 @@ async function saveSources(){
 function pollRun(){clearInterval(runPoll);$("run-log").hidden=false;$("run-now").disabled=true;
   runPoll=setInterval(async()=>{try{const s=await adm("/status");$("run-log").textContent=s.log.filter(l=>/social|apify|youtube|wrote|limit|skipped|failed/i.test(l)).slice(-12).join("\n")||"Starting…";
     if(!s.running){clearInterval(runPoll);$("run-now").disabled=false;ADM=await adm("/settings");renderSources();
-      try{const j=await (await fetch("data/mentions.json",{cache:"no-cache"})).json();if(j&&Array.isArray(j.mentions)){LIVE=j;setData();renderChrome();}}catch(e){}}}catch(e){clearInterval(runPoll);$("run-now").disabled=false;}},4000);}
+      try{const j=await (await fetch(AUTH_MODE==="server"?"api/data/mentions.json":"data/mentions.json",{cache:"no-store",credentials:"same-origin"})).json();if(j&&Array.isArray(j.mentions)){LIVE=j;setData();renderChrome();}}catch(e){}}}catch(e){clearInterval(runPoll);$("run-now").disabled=false;}},4000);}
 $("adm-connect").onclick=()=>admConnect(false);
 $("adm-key").onkeydown=e=>{if(e.key==="Enter")admConnect(false);};
 $("adm-forget").onclick=()=>{ADM=null;admKey="";acctDraft=null;try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(e){}$("adm-msg").textContent="Disconnected.";renderSources();};
@@ -1249,12 +1341,15 @@ function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIO
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["dashboard","mentions","reports","sources","analyze","alert-setup"];
-function current(){const h=location.hash.slice(1);if(h.startsWith("m-"))return"mentions";return VIEWS.includes(h)?h:"dashboard";}
+const VIEWS=["dashboard","mentions","reports","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
+function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";return VIEWS.includes(h)?h:"dashboard";}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
   const v=current();
-  VIEWS.forEach(x=>$("v-"+x).hidden=x!==v);
+  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);
+  VIEWS.concat(PUBLIC_VIEWS).forEach(x=>$("v-"+x).hidden=x!==v);
+  if(pub){renderPublic(v);return;}
+  $("user-chip").hidden=!AUTH;if(AUTH)$("user-email").textContent=AUTH.email;
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.view===v?"page":"false"));
   renderChrome();
   if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
@@ -1292,7 +1387,7 @@ async function uploadShared(name,rows){
     await post("start",{name});
     for(let i=0;i<rows.length;i+=100){msg.textContent=`Uploading ${name}: ${Math.min(i+100,rows.length)} of ${rows.length} posts…`;await post("append",{rows:rows.slice(i,i+100).map((r,k)=>Object.assign({id:"im"+hashStr(name+"|"+(i+k)+"|"+r.text).toString(36)},r))});}
     const fin=await post("finish",{});
-    const imp=await (await fetch("data/imported.json",{cache:"no-store"})).json();SIMPORT=imp;S.forceSample=false;setData();save();
+    const imp=await (await fetch(AUTH_MODE==="server"?"api/data/imported.json":"data/imported.json",{cache:"no-store",credentials:"same-origin"})).json();SIMPORT=imp;S.forceSample=false;setData();save();
     const al=activeAlert();const p=periods();const hit=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,al)).length;
     msg.textContent=`Uploaded ${fin.rows} posts from ${name}. Everyone who opens this site now sees them. ${hit} match “${al.name}” in the selected period.`;render();
   }catch(e){msg.textContent=`Upload failed: ${e.message}`;}
@@ -1360,7 +1455,8 @@ $("del-alert").onclick=()=>{
 /* ---------- Theme toggle ---------- */
 function isDark(){const t=document.documentElement.getAttribute("data-theme");return t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;}
 function syncThemeBtn(){const d=isDark();$("theme-toggle").setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");$("theme-toggle").title=d?"Light mode":"Dark mode";}
-$("theme-toggle").onclick=()=>{const next=isDark()?"light":"dark";document.documentElement.setAttribute("data-theme",next);try{localStorage.setItem("sentimeter-theme",next);}catch(e){}syncThemeBtn();};
+function toggleTheme(){const next=isDark()?"light":"dark";document.documentElement.setAttribute("data-theme",next);try{localStorage.setItem("sentimeter-theme",next);}catch(e){}syncThemeBtn();}
+$("theme-toggle").onclick=toggleTheme;document.querySelectorAll("[data-theme-toggle]").forEach(b=>b.onclick=toggleTheme);
 try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",syncThemeBtn);}catch(e){}
 syncThemeBtn();
 
@@ -1369,12 +1465,47 @@ load();
 function boot(){setData();
 $("single-input").value="Honestly the houseboat in Kumarakom was AMAZING 🔥 but the booking app kept crashing and support wasn't helpful at all 😤";
 lastView=current();render();}
-const getJSON=u=>fetch(u,{cache:"no-store"}).then(r=>r.ok&&(r.headers.get("content-type")||"").includes("json")?r.json():null).catch(()=>null);
-Promise.all([getJSON("data/mentions.json"),getJSON("api/shared"),getJSON("data/imported.json")]).then(([live,sh,imp])=>{
-  if(live&&Array.isArray(live.mentions))LIVE=live;
+const getJSON=u=>fetch(u,{cache:"no-store",credentials:"same-origin"}).then(r=>r.ok&&(r.headers.get("content-type")||"").includes("json")?r.json():null).catch(()=>null);
+let booted=false,refreshTimer=null;
+async function loadAll(){
+  const srv=AUTH_MODE==="server";
+  const [live,sh,imp]=await Promise.all([getJSON(srv?"api/data/mentions.json":"data/mentions.json"),getJSON("api/shared"),getJSON(srv?"api/data/imported.json":"data/imported.json")]);
+  LIVE=live&&Array.isArray(live.mentions)?live:null;
   if(sh&&sh.meta!==undefined){SHARED=true;applyShared(sh);if(!Array.isArray(sh.alerts)||!sh.alerts.length){SYNC.alerts="";scheduleSync();}}
-  if(SHARED&&imp&&Array.isArray(imp.mentions)&&imp.mentions.length)SIMPORT=imp;
-}).finally(()=>{boot();if(SHARED){setInterval(refreshShared,60000);window.addEventListener("focus",refreshShared);}});
+  SIMPORT=SHARED&&imp&&Array.isArray(imp.mentions)&&imp.mentions.length?imp:null;
+  if(!booted){booted=true;boot();}else{setData();render();}
+  if(SHARED&&!refreshTimer){refreshTimer=setInterval(refreshShared,60000);window.addEventListener("focus",refreshShared);}
+}
+async function start(){
+  try{
+    const r=await fetch("api/auth/me",{cache:"no-store",credentials:"same-origin"});
+    const ct=r.headers.get("content-type")||"";
+    if(ct.includes("json")&&(r.status===200||r.status===401)){AUTH_MODE="server";const j=await r.json();AUTH=r.ok?j.user:null;}
+  }catch(e){}
+  if(AUTH_MODE==="server"&&!AUTH){booted=true;setData();render();return;}
+  await loadAll();
+}
+function renderPublic(v){
+  syncThemeBtn();
+  if(v==="home"){const t=AUTH?"Open dashboard":"Log in";$("home-login").textContent=t;$("home-cta").textContent=t;$("home-login").href=$("home-cta").href=AUTH?"#dashboard":"#login";}
+  if(v==="login"){if(AUTH){go("dashboard");return;}setTimeout(()=>{if(!$("login-email").value)$("login-email").focus();},50);}
+}
+$("login-form").addEventListener("submit",async e=>{
+  e.preventDefault();const err=$("login-err"),btn=$("login-submit");
+  const email=$("login-email").value.trim(),password=$("login-password").value;
+  if(!email||!password){err.textContent="Enter your email and password.";return;}
+  btn.disabled=true;btn.textContent="Logging in…";err.textContent="";
+  try{const r=await fetch("api/auth/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){err.textContent=j.error||"Login failed. Try again.";return;}
+    AUTH=j.user;$("login-password").value="";await loadAll();go("dashboard");
+  }catch(e2){err.textContent="Could not reach the server. Check your connection.";}
+  finally{btn.disabled=false;btn.textContent="Log in";}
+});
+$("login-show").onclick=()=>{const i=$("login-password");const s=i.type==="password";i.type=s?"text":"password";$("login-show").textContent=s?"Hide":"Show";$("login-show").setAttribute("aria-label",s?"Hide password":"Show password");};
+$("home-more").onclick=()=>$("home-features").scrollIntoView({behavior:"smooth",block:"start"});
+$("logout").onclick=async()=>{try{await fetch("api/auth/logout",{method:"POST",credentials:"same-origin"});}catch(e){}AUTH=null;LIVE=null;SIMPORT=null;ADM=null;acctDraft=null;location.hash="home";location.reload();};
+start();
 window.MurmurAnalyze=analyze;
 })();
 </script>
