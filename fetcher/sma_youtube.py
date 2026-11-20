@@ -4,6 +4,10 @@ Flow: Google OAuth (authorization code, offline access) -> access token (1 hour)
 -> channels?mine=true gives the channel chosen at sign-in (Brand Accounts are picked in Google's
 account chooser) -> daily channel reports, audience breakdowns, top videos and recent uploads.
 
+A brand can have several channels: each Google sign-in adds the channel picked in Google's chooser,
+with its own tokens (secrets["yt_channels"][channel_id]) and data file (youtube_<channel_id>.json).
+One channel is "active" for the report; every channel syncs daily.
+
 Analytics data runs about two days behind; days YouTube has not reported yet are simply absent.
 Each optional report is requested on its own, so one unsupported report shows as unavailable
 instead of failing the sync.
@@ -30,34 +34,119 @@ FIELD = {"views": "views", "estimatedMinutesWatched": "watch_minutes", "averageV
          "likes": "likes", "comments": "comments", "shares": "shares"}
 
 
-def key(bid):
-    return "youtube:" + bid
+def key(bid, cid=""):
+    return f"youtube:{bid}:{cid}"
+
+
+def busy(bid):
+    return any(k.startswith(f"youtube:{bid}:") for k in sma.SYNCING)
 
 
 def redirect_uri():
     return sma.PUBLIC_URL + REDIRECT_PATH
 
 
-def data(bid):
-    return sma._load(sma._p(bid, "youtube.json"), {})
-
-
-def save_data(bid, d):
-    sma._save(sma._p(bid, "youtube.json"), d, 0o640)
-
-
 def cfg(b):
     return (b or {}).get("youtube") or {}
 
 
+def channels(b):
+    return cfg(b).get("channels") or []
+
+
+def active(b):
+    y = cfg(b)
+    ids = [c["id"] for c in channels(b)]
+    return y.get("channel_id") if y.get("channel_id") in ids else (ids[0] if ids else None)
+
+
+def tokens(bid):
+    return (sma.secrets_all().get(bid, {}) or {}).get("yt_channels") or {}
+
+
+def set_tokens(bid, cid, **kv):
+    with sma.LOCK:
+        s = sma.secrets_all()
+        ch = s.setdefault(bid, {}).setdefault("yt_channels", {})
+        cur = ch.setdefault(cid, {})
+        for k, v in kv.items():
+            if v is None:
+                cur.pop(k, None)
+            else:
+                cur[k] = v
+        if not cur:
+            ch.pop(cid, None)
+        sma._save(sma._p("secrets.json"), s)
+
+
+def drop_tokens(bid, cid):
+    with sma.LOCK:
+        s = sma.secrets_all()
+        (s.get(bid, {}).get("yt_channels") or {}).pop(cid, None)
+        sma._save(sma._p("secrets.json"), s)
+
+
+def _path(bid, cid):
+    return sma._p(bid, f"youtube_{re.sub(r'[^A-Za-z0-9_-]', '', cid or '')}.json")
+
+
+def data(bid, cid=None):
+    cid = cid or active(sma.get_brand(bid))
+    return sma._load(_path(bid, cid), {}) if cid else {}
+
+
+def save_data(bid, cid, d):
+    sma._save(_path(bid, cid), d, 0o640)
+
+
+def migrate(bid):
+    """Move a single-channel connection (before multi-channel support) into the per-channel layout."""
+    b = sma.get_brand(bid)
+    y = cfg(b)
+    sec = sma.secrets_all().get(bid, {})
+    cid = y.get("channel_id")
+    if cid and not channels(b):
+        if sec.get("yt_refresh_token") or sec.get("yt_access_token"):
+            set_tokens(bid, cid, refresh=sec.get("yt_refresh_token"), access=sec.get("yt_access_token"), expires=sec.get("yt_access_expires"))
+        sma.set_secrets(bid, yt_refresh_token=None, yt_access_token=None, yt_access_expires=None)
+        entry = {"id": cid, "title": y.get("channel_title", ""), "handle": y.get("channel_handle", ""), "connected_by": y.get("connected_by"),
+                 "connected_at": y.get("connected_at"), "granted_scopes": y.get("granted_scopes", ""), "last_sync": y.get("last_sync"),
+                 "last_sync_date": y.get("last_sync_date"), "last_error": y.get("last_error", "")}
+        sma.update_brand_record(bid, lambda r: r["youtube"].update({"channels": [entry]}))
+        old = sma._p(bid, "youtube.json")
+        if os.path.exists(old) and not os.path.exists(_path(bid, cid)):
+            os.replace(old, _path(bid, cid))
+
+
+def update_channel(bid, cid, **kv):
+    def fn(r):
+        for c in r.setdefault("youtube", {}).setdefault("channels", []):
+            if c["id"] == cid:
+                c.update(kv)
+    sma.update_brand_record(bid, fn)
+
+
 def public(b):
+    migrate(b["id"])
+    b = sma.get_brand(b["id"])
     y = dict(cfg(b))
     sec = sma.secrets_all().get(b["id"], {})
-    y["has_client_secret"] = bool(sec.get("yt_client_secret"))
-    y["connected"] = bool(sec.get("yt_refresh_token") or sec.get("yt_access_token"))
-    y["refreshable"] = bool(sec.get("yt_refresh_token"))
-    y["syncing"] = key(b["id"]) in sma.SYNCING
-    y["redirect_uri"] = redirect_uri()
+    tk = tokens(b["id"])
+    chs = []
+    for c in channels(b):
+        c = dict(c)
+        c["connected"] = bool((tk.get(c["id"]) or {}).get("refresh") or (tk.get(c["id"]) or {}).get("access"))
+        c["refreshable"] = bool((tk.get(c["id"]) or {}).get("refresh"))
+        c["syncing"] = key(b["id"], c["id"]) in sma.SYNCING
+        chs.append(c)
+    act = active(b)
+    a = next((c for c in chs if c["id"] == act), {})
+    y.update({"channels": chs, "channel_id": act, "channel_title": a.get("title", ""), "channel_handle": a.get("handle", ""),
+              "connected": bool(a.get("connected")), "refreshable": bool(a.get("refreshable")), "connected_by": a.get("connected_by"),
+              "connected_at": a.get("connected_at"), "granted_scopes": a.get("granted_scopes", ""), "last_sync": a.get("last_sync"),
+              "channel_error": a.get("last_error", ""), "has_client_secret": bool(sec.get("yt_client_secret")),
+              "syncing": busy(b["id"]), "redirect_uri": redirect_uri()})
+    y["last_error"] = y.get("last_error") or a.get("last_error", "")
     return y
 
 
@@ -143,30 +232,21 @@ def _token_post(form):
         raise RuntimeError(friendly(body))
 
 
-def _store(bid, tok):
-    kv = {"yt_access_token": tok["access_token"], "yt_access_expires": time.time() + int(tok.get("expires_in") or 3600) - 60}
-    if tok.get("refresh_token"):
-        kv["yt_refresh_token"] = tok["refresh_token"]
-    sma.set_secrets(bid, **kv)
-    if tok.get("scope"):
-        sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"granted_scopes": tok["scope"]}))
-
-
-def access_token(bid):
-    sec = sma.secrets_all().get(bid, {})
-    if sec.get("yt_access_token") and sec.get("yt_access_expires", 0) > time.time():
-        return sec["yt_access_token"]
-    if not sec.get("yt_refresh_token"):
-        raise RuntimeError("The YouTube connection expired. Click Connect YouTube again in Settings.")
+def access_token(bid, cid):
+    tk = tokens(bid).get(cid) or {}
+    if tk.get("access") and (tk.get("expires") or 0) > time.time():
+        return tk["access"]
+    if not tk.get("refresh"):
+        raise RuntimeError("The YouTube connection for this channel expired. Click Add or reconnect channel in Settings.")
     y = cfg(sma.get_brand(bid))
-    tok = _token_post({"grant_type": "refresh_token", "refresh_token": sec["yt_refresh_token"], "client_id": y["client_id"],
-                       "client_secret": sec.get("yt_client_secret", "")})
-    _store(bid, tok)
+    tok = _token_post({"grant_type": "refresh_token", "refresh_token": tk["refresh"], "client_id": y["client_id"],
+                       "client_secret": sma.secret(bid, "yt_client_secret") or ""})
+    set_tokens(bid, cid, access=tok["access_token"], expires=time.time() + int(tok.get("expires_in") or 3600) - 60)
     return tok["access_token"]
 
 
-def api(bid, url, params):
-    tok = access_token(bid)
+def api(bid, url, params, cid=None, token=None):
+    tok = token or access_token(bid, cid)
     req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}", headers={"Authorization": f"Bearer {tok}", "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=40) as r:
@@ -187,50 +267,75 @@ def api(bid, url, params):
 def callback(params, email):
     st = STATES.pop(params.get("state", ""), None)
     if not st or st["exp"] < time.time():
-        return None, "The Google sign-in expired or was started elsewhere. Click Connect YouTube again."
+        return None, None, "The Google sign-in expired or was started elsewhere. Click Connect YouTube again."
     bid = st["brand"]
+    migrate(bid)
     if params.get("error"):
         msg = friendly(params.get("error_description") or params["error"])
         sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_error": msg}))
-        return bid, msg
+        return bid, None, msg
     y = cfg(sma.get_brand(bid))
     try:
         tok = _token_post({"grant_type": "authorization_code", "code": params.get("code", ""), "redirect_uri": redirect_uri(),
                            "client_id": y["client_id"], "client_secret": sma.secret(bid, "yt_client_secret")})
-        _store(bid, tok)
-        if not tok.get("refresh_token") and not sma.secret(bid, "yt_refresh_token"):
-            sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_error":
-                "Google did not issue a long-lived token, so the connection will stop after an hour. Remove Sentimeter's access at "
-                "myaccount.google.com/permissions, then click Connect YouTube again."}))
-        ch = api(bid, f"{DATA_API}/channels", {"part": "snippet,statistics,contentDetails", "mine": "true"})
+        ch = api(bid, f"{DATA_API}/channels", {"part": "snippet,statistics,contentDetails", "mine": "true"}, token=tok["access_token"])
         items = ch.get("items") or []
         if not items:
-            msg = ("Connected, but this Google account has no YouTube channel. Click Connect YouTube again and, in Google's account "
-                   "chooser, pick the channel's account or Brand Account.")
-            sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_error": msg, "connected_at": sma.iso(), "connected_by": email}))
-            return bid, msg
+            msg = ("This Google account has no YouTube channel. Click Add another channel and, in Google's account chooser, pick the "
+                   "channel's account or Brand Account.")
+            sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_error": msg}))
+            return bid, None, msg
         c = items[0]
-        old = cfg(sma.get_brand(bid)).get("channel_id")
-        sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({
-            "connected_at": sma.iso(), "connected_by": email, "last_error": "", "channel_id": c["id"],
-            "channel_title": (c.get("snippet") or {}).get("title", ""), "channel_handle": (c.get("snippet") or {}).get("customUrl", "")}))
-        if old and old != c["id"]:
-            save_data(bid, {})
-        return bid, None
+        cid = c["id"]
+        prev = tokens(bid).get(cid) or {}
+        set_tokens(bid, cid, access=tok["access_token"], expires=time.time() + int(tok.get("expires_in") or 3600) - 60,
+                   refresh=tok.get("refresh_token") or prev.get("refresh"))
+        entry = {"id": cid, "title": (c.get("snippet") or {}).get("title", ""), "handle": (c.get("snippet") or {}).get("customUrl", ""),
+                 "connected_by": email, "connected_at": sma.iso(), "granted_scopes": tok.get("scope", ""), "last_error": ""}
+        if not tok.get("refresh_token") and not prev.get("refresh"):
+            entry["last_error"] = ("Google did not issue a long-lived token, so this channel will stop after an hour. Remove Sentimeter at "
+                                   "myaccount.google.com/permissions, then add the channel again.")
+
+        def fn(r):
+            y2 = r.setdefault("youtube", {})
+            chs = [x for x in y2.get("channels", []) if x["id"] != cid]
+            old = next((x for x in y2.get("channels", []) if x["id"] == cid), {})
+            chs.append({**{k: old.get(k) for k in ("last_sync", "last_sync_date")}, **entry})
+            y2.update({"channels": chs, "channel_id": cid, "last_error": ""})
+        sma.update_brand_record(bid, fn)
+        return bid, cid, None
     except Exception as e:
         sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_error": str(e)[:400]}))
-        return bid, str(e)
+        return bid, None, str(e)
+
+
+def select(bid, cid):
+    if cid not in [c["id"] for c in channels(sma.get_brand(bid))]:
+        raise ValueError("That channel is not connected to this brand.")
+    sma.update_brand_record(bid, lambda r: r["youtube"].update({"channel_id": cid}))
+
+
+def remove(bid, cid):
+    drop_tokens(bid, cid)
+    sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update(
+        {"channels": [c for c in r["youtube"].get("channels", []) if c["id"] != cid]}))
+    try:
+        os.remove(_path(bid, cid))
+    except FileNotFoundError:
+        pass
+    b = sma.get_brand(bid)
+    if cfg(b).get("channel_id") == cid:
+        sma.update_brand_record(bid, lambda r: r["youtube"].update({"channel_id": (channels(b) or [{}])[0].get("id")}))
 
 
 def disconnect(bid):
-    sma.set_secrets(bid, yt_access_token=None, yt_refresh_token=None, yt_access_expires=None)
-    sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update(
-        {"connected_at": None, "connected_by": None, "granted_scopes": ""}))
+    for c in channels(sma.get_brand(bid)):
+        remove(bid, c["id"])
 
 
 # ---------------- sync ----------------
 
-def _report(bid, start, end, metrics, dimensions=None, sort=None, max_results=None, filters=None):
+def _report(bid, cid, start, end, metrics, dimensions=None, sort=None, max_results=None, filters=None):
     p = {"ids": "channel==MINE", "startDate": start, "endDate": end, "metrics": ",".join(metrics)}
     if dimensions:
         p["dimensions"] = dimensions
@@ -240,7 +345,7 @@ def _report(bid, start, end, metrics, dimensions=None, sort=None, max_results=No
         p["maxResults"] = max_results
     if filters:
         p["filters"] = filters
-    j = api(bid, f"{ANALYTICS}/reports", p)
+    j = api(bid, f"{ANALYTICS}/reports", p, cid)
     cols = [c["name"] for c in j.get("columnHeaders", [])]
     return [dict(zip(cols, row)) for row in j.get("rows", []) or []]
 
@@ -252,10 +357,10 @@ def _n(v):
         return 0.0
 
 
-def _videos(bid, ids):
+def _videos(bid, cid, ids):
     out = {}
     for i in range(0, len(ids), 50):
-        j = api(bid, f"{DATA_API}/videos", {"part": "snippet,statistics,contentDetails", "id": ",".join(ids[i:i + 50])})
+        j = api(bid, f"{DATA_API}/videos", {"part": "snippet,statistics,contentDetails", "id": ",".join(ids[i:i + 50])}, cid)
         for v in j.get("items", []):
             s, st = v.get("snippet") or {}, v.get("statistics") or {}
             out[v["id"]] = {"id": v["id"], "title": s.get("title", ""), "published": (s.get("publishedAt") or "")[:19] + "Z",
@@ -264,19 +369,19 @@ def _videos(bid, ids):
     return out
 
 
-def sync(bid, full=False):
-    k = key(bid)
+def sync(bid, full=False, cid=None):
+    migrate(bid)
+    cid = cid or active(sma.get_brand(bid))
+    if not cid:
+        raise RuntimeError("Connect a YouTube channel first (Settings).")
+    k = key(bid, cid)
     if k in sma.SYNCING:
         raise RuntimeError("A YouTube sync for this brand is already running.")
     sma.SYNCING.add(k)
     t0 = time.time()
     try:
-        y = cfg(sma.get_brand(bid))
-        if not y.get("channel_id"):
-            raise RuntimeError("Connect a YouTube channel first (Settings).")
-        d = data(bid) or {}
-        if d.get("channel_id") != y["channel_id"]:
-            d = {"channel_id": y["channel_id"]}
+        d = data(bid, cid) or {}
+        d["channel_id"] = cid
         notes, errors = [], []
         today = datetime.now(timezone.utc).date()
         end = today.isoformat()
@@ -284,7 +389,7 @@ def sync(bid, full=False):
         start = (today - timedelta(days=days)).isoformat()
 
         try:
-            ch = api(bid, f"{DATA_API}/channels", {"part": "snippet,statistics,contentDetails", "id": y["channel_id"]})
+            ch = api(bid, f"{DATA_API}/channels", {"part": "snippet,statistics,contentDetails", "id": cid}, cid)
             c = (ch.get("items") or [{}])[0]
             s, st = c.get("snippet") or {}, c.get("statistics") or {}
             d["channel"] = {"id": c.get("id"), "title": s.get("title"), "handle": s.get("customUrl", ""),
@@ -297,12 +402,12 @@ def sync(bid, full=False):
         daily = d.setdefault("daily", {})
         metrics = list(DAILY_METRICS)
         try:
-            rows = _report(bid, start, end, metrics, "day", "day")
+            rows = _report(bid, cid, start, end, metrics, "day", "day")
         except Exception as e:
             notes.append(f"Some daily metrics unavailable ({str(e)[:160]})")
             metrics = ["views", "estimatedMinutesWatched", "subscribersGained", "subscribersLost"]
             try:
-                rows = _report(bid, start, end, metrics, "day", "day")
+                rows = _report(bid, cid, start, end, metrics, "day", "day")
             except Exception as e2:
                 errors.append(f"Daily statistics: {e2}")
                 rows = []
@@ -321,7 +426,7 @@ def sync(bid, full=False):
                 ("content_types", "creatorContentType", ["views", "estimatedMinutesWatched"], "-views", None),
                 ("age_gender", "ageGroup,gender", ["viewerPercentage"], None, None)):
             try:
-                breakdowns[name] = _report(bid, a90, end, mets, dims, srt, mx)
+                breakdowns[name] = _report(bid, cid, a90, end, mets, dims, srt, mx)
             except Exception as e:
                 label = {"traffic": "Traffic sources", "countries": "Countries", "devices": "Devices",
                          "content_types": "Format (videos, Shorts, live)", "age_gender": "Age and gender"}[name]
@@ -333,7 +438,7 @@ def sync(bid, full=False):
         top = {}
         for label, n in (("d28", 28), ("d90", 90), ("d365", 365)):
             try:
-                rows = _report(bid, (today - timedelta(days=n)).isoformat(), end,
+                rows = _report(bid, cid, (today - timedelta(days=n)).isoformat(), end,
                                ["views", "estimatedMinutesWatched", "likes", "comments", "shares", "subscribersGained"], "video", "-views", 25)
                 top[label] = rows
             except Exception as e:
@@ -341,7 +446,7 @@ def sync(bid, full=False):
         ids = sorted({r["video"] for rows in top.values() for r in rows})
         info = {}
         try:
-            info = _videos(bid, ids) if ids else {}
+            info = _videos(bid, cid, ids) if ids else {}
         except Exception as e:
             notes.append(f"Video titles unavailable ({str(e)[:140]})")
         d["top_videos"] = {lbl: [dict(info.get(r["video"], {"id": r["video"], "title": r["video"], "url": f"https://www.youtube.com/watch?v={r['video']}"}),
@@ -352,38 +457,36 @@ def sync(bid, full=False):
         try:
             up = (d.get("channel") or {}).get("uploads")
             if up:
-                j = api(bid, f"{DATA_API}/playlistItems", {"part": "contentDetails", "playlistId": up, "maxResults": 25})
+                j = api(bid, f"{DATA_API}/playlistItems", {"part": "contentDetails", "playlistId": up, "maxResults": 25}, cid)
                 vids = [it["contentDetails"]["videoId"] for it in j.get("items", [])]
-                vinfo = _videos(bid, vids) if vids else {}
+                vinfo = _videos(bid, cid, vids) if vids else {}
                 d["uploads"] = [vinfo[v] for v in vids if v in vinfo]
         except Exception as e:
             notes.append(f"Recent uploads unavailable ({str(e)[:140]})")
 
-        d["channel_id"] = y["channel_id"]
         d["synced_at"] = sma.iso()
         d["notes"] = notes[:30]
         res = {"at": sma.iso(), "ok": not errors, "errors": errors, "notes": len(notes), "days": days, "full": days > 35,
                "seconds": round(time.time() - t0, 1)}
         d["sync_log"] = (d.get("sync_log", []) + [res])[-30:]
-        save_data(bid, d)
-        sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_sync": sma.iso(), "last_sync_date": today.isoformat(),
-                                                                                    "last_error": "; ".join(errors)[:400]}))
+        save_data(bid, cid, d)
+        update_channel(bid, cid, last_sync=sma.iso(), last_sync_date=today.isoformat(), last_error="; ".join(errors)[:400])
         sma.log(f"{bid}: YouTube synced in {res['seconds']}s, {len(errors)} errors, {len(notes)} notes")
         return res
     except Exception as e:
-        sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update({"last_error": str(e)[:400]}))
-        dd = data(bid) or {}
+        update_channel(bid, cid, last_error=str(e)[:400])
+        dd = data(bid, cid) or {}
         dd["sync_log"] = (dd.get("sync_log", []) + [{"at": sma.iso(), "ok": False, "errors": [str(e)[:300]]}])[-30:]
-        save_data(bid, dd)
+        save_data(bid, cid, dd)
         raise
     finally:
         sma.SYNCING.discard(k)
 
 
-def sync_async(bid, full=False):
+def sync_async(bid, full=False, cid=None):
     def run():
         try:
-            sync(bid, full)
+            sync(bid, full, cid)
         except Exception as e:
             sma.log(f"{bid}: YouTube sync failed: {e}")
     threading.Thread(target=run, daemon=True).start()
@@ -391,8 +494,11 @@ def sync_async(bid, full=False):
 
 def daily_due(today):
     for b in sma.brands():
-        y = cfg(b)
-        if sma.secret(b["id"], "yt_refresh_token") and y.get("channel_id") and y.get("last_sync_date") != today \
-                and y.get("last_attempt_date") != today and key(b["id"]) not in sma.SYNCING:
-            sma.update_brand_record(b["id"], lambda r: r["youtube"].update({"last_attempt_date": today}))
-            sync_async(b["id"])
+        migrate(b["id"])
+        b = sma.get_brand(b["id"])
+        tk = tokens(b["id"])
+        for c in channels(b):
+            if (tk.get(c["id"]) or {}).get("refresh") and c.get("last_sync_date") != today and c.get("last_attempt_date") != today \
+                    and key(b["id"], c["id"]) not in sma.SYNCING:
+                update_channel(b["id"], c["id"], last_attempt_date=today)
+                sync_async(b["id"], cid=c["id"])

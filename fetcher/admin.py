@@ -458,22 +458,28 @@ class H(BaseHTTPRequestHandler):
                     sma.update_brand_record(q.get("brand", ""), lambda r: r.setdefault("youtube", {}).update({"last_error": str(e)}))
                     return self.redirect(f"/#sma-{q.get('brand', '')}-settings") or True
             if path == "/api/sma/youtube/callback" and m == "GET":
-                bid, err = sma_youtube.callback(q, email)
-                if bid and not err:
-                    sma_youtube.sync_async(bid, full=True)
+                bid, cid, err = sma_youtube.callback(q, email)
+                if bid and cid and not err:
+                    sma_youtube.sync_async(bid, full=True, cid=cid)
                 return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
-            yt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/youtube(?:/(sync|disconnect))?", path)
+            yt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/youtube(?:/(sync|disconnect|select|remove))?", path)
             if yt:
                 bid, action = yt.group(1), yt.group(2)
                 if not sma.get_brand(bid):
                     return self.send(404, {"error": "Brand not found"}) or True
                 if not action and m == "GET":
-                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False), "data": sma_youtube.data(bid)}) or True
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False), "data": sma_youtube.data(bid, q.get("channel") or None)}) or True
                 if action == "sync" and m == "POST":
-                    if sma_youtube.key(bid) in sma.SYNCING:
+                    body = self.body()
+                    cid = body.get("channel_id") or sma_youtube.active(sma.get_brand(bid))
+                    if sma_youtube.key(bid, cid) in sma.SYNCING:
                         return self.send(409, {"error": "A sync is already running."}) or True
-                    sma_youtube.sync_async(bid, full=bool(self.body().get("full")))
+                    sma_youtube.sync_async(bid, full=bool(body.get("full")), cid=cid)
                     return self.send(202, {"started": True}) or True
+                if action in ("select", "remove") and m == "POST":
+                    cid = str(self.body().get("channel_id", ""))
+                    (sma_youtube.select if action == "select" else sma_youtube.remove)(bid, cid)
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
                 if action == "disconnect" and m == "POST":
                     sma_youtube.disconnect(bid)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True

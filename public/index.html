@@ -1525,13 +1525,15 @@ async function renderSMA(){
   if(!SMA.brands){root.innerHTML=`<p class="hint">Loading brands…</p>`;try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){root.innerHTML=`<p class="neg-c">${esc(e.message)}</p>`;return;}}
   if(!r.bid)return renderBrands(root);
   const b=SMA.brands.find(x=>x.id===r.bid);if(!b){go("sma");return;}
-  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");const mstale=SMA.metaFor[b.id]!==(b.meta.last_sync||"");const ystale=SMA.ytFor[b.id]!==(b.youtube.last_sync||"");
+  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");const mstale=SMA.metaFor[b.id]!==(b.meta.last_sync||"");const ystale=SMA.ytFor[b.id]!==((b.youtube.channel_id||"")+"|"+(b.youtube.last_sync||""));
   if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale||!SMA.meta[b.id]||mstale||!SMA.yt[b.id]||ystale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await Promise.all([smaLoadData(b),smaLoadMeta(b),smaLoadYT(b)]);}
   renderBrand(root,b,r.tab);
   clearTimeout(SMA.poll);SMA.poll=null;if(smaBusy(b))SMA.poll=setTimeout(smaRefresh,2000);
 }
 function smaBusy(b){return b.linkedin.syncing||b.meta.syncing||b.youtube.syncing;}
-async function smaLoadYT(b){try{SMA.yt[b.id]=(await smaApi(`/brands/${b.id}/youtube`)).data||{};SMA.ytFor[b.id]=b.youtube.last_sync||"";}catch(e){SMA.yt[b.id]=SMA.yt[b.id]||{};}}
+async function smaLoadYT(b){try{SMA.yt[b.id]=(await smaApi(`/brands/${b.id}/youtube?channel=${encodeURIComponent(b.youtube.channel_id||"")}`)).data||{};SMA.ytFor[b.id]=(b.youtube.channel_id||"")+"|"+(b.youtube.last_sync||"");}catch(e){SMA.yt[b.id]=SMA.yt[b.id]||{};}}
+function ytChannelPicker(b,label){const chs=b.youtube.channels||[];if(chs.length<2)return "";
+  return `<div class="toolbar no-print"><span class="eyebrow">${label||"Channel"}</span><div class="chips" role="group" aria-label="YouTube channel">${chs.map(c=>`<button class="chip" type="button" data-yt-select="${esc(c.id)}" aria-pressed="${c.id===b.youtube.channel_id}">${esc(c.title||c.id)}${c.connected?"":" (reconnect)"}</button>`).join("")}</div></div>`;}
 async function smaLoadMeta(b){try{SMA.meta[b.id]=(await smaApi(`/brands/${b.id}/meta`)).data||{};SMA.metaFor[b.id]=b.meta.last_sync||"";}catch(e){SMA.meta[b.id]=SMA.meta[b.id]||{};}}
 async function smaLoadData(b){try{SMA.data[b.id]=(await smaApi(`/brands/${b.id}/linkedin`)).data||{};SMA.dataFor[b.id]=b.linkedin.last_sync||"";}catch(e){SMA.data[b.id]=SMA.data[b.id]||{};}}
 async function smaRefresh(){
@@ -1573,7 +1575,7 @@ function smaPlatform(b){
   const soon=[["X","X (Twitter)","var(--c6)"]];
   const yt=b.youtube,ysum=b.youtube_summary||{};const ytOk=yt.connected&&yt.channel_id;
   const ytCard=`<div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--neg)">YT</span><b>YouTube</b><span class="pill ${ytOk?"pos":"neu"}" style="margin-left:auto">${ytOk?"Connected":"Not connected"}</span></div>
-    ${ytOk&&ysum.views!=null?`<div class="hint">${esc(yt.channel_title||"")} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Subscribers</span><b>${ysum.subscribers!=null?compact(ysum.subscribers):"Hidden"}</b></div><div><span class="hint">Views</span><b>${compact(ysum.views||0)}</b></div><div><span class="hint">Watch hours</span><b>${compact(Math.round(ysum.watch_hours||0))}</b></div></div>
+    ${ytOk&&ysum.views!=null?`<div class="hint">${esc(yt.channel_title||"")}${(yt.channels||[]).length>1?` (1 of ${yt.channels.length} channels)`:""} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Subscribers</span><b>${ysum.subscribers!=null?compact(ysum.subscribers):"Hidden"}</b></div><div><span class="hint">Views</span><b>${compact(ysum.views||0)}</b></div><div><span class="hint">Watch hours</span><b>${compact(Math.round(ysum.watch_hours||0))}</b></div></div>
       <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report" data-open-plat="youtube">Open report</a><button class="btn" type="button" data-sync-yt ${yt.syncing?"disabled":""}>${yt.syncing?"Syncing…":"Sync now"}</button></div>`
     :ytOk?`<p class="hint" style="margin:0">${yt.syncing?"First sync running…":"No data yet. Click Sync now."}</p><div class="toolbar"><button class="btn" type="button" data-sync-yt ${yt.syncing?"disabled":""}>Sync now</button></div>`
     :`<p class="hint" style="margin:0">Connect the brand's YouTube channel to report views, watch time, subscribers, traffic sources and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
@@ -1607,7 +1609,7 @@ function smaReport(b){
   const opts=[["linkedin","LinkedIn",b.linkedin.connected&&b.linkedin.org_urn],["facebook","Facebook",b.meta.page_connected],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id],["youtube","YouTube",b.youtube.connected&&!!b.youtube.channel_id]];
   if(!SMA.plat||!opts.find(o=>o[0]===SMA.plat&&o[2]))SMA.plat=(opts.find(o=>o[2])||opts[0])[0];
   const sw=`<div class="tabs no-print" role="tablist" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;max-width:560px">${opts.map(([k,n,ok])=>`<button role="tab" type="button" data-plat="${k}" aria-selected="${k===SMA.plat}" ${ok?"":`title="Not connected" style="opacity:.5"`}>${n}</button>`).join("")}</div>`;
-  const body=SMA.plat==="linkedin"?smaReportLI(b):SMA.plat==="youtube"?smaReportYT(b):smaReportMeta(b,SMA.plat);
+  const body=SMA.plat==="linkedin"?smaReportLI(b):SMA.plat==="youtube"?ytChannelPicker(b,"Channel")+smaReportYT(b):smaReportMeta(b,SMA.plat);
   return sw+body;
 }
 function rangeDays(daily,range){const keys=Object.keys(daily||{}).sort();if(!keys.length)return[];const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;}
@@ -1772,7 +1774,7 @@ function smaSource(b){
 }
 function smaSourceYT(b){
   const yt=b.youtube,d=SMA.yt[b.id]||{};const ks=Object.keys(d.daily||{}).sort();const row=(k,v)=>`<dt>${k}</dt><dd>${v||"–"}</dd>`;
-  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube</h2><span class="pill ${yt.connected&&yt.channel_id?"pos":"neu"}">${yt.connected&&yt.channel_id?"Connected":"Not connected"}</span></div><div class="card-body">
+  return ytChannelPicker(b,"YouTube channel")+`<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube</h2><span class="pill ${yt.connected&&yt.channel_id?"pos":"neu"}">${yt.connected&&yt.channel_id?"Connected":"Not connected"}</span></div><div class="card-body">
     <dl class="kv">${row("Channel",yt.channel_title?`<a class="name-link" href="https://www.youtube.com/channel/${esc(yt.channel_id)}" target="_blank" rel="noopener noreferrer">${esc(yt.channel_title)} ↗</a>`:"")}${row("Channel ID",yt.channel_id?`<span class="code">${esc(yt.channel_id)}</span>`:"")}
       ${row("Connected by",esc(yt.connected_by||""))}${row("Connected",yt.connected_at?fmtStamp(yt.connected_at)+" UTC":"")}
       ${row("Access",yt.connected?(yt.refreshable?"Renews automatically. Google ends it after 7 days only while the app's publishing status is Testing":"No long-lived token: reconnect in Settings"):"")}
@@ -1780,7 +1782,7 @@ function smaSourceYT(b){
       ${row("Daily data stored",ks.length?`${ks.length} days, ${fmtDay(ks[0])} ${ks[0].slice(0,4)} to ${fmtDay(ks[ks.length-1])} ${ks[ks.length-1].slice(0,4)}`:"")}${row("Videos stored",d.uploads?`${(d.uploads||[]).length} recent uploads, top videos for 28, 90 and 365 days`:"")}</dl>
     ${(d.notes||[]).length?`<details><summary class="hint">${d.notes.length} reports not available from YouTube</summary><ul class="hint">${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></details>`:""}
     ${yt.last_error?`<p class="neg-c" style="margin:0">${esc(yt.last_error)}</p>`:""}
-    <div class="toolbar no-print"><button class="btn primary" type="button" data-sync-yt ${!(yt.connected&&yt.channel_id)||yt.syncing?"disabled":""}>${yt.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-yt-full ${!(yt.connected&&yt.channel_id)||yt.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="yt-disconnect" ${yt.connected?"":"disabled"}>Disconnect YouTube</button></div>
+    <div class="toolbar no-print"><button class="btn primary" type="button" data-sync-yt ${!(yt.connected&&yt.channel_id)||yt.syncing?"disabled":""}>${yt.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-yt-full ${!(yt.connected&&yt.channel_id)||yt.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="yt-disconnect" ${yt.channel_id?"":"disabled"}>Remove this channel</button></div>
   </div></div>
   <div class="card"><div class="card-head"><h2>YouTube sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${syncTable(d.sync_log)}</div></div></div>`;
 }
@@ -1833,7 +1835,7 @@ function smaSettings(b){
 }
 function smaSettingsYT(b){
   const yt=b.youtube;const configured=yt.client_id&&yt.has_client_secret;const ok=yt.connected&&yt.channel_id;
-  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube API integration</h2><span class="pill ${ok?"pos":configured?"neu":"neg"}">${ok?"Connected":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
+  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube API integration</h2><span class="pill ${ok?"pos":configured?"neu":"neg"}">${ok?((yt.channels||[]).length>1?yt.channels.length+" channels":"Connected"):configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
     <ol class="steps">
       <li>Open <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> and pick a project (the one with your YouTube API key works). Under APIs &amp; Services > Library, enable <b>YouTube Data API v3</b> and <b>YouTube Analytics API</b>.</li>
       <li>Under Google Auth Platform (OAuth consent screen), set the app name and choose the audience: <b>Internal</b> if the channel's Google account is in your Google Workspace, otherwise <b>External</b>. For External, add the channel's Google account as a test user. While the publishing status is <b>Testing</b>, Google ends connections after 7 days, so publish the app when ready.</li>
@@ -1845,9 +1847,17 @@ function smaSettingsYT(b){
       <label class="f" for="yt-secret">Client Secret</label><div class="toolbar"><input type="password" id="yt-secret" placeholder="${yt.has_client_secret?"Saved. Paste a new one to replace it":"GOCSPX-…"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${yt.has_client_secret?"pos":"neu"}">${yt.has_client_secret?"Saved":"Not set"}</span></div>
     </div>
     ${yt.last_error?`<p class="neg-c" style="margin:0">${esc(yt.last_error)}</p>`:""}
-    <div class="form-actions"><span class="hint">${yt.connected?`Connected by ${esc(yt.connected_by||"")}${yt.channel_title?" · channel: "+esc(yt.channel_title):""}`:""}</span><span class="spacer"></span>
+    <div><div class="eyebrow" style="margin-bottom:8px">Channels</div>
+    ${(yt.channels||[]).length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Channel</th><th>Connected by</th><th>Last sync</th><th>Status</th><th class="r">Actions</th></tr></thead><tbody>${yt.channels.map(c=>`<tr>
+        <td><a class="name-link" href="https://www.youtube.com/channel/${esc(c.id)}" target="_blank" rel="noopener noreferrer">${esc(c.title||c.id)}</a>${c.handle?` <span class="hint">${esc(c.handle)}</span>`:""}${c.id===yt.channel_id?` <span class="pill pos">In reports</span>`:""}</td>
+        <td>${esc(c.connected_by||"")}</td><td>${c.last_sync?relAgo(c.last_sync):(c.syncing?"Syncing…":"–")}</td>
+        <td>${c.connected?(c.last_error?`<span class="neg-c" title="${esc(c.last_error)}">Error</span>`:`<span class="pos-c">OK</span>`):`<span class="neg-c">Reconnect</span>`}</td>
+        <td class="r" style="white-space:nowrap">${c.id!==yt.channel_id?`<button class="btn" type="button" data-yt-select="${esc(c.id)}" style="padding:4px 10px;font-size:12.5px">Use for reports</button> `:""}<button class="btn danger" type="button" data-yt-remove="${esc(c.id)}" style="padding:4px 10px;font-size:12.5px">Remove</button></td></tr>`).join("")}</tbody></table></div>
+      <p class="hint" style="margin:8px 0 0">Each Google sign-in adds the channel picked in Google's account chooser. To add another channel, click Add another channel and pick that channel's account or Brand Account.</p>`
+    :`<p class="hint" style="margin:0">No channel connected yet.</p>`}</div>
+    <div class="form-actions"><span class="spacer"></span>
       <button class="btn" type="button" id="yt-save">Save integration</button>
-      <a class="btn primary" href="api/sma/youtube/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${yt.connected?"Reconnect YouTube":"Connect YouTube"}</a></div>
+      <a class="btn primary" href="api/sma/youtube/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${(yt.channels||[]).length?"Add another channel":"Connect YouTube"}</a></div>
   </div></div>`;
 }
 function smaSettingsMeta(b){
@@ -1878,10 +1888,15 @@ function bindBrand(b,tab){
     try{await smaApi(`/brands/${b.id}/linkedin/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
   document.querySelectorAll("#sma-root [data-sync-meta],#sma-root [data-sync-meta-full]").forEach(btn=>btn.onclick=async()=>{
     try{await smaApi(`/brands/${b.id}/meta/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-meta-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  document.querySelectorAll("#sma-root [data-yt-select]").forEach(btn=>btn.onclick=async()=>{
+    try{await smaApi(`/brands/${b.id}/youtube/select`,{method:"POST",body:JSON.stringify({channel_id:btn.dataset.ytSelect})});delete SMA.yt[b.id];await smaRefresh();smaMsg("Reports now use this channel.");}catch(e){smaMsg(e.message,true);}});
+  document.querySelectorAll("#sma-root [data-yt-remove]").forEach(btn=>btn.onclick=async()=>{
+    if(SMA.arm!=="yrm:"+btn.dataset.ytRemove){SMA.arm="yrm:"+btn.dataset.ytRemove;btn.textContent="Click again to remove";return;}SMA.arm=null;
+    try{await smaApi(`/brands/${b.id}/youtube/remove`,{method:"POST",body:JSON.stringify({channel_id:btn.dataset.ytRemove})});delete SMA.yt[b.id];await smaRefresh();smaMsg("Channel removed, with its stored data.");}catch(e){smaMsg(e.message,true);}});
   document.querySelectorAll("#sma-root [data-sync-yt],#sma-root [data-sync-yt-full]").forEach(btn=>btn.onclick=async()=>{
-    try{await smaApi(`/brands/${b.id}/youtube/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-yt-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
-  if(tab==="source"&&$("yt-disconnect")){$("yt-disconnect").onclick=async e=>{if(SMA.arm!=="ydisc"){SMA.arm="ydisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
-    try{await smaApi(`/brands/${b.id}/youtube/disconnect`,{method:"POST"});await smaRefresh();smaMsg("YouTube disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
+    try{await smaApi(`/brands/${b.id}/youtube/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-yt-full"),channel_id:b.youtube.channel_id})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  if(tab==="source"&&$("yt-disconnect")){$("yt-disconnect").onclick=async e=>{if(SMA.arm!=="ydisc"){SMA.arm="ydisc";e.currentTarget.textContent="Click again to remove this channel";return;}SMA.arm=null;
+    try{await smaApi(`/brands/${b.id}/youtube/remove`,{method:"POST",body:JSON.stringify({channel_id:b.youtube.channel_id})});delete SMA.yt[b.id];await smaRefresh();smaMsg("Channel removed.");}catch(err){smaMsg(err.message,true);}};}
   if(tab==="settings"){
     $("yt-copy-redirect").onclick=e=>copyOutTo(b.youtube.redirect_uri,e.currentTarget,"Copy",null);
     $("yt-save").onclick=async()=>{const body={youtube:{client_id:$("yt-cid").value.trim()}};const s=$("yt-secret").value.trim();if(s)body.youtube.client_secret=s;
