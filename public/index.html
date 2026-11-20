@@ -1611,13 +1611,18 @@ function smaReportMeta(b,plat){
   const daily=isFb?d.fb_daily:d.ig_daily;
   if(!daily||!Object.keys(daily).length)return `<div class="card"><p class="empty">${mt.syncing?"The first sync is running. The report appears when it finishes.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
   let days=rangeDays(daily,SMA.range);const lead=isFb?["views","reach"]:["reach","views"];
-  while(days.length>7&&!(daily[days[0]]&&lead.every(f=>daily[days[0]][f]!=null||!Object.values(daily).some(r=>r[f]!=null))))days.shift();
+  const complete=k=>daily[k]&&lead.every(f=>daily[k][f]!=null||!Object.values(daily).some(r=>r[f]!=null));
+  while(days.length>7&&!complete(days[days.length-1])){days.pop();}
+  if(days.length<SMA.range){const last=days[days.length-1];days=[];for(let i=SMA.range-1;i>=0;i--)days.push(addDays(last,-i));}
+  while(days.length>7&&!complete(days[0]))days.shift();
   const prevDays=days.map(x=>addDays(x,-SMA.range));const hasPrev=prevDays.some(k=>daily[k]);
   const F=isFb?["views","reach","engagements","follows","unfollows","page_views","video_views"]:["reach","views","interactions","likes","comments","shares","saves","profile_views","accounts_engaged","followers_gained"];
   const sum=(ds,f)=>ds.reduce((a,k)=>a+((daily[k]||{})[f]||0),0);const cur={},prv={};F.forEach(f=>{cur[f]=sum(days,f);prv[f]=sum(prevDays,f);});
   const has=f=>days.some(k=>daily[k]&&daily[k][f]!=null);
   const delta=(a,c,pts)=>hasPrev?dlt(pts?a*100:a,pts?(c==null?null:c*100):c,{pts}):"";
-  const eng=isFb?"engagements":"interactions";const er=x=>x.reach?x[eng]/x.reach:null;
+  const eng=isFb?"engagements":"interactions";
+  const pair=ds=>{let r=0,e2=0;ds.forEach(k=>{const x=daily[k];if(x&&x.reach!=null&&x[eng]!=null){r+=x.reach;e2+=x[eng];}});return r?e2/r:null;};
+  const er=x=>x===cur?pair(days):pair(prevDays);
   const acct=isFb?d.page||{}:d.ig||{};
   const T=[["Followers",acct.followers!=null?fmtInt(acct.followers):"–",isFb?(has("follows")?`<span class="hint">+${fmtInt(cur.follows)} / −${fmtInt(cur.unfollows)} in period</span>`:""):(has("followers_gained")?`<span class="hint">+${fmtInt(cur.followers_gained)} in period</span>`:"")]];
   const L=isFb?{views:"Views",reach:"Reach",engagements:"Engagements",page_views:"Page views",video_views:"Video views"}:{reach:"Reach",views:"Views",interactions:"Interactions",likes:"Likes",comments:"Comments",shares:"Shares",saves:"Saves",profile_views:"Profile views",accounts_engaged:"Accounts engaged"};
