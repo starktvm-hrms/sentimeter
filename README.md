@@ -125,7 +125,7 @@ Each post is stored once. News articles are identified by headline, so the same 
 
 The **Social Media Analytics** tab holds **brands**. Each brand has four sections:
 
-- **Platform**: one card per platform with connection status and 30-day figures. LinkedIn, Facebook and Instagram are live; X and YouTube are next.
+- **Platform**: one card per platform with connection status and 30-day figures. LinkedIn, Facebook, Instagram and YouTube are live; X is next.
 - **Report**: LinkedIn page analytics for 7, 30, 90 or 365 days: followers and new followers, impressions, unique impressions, engagement rate, clicks, reactions, comments, reposts, page views, daily charts, top posts and follower demographics, compared with the previous period. Copy as CSV or print / save as PDF.
 - **Source**: the connected company page, who connected it and when, token expiry, granted permissions, API version, stored data range and sync history. Sync now, re-sync 12 months, or disconnect.
 - **Settings**: brand name, and the LinkedIn API integration (setup guide, redirect URL, Client ID, Client Secret, scopes, API version, Connect LinkedIn, page choice).
@@ -139,6 +139,15 @@ The **Social Media Analytics** tab holds **brands**. Each brand has four section
 5. Paste the App ID and App Secret (App settings > Basic) in the brand's Settings, save, click **Connect Facebook & Instagram**, and choose the Page.
 
 Permissions requested: `pages_show_list pages_read_engagement read_insights business_management instagram_basic instagram_manage_insights`. The short-lived login is exchanged for a 60-day token and then a Page token, which does not expire while the admin keeps the app's permissions. Each statistic is requested on its own with the newer Meta name first (for example `page_media_view`, then `page_impressions`), so retired metrics show as unavailable instead of failing the sync. Facebook keeps up to 12 months of daily history on first sync; Instagram provides only the last 30 days, so its history grows from the first sync. Code: `fetcher/sma_meta.py`; data in `/var/lib/sentimeter/sma/<brand>/meta.json`.
+
+### YouTube setup (YouTube Analytics API + Data API)
+
+1. In Google Cloud (console.cloud.google.com), enable **YouTube Data API v3** and **YouTube Analytics API** in a project.
+2. Configure the OAuth consent screen (Google Auth Platform): **Internal** if the channel's Google account is in your Google Workspace, otherwise **External** with the channel's account as a test user. While the publishing status is **Testing**, Google ends connections after 7 days; publish the app for a lasting connection.
+3. Create an **OAuth client ID** of type **Web application** with the redirect URI `https://sentimeter.starkpeople.in/api/sma/youtube/callback`.
+4. Paste the Client ID and Client Secret in the brand's Settings, save, click **Connect YouTube**, and pick the channel's account (or Brand Account) in Google's chooser.
+
+Scopes: `youtube.readonly` and `yt-analytics.readonly`. Sentimeter keeps a refresh token on the server and renews the hourly access token itself. It stores up to 12 months of daily views, watch time, average view duration and percentage, subscribers gained and lost, likes, comments and shares; 90-day traffic sources, countries, age, gender, devices and format (videos, Shorts, live); top videos for 28, 90 and 365 days; and recent uploads. YouTube Analytics runs about two days behind. Code: `fetcher/sma_youtube.py`; data in `/var/lib/sentimeter/sma/<brand>/youtube.json`.
 
 ### LinkedIn setup
 

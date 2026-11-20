@@ -1330,7 +1330,7 @@ $("run-now").onclick=async()=>{
   try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
 
 /* ---------- Social Media Analytics ---------- */
-const SMA={brands:null,data:{},dataFor:{},meta:{},metaFor:{},plat:null,range:30,arm:null,poll:null};
+const SMA={brands:null,data:{},dataFor:{},meta:{},metaFor:{},yt:{},ytFor:{},plat:null,range:30,arm:null,poll:null};
 const LI_FUNC={1:"Accounting",2:"Administrative",3:"Arts and Design",4:"Business Development",5:"Community and Social Services",6:"Consulting",7:"Education",8:"Engineering",9:"Entrepreneurship",10:"Finance",11:"Healthcare Services",12:"Human Resources",13:"Information Technology",14:"Legal",15:"Marketing",16:"Media and Communication",17:"Military and Protective Services",18:"Operations",19:"Product Management",20:"Program and Project Management",21:"Purchasing",22:"Quality Assurance",23:"Real Estate",24:"Research",25:"Sales",26:"Customer Success and Support"};
 const LI_SEN={1:"Unpaid",2:"Training",3:"Entry",4:"Senior",5:"Manager",6:"Director",7:"Vice President",8:"CXO",9:"Partner",10:"Owner"};
 const LI_SIZE={SIZE_1:"1",SIZE_2_TO_10:"2–10",SIZE_11_TO_50:"11–50",SIZE_51_TO_200:"51–200",SIZE_201_TO_500:"201–500",SIZE_501_TO_1000:"501–1,000",SIZE_1001_TO_5000:"1,001–5,000",SIZE_5001_TO_10000:"5,001–10,000",SIZE_10001_OR_MORE:"10,001+"};
@@ -1351,18 +1351,20 @@ async function renderSMA(){
   if(!SMA.brands){root.innerHTML=`<p class="hint">Loading brands…</p>`;try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){root.innerHTML=`<p class="neg-c">${esc(e.message)}</p>`;return;}}
   if(!r.bid)return renderBrands(root);
   const b=SMA.brands.find(x=>x.id===r.bid);if(!b){go("sma");return;}
-  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");const mstale=SMA.metaFor[b.id]!==(b.meta.last_sync||"");
-  if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale||!SMA.meta[b.id]||mstale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await Promise.all([smaLoadData(b),smaLoadMeta(b)]);}
+  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");const mstale=SMA.metaFor[b.id]!==(b.meta.last_sync||"");const ystale=SMA.ytFor[b.id]!==(b.youtube.last_sync||"");
+  if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale||!SMA.meta[b.id]||mstale||!SMA.yt[b.id]||ystale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await Promise.all([smaLoadData(b),smaLoadMeta(b),smaLoadYT(b)]);}
   renderBrand(root,b,r.tab);
-  clearTimeout(SMA.poll);SMA.poll=null;if(b.linkedin.syncing||b.meta.syncing)SMA.poll=setTimeout(smaRefresh,2000);
+  clearTimeout(SMA.poll);SMA.poll=null;if(smaBusy(b))SMA.poll=setTimeout(smaRefresh,2000);
 }
+function smaBusy(b){return b.linkedin.syncing||b.meta.syncing||b.youtube.syncing;}
+async function smaLoadYT(b){try{SMA.yt[b.id]=(await smaApi(`/brands/${b.id}/youtube`)).data||{};SMA.ytFor[b.id]=b.youtube.last_sync||"";}catch(e){SMA.yt[b.id]=SMA.yt[b.id]||{};}}
 async function smaLoadMeta(b){try{SMA.meta[b.id]=(await smaApi(`/brands/${b.id}/meta`)).data||{};SMA.metaFor[b.id]=b.meta.last_sync||"";}catch(e){SMA.meta[b.id]=SMA.meta[b.id]||{};}}
 async function smaLoadData(b){try{SMA.data[b.id]=(await smaApi(`/brands/${b.id}/linkedin`)).data||{};SMA.dataFor[b.id]=b.linkedin.last_sync||"";}catch(e){SMA.data[b.id]=SMA.data[b.id]||{};}}
 async function smaRefresh(){
   try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){}
   if(current()!=="sma")return;
   const a=document.activeElement;
-  if(a&&a.closest&&a.closest("#sma-root")&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)){const r=smaRoute();const b=r.bid&&SMA.brands.find(x=>x.id===r.bid);clearTimeout(SMA.poll);if(b&&(b.linkedin.syncing||b.meta.syncing))SMA.poll=setTimeout(smaRefresh,2000);return;}
+  if(a&&a.closest&&a.closest("#sma-root")&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)){const r=smaRoute();const b=r.bid&&SMA.brands.find(x=>x.id===r.bid);clearTimeout(SMA.poll);if(b&&smaBusy(b))SMA.poll=setTimeout(smaRefresh,2000);return;}
   renderSMA();
 }
 function renderBrands(root){
@@ -1370,12 +1372,12 @@ function renderBrands(root){
   <div class="card"><div class="card-body"><div class="toolbar"><input type="text" id="sma-new" placeholder="New brand name, e.g. Kerala Tourism" style="flex:1;min-width:220px" aria-label="New brand name"><button class="btn primary" id="sma-add" type="button">Add brand</button><span id="sma-msg" class="hint"></span></div></div></div>
   <div class="eyebrow">Brands</div>
   ${SMA.brands.length?`<div class="brand-grid">${SMA.brands.map(b=>{const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
-    const ms=b.meta_summary||{};const fbOk=b.meta.page_connected,igOk=fbOk&&b.meta.ig_id;const n=[ok,fbOk,igOk].filter(Boolean).length;
+    const ms=b.meta_summary||{};const fbOk=b.meta.page_connected,igOk=fbOk&&b.meta.ig_id;const ytOk=b.youtube.connected&&b.youtube.channel_id;const ys=b.youtube_summary||{};const n=[ok,fbOk,igOk,ytOk].filter(Boolean).length;
     return `<a class="brand-card" href="#sma-${b.id}-platform"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="name">${esc(b.name)}</span><span class="pill ${n?"pos":"neu"}">${n?n+" platform"+(n>1?"s":"")+" connected":"Not connected"}</span></div>
-      ${(()=>{const src=ok?["LinkedIn",s.followers,s.impressions,"Impressions",s.engagement_rate]:fbOk&&ms.facebook?["Facebook",ms.facebook.followers,ms.facebook.reach,"Reach",ms.facebook.engagement_rate]:igOk&&ms.instagram?["Instagram",ms.instagram.followers,ms.instagram.reach,"Reach",ms.instagram.engagement_rate]:null;
-        const others=[ok&&src&&src[0]!=="LinkedIn"?`LinkedIn ${compact(s.followers||0)} followers`:"",fbOk&&ms.facebook&&src&&src[0]!=="Facebook"?`Facebook ${compact(ms.facebook.followers||0)} followers`:"",igOk&&ms.instagram&&src&&src[0]!=="Instagram"?`Instagram ${compact(ms.instagram.followers||0)} followers`:""].filter(Boolean);
-        return `<div class="mini-kpis"><div><span class="hint">Followers</span><b>${src&&src[1]!=null?compact(src[1]):"–"}</b></div><div><span class="hint">${src?src[3]:"Impressions"}</span><b>${src?compact(src[2]||0):"–"}</b></div><div><span class="hint">Engagement</span><b>${src?pctf(src[4]):"–"}</b></div></div>
-        <div class="hint" style="margin-top:-6px">${src?src[0]+", last 30 days":"Connect a platform in Settings"}${others.length?" · "+others.join(" · "):""}</div>`;})()}<div class="plats"><span class="src" style="background:${ok?"var(--c8)":"var(--neu)"}">in</span><span class="src" style="background:${fbOk?"var(--c1)":"var(--neu)"}">f</span><span class="src" style="background:${igOk?"var(--c5)":"var(--neu)"}">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:var(--neu)">YT</span><span class="hint" style="margin-left:auto">${(li.last_sync||b.meta.last_sync)?"Synced "+relAgo([li.last_sync,b.meta.last_sync].filter(Boolean).sort().pop()):"Never synced"}</span></div></a>`;}).join("")}</div>`
+      ${(()=>{const src=ok?["LinkedIn",s.followers,s.impressions,"Impressions",s.engagement_rate]:fbOk&&ms.facebook?["Facebook",ms.facebook.followers,ms.facebook.reach,"Reach",ms.facebook.engagement_rate]:igOk&&ms.instagram?["Instagram",ms.instagram.followers,ms.instagram.reach,"Reach",ms.instagram.engagement_rate]:ytOk&&ys.views!=null?["YouTube",ys.subscribers,ys.views,"Views",null,"Subscribers","Watch hours",compact(Math.round(ys.watch_hours||0))]:null;
+        const others=[ok&&src&&src[0]!=="LinkedIn"?`LinkedIn ${compact(s.followers||0)} followers`:"",fbOk&&ms.facebook&&src&&src[0]!=="Facebook"?`Facebook ${compact(ms.facebook.followers||0)} followers`:"",igOk&&ms.instagram&&src&&src[0]!=="Instagram"?`Instagram ${compact(ms.instagram.followers||0)} followers`:"",ytOk&&ys.subscribers!=null&&src&&src[0]!=="YouTube"?`YouTube ${compact(ys.subscribers)} subscribers`:""].filter(Boolean);
+        return `<div class="mini-kpis"><div><span class="hint">${src&&src[5]||"Followers"}</span><b>${src&&src[1]!=null?compact(src[1]):"–"}</b></div><div><span class="hint">${src?src[3]:"Impressions"}</span><b>${src?compact(src[2]||0):"–"}</b></div><div><span class="hint">${src&&src[6]||"Engagement"}</span><b>${src?(src[7]!=null?src[7]:pctf(src[4])):"–"}</b></div></div>
+        <div class="hint" style="margin-top:-6px">${src?src[0]+", last 30 days":"Connect a platform in Settings"}${others.length?" · "+others.join(" · "):""}</div>`;})()}<div class="plats"><span class="src" style="background:${ok?"var(--c8)":"var(--neu)"}">in</span><span class="src" style="background:${fbOk?"var(--c1)":"var(--neu)"}">f</span><span class="src" style="background:${igOk?"var(--c5)":"var(--neu)"}">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:${ytOk?"var(--neg)":"var(--neu)"}">YT</span><span class="hint" style="margin-left:auto">${(li.last_sync||b.meta.last_sync||b.youtube.last_sync)?"Synced "+relAgo([li.last_sync,b.meta.last_sync,b.youtube.last_sync].filter(Boolean).sort().pop()):"Never synced"}</span></div></a>`;}).join("")}</div>`
   :`<div class="card"><p class="empty">No brands yet. Add your first brand above, then connect its LinkedIn page in the brand's Settings.</p></div>`}`;
   const add=async()=>{const n=$("sma-new").value.trim();if(!n){smaMsg("Type a brand name first.",true);return;}
     try{const j=await smaApi("/brands",{method:"POST",body:JSON.stringify({name:n})});SMA.brands=null;location.hash=`sma-${j.brand.id}-settings`;}catch(e){smaMsg(e.message,true);}};
@@ -1384,7 +1386,7 @@ function renderBrands(root){
 function brandHead(b,tab){
   const T=[["platform","Platform"],["report","Report"],["source","Source"],["settings","Settings"]];
   return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
-  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):""].filter(Boolean).join(" · ")||"No platform connected yet"}${b.linkedin.syncing||b.meta.syncing?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
+  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):"",b.youtube.channel_id&&b.youtube.connected?"YouTube: "+esc(b.youtube.channel_title||""):""].filter(Boolean).join(" · ")||"No platform connected yet"}${smaBusy(b)?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
   <nav class="sma-tabs" aria-label="Brand sections">${T.map(([k,n])=>`<a href="#sma-${b.id}-${k}" aria-current="${k===tab?"page":"false"}">${n}</a>`).join("")}</nav>`;
 }
 function renderBrand(root,b,tab){
@@ -1394,7 +1396,14 @@ function renderBrand(root,b,tab){
 }
 function smaPlatform(b){
   const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
-  const soon=[["X","X (Twitter)","var(--c6)"],["YT","YouTube","var(--neg)"]];
+  const soon=[["X","X (Twitter)","var(--c6)"]];
+  const yt=b.youtube,ysum=b.youtube_summary||{};const ytOk=yt.connected&&yt.channel_id;
+  const ytCard=`<div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--neg)">YT</span><b>YouTube</b><span class="pill ${ytOk?"pos":"neu"}" style="margin-left:auto">${ytOk?"Connected":"Not connected"}</span></div>
+    ${ytOk&&ysum.views!=null?`<div class="hint">${esc(yt.channel_title||"")} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Subscribers</span><b>${ysum.subscribers!=null?compact(ysum.subscribers):"Hidden"}</b></div><div><span class="hint">Views</span><b>${compact(ysum.views||0)}</b></div><div><span class="hint">Watch hours</span><b>${compact(Math.round(ysum.watch_hours||0))}</b></div></div>
+      <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report" data-open-plat="youtube">Open report</a><button class="btn" type="button" data-sync-yt ${yt.syncing?"disabled":""}>${yt.syncing?"Syncing…":"Sync now"}</button></div>`
+    :ytOk?`<p class="hint" style="margin:0">${yt.syncing?"First sync running…":"No data yet. Click Sync now."}</p><div class="toolbar"><button class="btn" type="button" data-sync-yt ${yt.syncing?"disabled":""}>Sync now</button></div>`
+    :`<p class="hint" style="margin:0">Connect the brand's YouTube channel to report views, watch time, subscribers, traffic sources and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
+    ${yt.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(yt.last_error)}</p>`:""}</div>`;
   const mt=b.meta,ms=b.meta_summary||{};
   const metaCard=(abbr,name,color,ok,sum,extra)=>`<div class="plat-card"><div class="plat-head"><span class="src" style="background:${color}">${abbr}</span><b>${name}</b><span class="pill ${ok?"pos":"neu"}" style="margin-left:auto">${ok?"Connected":mt.connected&&!mt.page_id?"Choose a Page":"Not connected"}</span></div>
     ${ok&&sum?`<div class="hint">${extra} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${sum.followers!=null?compact(sum.followers):"–"}</b></div><div><span class="hint">Reach</span><b>${compact(sum.reach||0)}</b></div><div><span class="hint">Engagement</span><b>${pctf(sum.engagement_rate)}</b></div></div>
@@ -1412,7 +1421,8 @@ function smaPlatform(b){
     </div>
     ${metaCard("f","Facebook","var(--c1)",mt.page_connected,ms.facebook,esc(mt.page_name||""))}
     ${metaCard("IG","Instagram","var(--c5)",mt.page_connected&&!!mt.ig_id,ms.instagram,"@"+esc(mt.ig_username||""))}
-    ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned after Facebook and Instagram.</p></div>`).join("")}
+    ${ytCard}
+    ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned next.</p></div>`).join("")}
   </div>`;
 }
 function liDays(d,range){
@@ -1420,16 +1430,70 @@ function liDays(d,range){
   const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;
 }
 function smaReport(b){
-  const opts=[["linkedin","LinkedIn",b.linkedin.connected&&b.linkedin.org_urn],["facebook","Facebook",b.meta.page_connected],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id]];
+  const opts=[["linkedin","LinkedIn",b.linkedin.connected&&b.linkedin.org_urn],["facebook","Facebook",b.meta.page_connected],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id],["youtube","YouTube",b.youtube.connected&&!!b.youtube.channel_id]];
   if(!SMA.plat||!opts.find(o=>o[0]===SMA.plat&&o[2]))SMA.plat=(opts.find(o=>o[2])||opts[0])[0];
-  const sw=`<div class="tabs no-print" role="tablist" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;max-width:420px">${opts.map(([k,n,ok])=>`<button role="tab" type="button" data-plat="${k}" aria-selected="${k===SMA.plat}" ${ok?"":`title="Not connected" style="opacity:.5"`}>${n}</button>`).join("")}</div>`;
-  const body=SMA.plat==="linkedin"?smaReportLI(b):smaReportMeta(b,SMA.plat);
+  const sw=`<div class="tabs no-print" role="tablist" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;max-width:560px">${opts.map(([k,n,ok])=>`<button role="tab" type="button" data-plat="${k}" aria-selected="${k===SMA.plat}" ${ok?"":`title="Not connected" style="opacity:.5"`}>${n}</button>`).join("")}</div>`;
+  const body=SMA.plat==="linkedin"?smaReportLI(b):SMA.plat==="youtube"?smaReportYT(b):smaReportMeta(b,SMA.plat);
   return sw+body;
 }
 function rangeDays(daily,range){const keys=Object.keys(daily||{}).sort();if(!keys.length)return[];const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;}
 function smaToolbar(days,hasPrev,csvId,printId){return `<div class="toolbar no-print"><select class="select" id="li-range" aria-label="Period">${[7,30,90,365].map(n=>`<option value="${n}" ${n===SMA.range?"selected":""}>Last ${n} days</option>`).join("")}</select>
   <span class="hint">${fmtDay(days[0])}${days[0].slice(0,4)!==days[days.length-1].slice(0,4)?", "+days[0].slice(0,4):""} to ${fmtDay(days[days.length-1])}, ${days[days.length-1].slice(0,4)}${hasPrev?" · compared with the previous "+SMA.range+" days":""}</span><span class="spacer"></span>
   <button class="btn" type="button" id="${csvId}">Copy daily data (CSV)</button><button class="btn" type="button" id="${printId}">Print / save PDF</button></div><textarea id="li-out" readonly hidden aria-label="Copied report data"></textarea>`;}
+const YT_SRC={YT_SEARCH:"YouTube search",RELATED_VIDEO:"Suggested videos",SUBSCRIBER:"Browse features",EXT_URL:"External",NO_LINK_OTHER:"Direct or unknown",YT_CHANNEL:"Channel pages",PLAYLIST:"Playlists",YT_PLAYLIST_PAGE:"Playlist page",SHORTS:"Shorts feed",NOTIFICATION:"Notifications",END_SCREEN:"End screens",ANNOTATION:"Cards and annotations",CAMPAIGN_CARD:"Campaign cards",ADVERTISING:"YouTube ads",PROMOTED:"Promoted",HASHTAGS:"Hashtag pages",YT_OTHER_PAGE:"Other YouTube pages",NO_LINK_EMBEDDED:"Embedded players",LIVE_REDIRECT:"Live redirects",SOUND_PAGE:"Sound pages",VIDEO_REMIXES:"Remixes",PRODUCT_PAGE:"Product pages"};
+const YT_DEV={MOBILE:"Mobile",DESKTOP:"Computer",TV:"TV",TABLET:"Tablet",GAME_CONSOLE:"Game console",UNKNOWN_PLATFORM:"Unknown"};
+const YT_TYPE={VIDEO_ON_DEMAND:"Videos",SHORTS:"Shorts",LIVE_STREAM:"Live",STORY:"Stories",UNSPECIFIED:"Other"};
+function dur(s){s=Math.round(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function smaReportYT(b){
+  const yt=b.youtube,d=SMA.yt[b.id]||{};
+  if(!(yt.connected&&yt.channel_id))return `<div class="card"><p class="empty">Connect the brand's YouTube channel in <a href="#sma-${b.id}-settings">Settings</a> to see this report.</p></div>`;
+  const daily=d.daily||{};
+  if(!Object.keys(daily).length)return `<div class="card"><p class="empty">${yt.syncing?"The first sync is running. The report appears when it finishes.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
+  const days=rangeDays(daily,SMA.range);const prevDays=days.map(x=>addDays(x,-SMA.range));const hasPrev=prevDays.some(k=>daily[k]);
+  const sum=(ds,f)=>ds.reduce((a,k)=>a+((daily[k]||{})[f]||0),0);
+  const wavg=(ds,f)=>{let w=0,v=0;ds.forEach(k=>{const x=daily[k];if(x&&x.views&&x[f]!=null){w+=x.views;v+=x[f]*x.views;}});return w?v/w:null;};
+  const cur={},prv={};["views","watch_minutes","subs_gained","subs_lost","likes","comments","shares"].forEach(f=>{cur[f]=sum(days,f);prv[f]=sum(prevDays,f);});
+  const has=f=>days.some(k=>daily[k]&&daily[k][f]!=null);const delta=(a,c)=>hasPrev?dlt(a,c):"";
+  const ch=d.channel||{};const net=cur.subs_gained-cur.subs_lost,pnet=prv.subs_gained-prv.subs_lost;
+  const avd=wavg(days,"avg_view_duration"),pavd=wavg(prevDays,"avg_view_duration"),avp=wavg(days,"avg_view_pct"),pavp=wavg(prevDays,"avg_view_pct");
+  const T=[["Subscribers",ch.subscribers!=null?fmtInt(ch.subscribers):"Hidden",`<span class="hint">+${fmtInt(cur.subs_gained)} / −${fmtInt(cur.subs_lost)} in period</span>`],
+    ["Views",compact(cur.views),delta(cur.views,prv.views)],["Watch time (hours)",compact(Math.round(cur.watch_minutes/60)),delta(cur.watch_minutes,prv.watch_minutes)],
+    ["Net subscribers",(net>=0?"+":"−")+fmtInt(Math.abs(net)),hasPrev?dlt(net,pnet):""]];
+  if(avd!=null)T.push(["Avg view duration",dur(avd),hasPrev&&pavd?dlt(avd,pavd):""]);
+  if(avp!=null)T.push(["Avg % viewed",avp.toFixed(1)+"%",hasPrev&&pavp!=null?dlt(avp,pavp,{pts:true}):""]);
+  [["likes","Likes"],["comments","Comments"],["shares","Shares"]].forEach(([f,n])=>{if(has(f))T.push([n,compact(cur[f]),delta(cur[f],prv[f])]);});
+  const bd=d.breakdowns||{};
+  const bars=(rows,label,val,title,fmt)=>{rows=(rows||[]).slice(0,8);const tot=rows.reduce((a,r)=>a+val(r),0)||1;const top=rows.length?val(rows[0]):1;
+    return `<div><div class="eyebrow" style="margin-bottom:8px">${title}</div>${rows.length?`<div class="bars">${rows.map(r=>`<div class="lbl" title="${esc(label(r))}">${esc(label(r))}</div><div class="track"><div style="width:${val(r)/(top||1)*100}%;background:var(--accent)"></div></div><div class="num">${fmt?fmt(val(r),tot):(val(r)/tot*100).toFixed(1)+"%"}</div>`).join("")}</div>`:`<p class="hint" style="margin:0">Not available</p>`}</div>`;};
+  const ag=bd.age_gender||[];const byAge={},byGender={};ag.forEach(r=>{byAge[r.ageGroup]=(byAge[r.ageGroup]||0)+_num(r.viewerPercentage);byGender[r.gender]=(byGender[r.gender]||0)+_num(r.viewerPercentage);});
+  const ageRows=Object.entries(byAge).map(([k,v])=>({k:k.replace("age","").replace("-"," to "),v})).sort((a,c)=>a.k.localeCompare(c.k));
+  const genRows=Object.entries(byGender).map(([k,v])=>({k:{female:"Women",male:"Men",user_specified:"Self-described"}[k]||k,v})).sort((a,c)=>c.v-a.v);
+  const pct=(v)=>v.toFixed(1)+"%";
+  const topKey=SMA.range<=28?"d28":SMA.range<=90?"d90":"d365";const topN={d28:28,d90:90,d365:365}[topKey];
+  const tv=((d.top_videos||{})[topKey]||[]).slice(0,10);
+  const per=d.breakdowns_period?`${fmtDay(d.breakdowns_period[0])} to ${fmtDay(d.breakdowns_period[1])}`:"last 90 days";
+  return smaToolbar(days,hasPrev,"li-csv","li-print")+`
+    <div class="eyebrow">YouTube · ${esc(ch.title||yt.channel_title||"")}${ch.handle?" · "+esc(ch.handle):""}</div>
+    <div class="tiles">${T.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
+    <div class="grid2r">
+      <div class="card"><div class="card-head"><h2>Views per day</h2></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"views",color:"var(--accent)",values:days.map(k=>(daily[k]||{}).views||0)}],{area:true,H:200})}</div></div></div>
+      <div class="card"><div class="card-head"><h2>Watch hours per day</h2></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>Math.round(((daily[k]||{}).watch_minutes||0)/60)),{every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
+    </div>
+    <div class="card"><div class="card-head"><h2>Subscribers gained and lost per day</h2></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"gained",color:"var(--pos)",values:days.map(k=>(daily[k]||{}).subs_gained||0)},{label:"lost",color:"var(--neg)",values:days.map(k=>(daily[k]||{}).subs_lost||0)}],{H:180})}</div></div></div>
+    <div class="card"><div class="card-head"><h2>Top videos</h2><span class="hint">by views in the last ${topN} days</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["Video"],["Published"],["Views","r"],["Watch hours","r"],["Likes","r"],["Comments","r"],["Shares","r"],["Subs gained","r"]],tv.map(v=>[`<a class="name-link" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc((v.title||v.id).slice(0,80))}${(v.title||"").length>80?"…":""}</a>`,v.published?fmtStamp(v.published).split(",")[0]:"–",compact(v.views),compact(Math.round((v.watch_minutes||0)/60)),compact(v.likes),compact(v.comments),compact(v.shares),compact(v.subs_gained)]))}</div></div></div>
+    <div class="card"><div class="card-head"><h2>Audience</h2><span class="hint">${per}, as reported by YouTube</span></div><div class="card-body"><div class="grid2r">
+      ${bars(bd.traffic,r=>YT_SRC[r.insightTrafficSourceType]||r.insightTrafficSourceType,r=>_num(r.views),"Traffic sources (views)")}
+      ${bars(bd.countries,r=>r.country,r=>_num(r.views),"Countries (views)")}
+      ${bars(ageRows,r=>r.k,r=>r.v,"Age",(v)=>pct(v))}
+      ${bars(genRows,r=>r.k,r=>r.v,"Gender",(v)=>pct(v))}
+      ${bars(bd.devices,r=>YT_DEV[r.deviceType]||r.deviceType,r=>_num(r.views),"Devices (views)")}
+      ${bars(bd.content_types,r=>YT_TYPE[r.creatorContentType]||r.creatorContentType,r=>_num(r.views),"Format (views)")}
+    </div></div></div>
+    <div class="card"><div class="card-head"><h2>Recent uploads</h2><span class="hint">lifetime totals</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["Video"],["Published"],["Views","r"],["Likes","r"],["Comments","r"]],(d.uploads||[]).slice(0,10).map(v=>[`<a class="name-link" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc((v.title||v.id).slice(0,80))}</a>`,fmtStamp(v.published).split(",")[0],compact(v.total_views),compact(v.total_likes),compact(v.total_comments)]))}</div></div></div>
+    ${(d.notes||[]).length?`<p class="hint">Some reports are not available from YouTube for this channel: ${esc(d.notes.join("; ")).slice(0,500)}</p>`:""}
+    <p class="hint">YouTube Analytics runs about two days behind, so the newest days appear after the next syncs.</p>`;
+}
+function _num(v){const n=Number(v);return isFinite(n)?n:0;}
 function smaReportMeta(b,plat){
   const mt=b.meta,d=SMA.meta[b.id]||{};const isFb=plat==="facebook";
   if(!mt.page_connected)return `<div class="card"><p class="empty">Connect the brand's Facebook Page in <a href="#sma-${b.id}-settings">Settings</a> to see this report.</p></div>`;
@@ -1529,7 +1593,22 @@ function smaSource(b){
       <div class="toolbar no-print"><button class="btn primary" type="button" data-sync ${!(li.connected&&li.org_urn)||li.syncing?"disabled":""}>${li.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-full ${!(li.connected&&li.org_urn)||li.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="li-disconnect" ${li.connected?"":"disabled"}>Disconnect LinkedIn</button></div>
     </div></div>
     <div class="card"><div class="card-head"><h2>LinkedIn sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${syncTable(d.sync_log)}</div></div></div>
-    ${smaSourceMeta(b)}`;
+    ${smaSourceMeta(b)}
+    ${smaSourceYT(b)}`;
+}
+function smaSourceYT(b){
+  const yt=b.youtube,d=SMA.yt[b.id]||{};const ks=Object.keys(d.daily||{}).sort();const row=(k,v)=>`<dt>${k}</dt><dd>${v||"–"}</dd>`;
+  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube</h2><span class="pill ${yt.connected&&yt.channel_id?"pos":"neu"}">${yt.connected&&yt.channel_id?"Connected":"Not connected"}</span></div><div class="card-body">
+    <dl class="kv">${row("Channel",yt.channel_title?`<a class="name-link" href="https://www.youtube.com/channel/${esc(yt.channel_id)}" target="_blank" rel="noopener noreferrer">${esc(yt.channel_title)} ↗</a>`:"")}${row("Channel ID",yt.channel_id?`<span class="code">${esc(yt.channel_id)}</span>`:"")}
+      ${row("Connected by",esc(yt.connected_by||""))}${row("Connected",yt.connected_at?fmtStamp(yt.connected_at)+" UTC":"")}
+      ${row("Access",yt.connected?(yt.refreshable?"Renews automatically. Google ends it after 7 days only while the app's publishing status is Testing":"No long-lived token: reconnect in Settings"):"")}
+      ${row("Permissions granted",yt.granted_scopes?`<span class="code">${esc(yt.granted_scopes)}</span>`:"")}${row("Last sync",yt.last_sync?fmtStamp(yt.last_sync)+" UTC · "+relAgo(yt.last_sync):"")}
+      ${row("Daily data stored",ks.length?`${ks.length} days, ${fmtDay(ks[0])} ${ks[0].slice(0,4)} to ${fmtDay(ks[ks.length-1])} ${ks[ks.length-1].slice(0,4)}`:"")}${row("Videos stored",d.uploads?`${(d.uploads||[]).length} recent uploads, top videos for 28, 90 and 365 days`:"")}</dl>
+    ${(d.notes||[]).length?`<details><summary class="hint">${d.notes.length} reports not available from YouTube</summary><ul class="hint">${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></details>`:""}
+    ${yt.last_error?`<p class="neg-c" style="margin:0">${esc(yt.last_error)}</p>`:""}
+    <div class="toolbar no-print"><button class="btn primary" type="button" data-sync-yt ${!(yt.connected&&yt.channel_id)||yt.syncing?"disabled":""}>${yt.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-yt-full ${!(yt.connected&&yt.channel_id)||yt.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="yt-disconnect" ${yt.connected?"":"disabled"}>Disconnect YouTube</button></div>
+  </div></div>
+  <div class="card"><div class="card-head"><h2>YouTube sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${syncTable(d.sync_log)}</div></div></div>`;
 }
 function syncTable(log){return tbl([["When"],["Result"],["Days"],["Time","r"]],(log||[]).slice().reverse().map(s=>[fmtStamp(s.at)+" UTC",s.ok?`<span class="pos-c">OK</span>${s.notes?` <span class="hint">· ${s.notes} statistics unavailable</span>`:""}`:`<span class="neg-c">${esc((s.errors||[]).join("; ")).slice(0,240)||"Failed"}</span>`,s.days?(s.full?"12 months":s.days+" days"):"",s.seconds!=null?s.seconds+"s":""]));}
 function smaSourceMeta(b){
@@ -1575,7 +1654,27 @@ function smaSettings(b){
         <a class="btn primary" id="li-connect" href="api/sma/linkedin/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${li.connected?"Reconnect LinkedIn":"Connect LinkedIn"}</a></div>
     </div></div>
     ${smaSettingsMeta(b)}
-    <div class="card"><div class="card-head"><h2>Other platforms</h2></div><div class="card-body"><p class="hint" style="margin:0">X and YouTube (YouTube Analytics API) will be added here next, each with its own Connect button.</p></div></div>`;
+    ${smaSettingsYT(b)}
+    <div class="card"><div class="card-head"><h2>Other platforms</h2></div><div class="card-body"><p class="hint" style="margin:0">X will be added here next, with its own Connect button.</p></div></div>`;
+}
+function smaSettingsYT(b){
+  const yt=b.youtube;const configured=yt.client_id&&yt.has_client_secret;const ok=yt.connected&&yt.channel_id;
+  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube API integration</h2><span class="pill ${ok?"pos":configured?"neu":"neg"}">${ok?"Connected":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
+    <ol class="steps">
+      <li>Open <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> and pick a project (the one with your YouTube API key works). Under APIs &amp; Services > Library, enable <b>YouTube Data API v3</b> and <b>YouTube Analytics API</b>.</li>
+      <li>Under Google Auth Platform (OAuth consent screen), set the app name and choose the audience: <b>Internal</b> if the channel's Google account is in your Google Workspace, otherwise <b>External</b>. For External, add the channel's Google account as a test user. While the publishing status is <b>Testing</b>, Google ends connections after 7 days, so publish the app when ready.</li>
+      <li>Under Clients (Credentials), create an <b>OAuth client ID</b> of type <b>Web application</b> with this authorized redirect URI: <span class="code" id="yt-redirect">${esc(yt.redirect_uri)}</span> <button class="btn" type="button" id="yt-copy-redirect" style="padding:3px 8px;font-size:12px">Copy</button></li>
+      <li>Paste the <b>Client ID</b> and <b>Client Secret</b> below, save, click <b>Connect YouTube</b>, and in Google's account chooser pick the channel's account (or its Brand Account).</li>
+    </ol>
+    <div class="form">
+      <label class="f" for="yt-cid">Client ID</label><input type="text" id="yt-cid" value="${esc(yt.client_id||"")}" autocomplete="off" spellcheck="false" placeholder="123456789012-abc….apps.googleusercontent.com">
+      <label class="f" for="yt-secret">Client Secret</label><div class="toolbar"><input type="password" id="yt-secret" placeholder="${yt.has_client_secret?"Saved. Paste a new one to replace it":"GOCSPX-…"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${yt.has_client_secret?"pos":"neu"}">${yt.has_client_secret?"Saved":"Not set"}</span></div>
+    </div>
+    ${yt.last_error?`<p class="neg-c" style="margin:0">${esc(yt.last_error)}</p>`:""}
+    <div class="form-actions"><span class="hint">${yt.connected?`Connected by ${esc(yt.connected_by||"")}${yt.channel_title?" · channel: "+esc(yt.channel_title):""}`:""}</span><span class="spacer"></span>
+      <button class="btn" type="button" id="yt-save">Save integration</button>
+      <a class="btn primary" href="api/sma/youtube/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${yt.connected?"Reconnect YouTube":"Connect YouTube"}</a></div>
+  </div></div>`;
 }
 function smaSettingsMeta(b){
   const mt=b.meta;const configured=mt.app_id&&mt.has_app_secret;
@@ -1605,6 +1704,15 @@ function bindBrand(b,tab){
     try{await smaApi(`/brands/${b.id}/linkedin/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
   document.querySelectorAll("#sma-root [data-sync-meta],#sma-root [data-sync-meta-full]").forEach(btn=>btn.onclick=async()=>{
     try{await smaApi(`/brands/${b.id}/meta/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-meta-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  document.querySelectorAll("#sma-root [data-sync-yt],#sma-root [data-sync-yt-full]").forEach(btn=>btn.onclick=async()=>{
+    try{await smaApi(`/brands/${b.id}/youtube/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-yt-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  if(tab==="source"&&$("yt-disconnect")){$("yt-disconnect").onclick=async e=>{if(SMA.arm!=="ydisc"){SMA.arm="ydisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
+    try{await smaApi(`/brands/${b.id}/youtube/disconnect`,{method:"POST"});await smaRefresh();smaMsg("YouTube disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
+  if(tab==="settings"){
+    $("yt-copy-redirect").onclick=e=>copyOutTo(b.youtube.redirect_uri,e.currentTarget,"Copy",null);
+    $("yt-save").onclick=async()=>{const body={youtube:{client_id:$("yt-cid").value.trim()}};const s=$("yt-secret").value.trim();if(s)body.youtube.client_secret=s;
+      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("yt-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect YouTube.");}catch(e){smaMsg(e.message,true);}};
+  }
   document.querySelectorAll("#sma-root [data-open-plat]").forEach(a=>a.addEventListener("click",()=>{SMA.plat=a.dataset.openPlat;}));
   document.querySelectorAll("#sma-root [data-plat]").forEach(x=>x.onclick=()=>{SMA.plat=x.dataset.plat;renderSMA();});
   if(tab==="source"&&$("meta-disconnect")){$("meta-disconnect").onclick=async e=>{if(SMA.arm!=="mdisc"){SMA.arm="mdisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
@@ -1621,6 +1729,7 @@ function bindBrand(b,tab){
     $("li-csv").onclick=e=>{let daily,F;
       if(SMA.plat==="linkedin"){daily=(SMA.data[b.id]||{}).daily||{};F=["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"];}
       else if(SMA.plat==="facebook"){daily=(SMA.meta[b.id]||{}).fb_daily||{};F=["views","reach","engagements","follows","unfollows","page_views","video_views"];}
+      else if(SMA.plat==="youtube"){daily=(SMA.yt[b.id]||{}).daily||{};F=["views","watch_minutes","avg_view_duration","avg_view_pct","subs_gained","subs_lost","likes","comments","shares"];}
       else{daily=(SMA.meta[b.id]||{}).ig_daily||{};F=["reach","views","interactions","likes","comments","shares","saves","profile_views","accounts_engaged","followers_gained"];}
       const days=rangeDays(daily,SMA.range);
       copyOutTo(["date,"+F.join(",")].concat(days.map(k=>[k].concat(F.map(f=>(daily[k]||{})[f]??"")).join(","))).join("\n"),e.currentTarget,"Copy daily data (CSV)",$("li-out"));};

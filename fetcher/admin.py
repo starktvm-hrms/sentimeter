@@ -20,6 +20,8 @@ are rate limited per visitor.
   GET  /api/sma/linkedin/start?brand=<id>  -> LinkedIn sign-in;  GET /api/sma/linkedin/callback
   GET  /api/sma/brands/<id>/meta, POST /api/sma/brands/<id>/meta/{sync,page,disconnect}
   GET  /api/sma/meta/start?brand=<id>  -> Facebook Login;  GET /api/sma/meta/callback
+  GET  /api/sma/brands/<id>/youtube, POST /api/sma/brands/<id>/youtube/{sync,disconnect}
+  GET  /api/sma/youtube/start?brand=<id>  -> Google sign-in;  GET /api/sma/youtube/callback
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
   POST /api/keys       set the Apify tokens (default, meta, x_linkedin, other) and YOUTUBE_API_KEY (write-only)
@@ -39,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch  # noqa: E402  (settings defaults, paths, usage)
 import sma  # noqa: E402  (Social Media Analytics: brands, LinkedIn)
 import sma_meta  # noqa: E402  (Social Media Analytics: Facebook and Instagram)
+import sma_youtube  # noqa: E402  (Social Media Analytics: YouTube)
 
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
@@ -407,6 +410,9 @@ class H(BaseHTTPRequestHandler):
         out["meta"] = sma_meta.public(b)
         if counts and out["meta"]["page_connected"]:
             out["meta_summary"] = sma_meta.summary(sma_meta.data(b["id"]))
+        out["youtube"] = sma_youtube.public(b)
+        if counts and out["youtube"].get("channel_id"):
+            out["youtube_summary"] = sma_youtube.summary(sma_youtube.data(b["id"]))
         return out
 
     def sma_routes(self):
@@ -445,6 +451,33 @@ class H(BaseHTTPRequestHandler):
                 if bid and not err and sma_meta.cfg(sma.get_brand(bid)).get("page_id"):
                     sma_meta.sync_async(bid, full=True)
                 return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            if path == "/api/sma/youtube/start" and m == "GET":
+                try:
+                    return self.redirect(sma_youtube.start(q.get("brand", ""), email)) or True
+                except (ValueError, KeyError) as e:
+                    sma.update_brand_record(q.get("brand", ""), lambda r: r.setdefault("youtube", {}).update({"last_error": str(e)}))
+                    return self.redirect(f"/#sma-{q.get('brand', '')}-settings") or True
+            if path == "/api/sma/youtube/callback" and m == "GET":
+                bid, err = sma_youtube.callback(q, email)
+                if bid and not err:
+                    sma_youtube.sync_async(bid, full=True)
+                return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            yt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/youtube(?:/(sync|disconnect))?", path)
+            if yt:
+                bid, action = yt.group(1), yt.group(2)
+                if not sma.get_brand(bid):
+                    return self.send(404, {"error": "Brand not found"}) or True
+                if not action and m == "GET":
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False), "data": sma_youtube.data(bid)}) or True
+                if action == "sync" and m == "POST":
+                    if sma_youtube.key(bid) in sma.SYNCING:
+                        return self.send(409, {"error": "A sync is already running."}) or True
+                    sma_youtube.sync_async(bid, full=bool(self.body().get("full")))
+                    return self.send(202, {"started": True}) or True
+                if action == "disconnect" and m == "POST":
+                    sma_youtube.disconnect(bid)
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
+                return self.send(405, {"error": "Method not allowed"}) or True
             mt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/meta(?:/(sync|page|disconnect))?", path)
             if mt:
                 bid, action = mt.group(1), mt.group(2)
@@ -478,6 +511,7 @@ class H(BaseHTTPRequestHandler):
                     body = self.body()
                     sma.update_brand(bid, body)
                     sma_meta.update(bid, body)
+                    sma_youtube.update(bid, body)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid))}) or True
                 if m == "DELETE":
                     sma.delete_brand(bid)
@@ -527,7 +561,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.auth_routes():
             return
-        if (self.path.startswith("/api/sma/linkedin/callback") or self.path.startswith("/api/sma/meta/callback")) and not session_user(self.token()):
+        if re.match(r"/api/sma/(linkedin|meta|youtube)/callback", self.path) and not session_user(self.token()):
             return self.redirect("/#login")
         if not self.authed() or self.sma_routes():
             return
@@ -696,6 +730,7 @@ def scheduler():
             if due:
                 sma.daily_sync_due(today)
                 sma_meta.daily_due(today)
+                sma_youtube.daily_due(today)
             done = fetch.load_usage().get("last_daily_run") == today
             last_try = tried.get(today, 0)
             if due and not done and not running() and time.time() - last_try > 3600:
