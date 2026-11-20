@@ -465,7 +465,7 @@ def sync(bid, full=False, cid=None):
                 for v in vids:
                     if v in vinfo:
                         x = dict(vinfo[v])
-                        x["thumb"] = sma.cache_thumb(bid, "yt", v, x.pop("picture", "")) or None
+                        x["thumb"] = sma.cache_thumb(bid, "yt", v, x.get("picture", "")) or None
                         ups.append(x)
                 d["uploads"] = sma.merge_posts(d.get("uploads"), ups)
         except Exception as e:

@@ -379,7 +379,7 @@ def sync(bid, full=False):
                         except Exception:
                             continue
             for x in posts:
-                x["thumb"] = sma.cache_thumb(bid, "fb", x["id"], x.pop("picture", "")) or None
+                x["thumb"] = sma.cache_thumb(bid, "fb", x["id"], x.get("picture", "")) or None
             d["fb_posts"] = sma.merge_posts(d.get("fb_posts"), posts)
         except Exception as e:
             errors.append(f"Facebook posts: {e}")
@@ -457,7 +457,8 @@ def sync(bid, full=False):
                     it = {"id": x["id"], "text": (x.get("caption") or "")[:1200], "published": (x.get("timestamp") or "")[:19] + "Z",
                           "url": x.get("permalink", ""), "type": x.get("media_product_type") or x.get("media_type", ""),
                           "likes": _num(x.get("like_count")), "comments": _num(x.get("comments_count")), "reach": None, "views": None, "saves": None, "shares": None,
-                          "thumb": sma.cache_thumb(bid, "ig", x["id"], x.get("thumbnail_url") or (x.get("media_url") if x.get("media_type") != "VIDEO" else "")) or None}
+                          "picture": x.get("thumbnail_url") or (x.get("media_url") if x.get("media_type") != "VIDEO" else "") or ""}
+                    it["thumb"] = sma.cache_thumb(bid, "ig", x["id"], it["picture"]) or None
                     for mset in (() if it["published"] < recent_cut else ("reach,views,saved,shares,total_interactions", "reach,saved")):
                         try:
                             r = graph(bid, f"{x['id']}/insights", {"metric": mset})

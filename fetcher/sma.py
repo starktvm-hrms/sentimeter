@@ -151,17 +151,19 @@ def cache_thumb(bid, platform, pid, url):
     if os.path.exists(path):
         return name
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Sentimeter/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; Sentimeter/1.0)", "Accept": "image/*"})
         with urllib.request.urlopen(req, timeout=20) as r:
             ctype = r.headers.get("Content-Type", "")
             body = r.read(2_500_001)
         if not ctype.startswith("image/") or len(body) > 2_500_000 or len(body) < 100:
+            log(f"thumb {platform} {pid}: skipped ({ctype or 'no type'}, {len(body)} bytes)")
             return None
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as f:
             f.write(body)
         return name
-    except Exception:
+    except Exception as e:
+        log(f"thumb {platform} {pid}: {e}")
         return None
 
 
