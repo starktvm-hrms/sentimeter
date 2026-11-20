@@ -42,6 +42,7 @@ import fetch  # noqa: E402  (settings defaults, paths, usage)
 import sma  # noqa: E402  (Social Media Analytics: brands, LinkedIn)
 import sma_meta  # noqa: E402  (Social Media Analytics: Facebook and Instagram)
 import sma_youtube  # noqa: E402  (Social Media Analytics: YouTube)
+import sma_extra  # noqa: E402  (report settings, X and competitors via Apify)
 
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
@@ -411,6 +412,7 @@ class H(BaseHTTPRequestHandler):
         if counts and out["meta"]["page_connected"]:
             out["meta_summary"] = sma_meta.summary(sma_meta.data(b["id"]))
         out["youtube"] = sma_youtube.public(b)
+        out["extra"] = sma_extra.public(b)
         if counts and out["youtube"].get("channel_id"):
             out["youtube_summary"] = sma_youtube.summary(sma_youtube.data(b["id"]))
         return out
@@ -484,6 +486,28 @@ class H(BaseHTTPRequestHandler):
                     sma_youtube.disconnect(bid)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
                 return self.send(405, {"error": "Method not allowed"}) or True
+            ex = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(extra|x/sync|competitors/sync|competitors/manual)", path)
+            if ex:
+                bid, what = ex.group(1), ex.group(2)
+                if not sma.get_brand(bid):
+                    return self.send(404, {"error": "Brand not found"}) or True
+                if what == "extra" and m == "GET":
+                    return self.send(200, {"data": sma_extra.data(bid)}) or True
+                if what in ("x/sync", "competitors/sync") and m == "POST":
+                    try:
+                        body = self.body()
+                        if what == "x/sync":
+                            sma_extra.run_async(bid, "x", full=bool(body.get("full")))
+                        else:
+                            sma_extra.run_async(bid, "competitors")
+                    except RuntimeError:
+                        return self.send(409, {"error": "A sync is already running."}) or True
+                    return self.send(202, {"started": True}) or True
+                if what == "competitors/manual" and m == "POST":
+                    body = self.body()
+                    sma_extra.set_manual(bid, body.get("month"), body.get("platform"), body.get("handle"), body.get("value"))
+                    return self.send(200, {"ok": True}) or True
+                return self.send(405, {"error": "Method not allowed"}) or True
             lg = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(logo|thumb/([a-z]+_[0-9a-f]{16}\.img))", path)
             if lg:
                 bid = lg.group(1)
@@ -547,6 +571,7 @@ class H(BaseHTTPRequestHandler):
                     sma.update_brand(bid, body)
                     sma_meta.update(bid, body)
                     sma_youtube.update(bid, body)
+                    sma_extra.update(bid, body)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid))}) or True
                 if m == "DELETE":
                     sma.delete_brand(bid)
@@ -766,6 +791,7 @@ def scheduler():
                 sma.daily_sync_due(today)
                 sma_meta.daily_due(today)
                 sma_youtube.daily_due(today)
+                sma_extra.daily_due(today)
             done = fetch.load_usage().get("last_daily_run") == today
             last_try = tried.get(today, 0)
             if due and not done and not running() and time.time() - last_try > 3600:

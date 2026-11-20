@@ -400,7 +400,7 @@ def save_usage(u):
 
 
 def apify_call(path, token, data=None, timeout=60):
-    url = "https://api.apify.com/v2" + path
+    url = os.environ.get("SENTIMETER_APIFY_BASE", "https://api.apify.com/v2") + path
     return json.loads(http(url, data=data, headers={"Authorization": "Bearer " + token}, timeout=timeout))
 
 

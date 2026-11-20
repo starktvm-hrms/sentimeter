@@ -178,6 +178,18 @@ Upload the brand logo in the brand's **Settings > Brand**. Post images are saved
 
 Reach is Facebook/Instagram reach and LinkedIn unique impressions; impressions are views for Facebook, Instagram and YouTube. Engagement is reactions + comments + shares (Facebook), total interactions (Instagram), clicks + reactions + comments + shares (LinkedIn) and likes + comments + shares (YouTube, daily) or likes + comments (per video).
 
+### Brand-specific report sections (weekly report, X, listening, competitors)
+
+In a brand's **Settings > Report** you can switch on extra parts of the report deck for that brand only:
+
+- **Weekly report**: adds a Monday-to-Sunday report next to the monthly one (the tab becomes "Weekly & monthly report"). Changes are compared with the previous week.
+- **Channel handles**: a "Management of SM Channels" slide with the brand's Facebook, Instagram, X, LinkedIn and YouTube handles.
+- **X (Twitter) analytics**: the brand's public X posts (views, likes, reposts, replies, quotes, bookmarks) and follower count, collected once a day after 9:00 with the Apify actor `apidojo~tweet-scraper` (token `APIFY_TOKEN_X_LINKEDIN`, else `APIFY_TOKEN`; about 40 posts a run). Adds an X platform slide and X post-wise slides.
+- **Listening & sentiment**: uses one of your listening alerts: top UGC (highest-reach posts by other accounts), sentiment split and net score, tracked keywords with mention counts, mentions and reach per day, top countries, top hashtags, and negative posts. Listening data is kept for 45 days.
+- **Competitor analysis**: a competitor list (national and international groups; "Fill sample list" adds the 7 Indian and 15 international tourism boards from the Karnataka Tourism report) and Facebook/Instagram follower comparison charts with the brand highlighted. Follower counts are collected once a month with `apify~facebook-pages-scraper` and `apify~instagram-profile-scraper` (token `APIFY_TOKEN_META`, else `APIFY_TOKEN`), one lookup per handle. Settings shows the name each account reports so you can check the handle, and any count can be corrected by hand.
+
+Data is stored in `/var/lib/sentimeter/sma/<brand>/x.json` and `competitors.json`.
+
 ## Login
 
 The homepage (`#home`) is public. Everything else (dashboard, mentions, reports, Sources, and the data) needs a login.
