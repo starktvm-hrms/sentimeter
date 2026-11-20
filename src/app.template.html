@@ -184,6 +184,32 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 .method{color:var(--muted);max-width:78ch}
 .method p{margin:0 0 8px}
 
+/* Social Media Analytics */
+.sma-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sma-tabs a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+.sma-tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}
+.crumbs{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}
+.crumbs a{color:var(--muted);text-decoration:none}.crumbs a:hover{color:var(--accent)}
+.brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px}
+.brand-card{display:flex;flex-direction:column;gap:12px;padding:18px;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.brand-card:hover{border-color:var(--accent)}
+.brand-card .name{font-size:17px;font-weight:650;letter-spacing:-.01em}
+.mini-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mini-kpis div{background:var(--sunk);border-radius:10px;padding:8px 10px;min-width:0}
+.mini-kpis b{display:block;font-family:var(--f-mono);font-size:15px;font-weight:500}
+.mini-kpis .hint{display:block;font-size:11.5px;line-height:1.3}
+.app.sma-view #alert-select,.app.sma-view #src-toggles,.app.sma-view #data-badge,.app.sma-view #range,.app.sma-view label.btn{display:none}
+.plat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:16px}
+.plat-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:18px;display:flex;flex-direction:column;gap:12px}
+.plat-card.off{opacity:.6}
+.plat-head{display:flex;align-items:center;gap:10px}
+.plat-head .src{min-width:28px;height:28px;border-radius:8px;font-size:12px}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;color:var(--ink)}
+.steps code,.code{font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
+.kv{display:grid;grid-template-columns:minmax(120px,200px) minmax(0,1fr);gap:8px 16px;font-size:14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere}
+@media print{.side,.topbar,.no-print,.sma-tabs{display:none!important}.app{display:block;background:#fff}.content{padding:0}.card{break-inside:avoid}}
+
 /* Public pages: homepage and login */
 .app.public{grid-template-columns:minmax(0,1fr);background:var(--bg)}
 .app.public .side,.app.public .topbar{display:none}
@@ -304,6 +330,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <a href="#dashboard" data-view="dashboard"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="7" rx="1.5"/><rect x="10" y="2" width="6" height="4" rx="1.5"/><rect x="2" y="11" width="6" height="5" rx="1.5"/><rect x="10" y="8" width="6" height="8" rx="1.5"/></svg>Dashboard</a>
       <a href="#mentions" data-view="mentions"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h12v8H8l-3 3v-3H3z" stroke-linejoin="round"/></svg>Mentions</a>
       <a href="#reports" data-view="reports"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2" width="13" height="14" rx="2"/><path d="M6 12V9M9 12V6M12 12v-2" stroke-linecap="round"/></svg>Reports</a>
+      <a href="#sma" data-view="sma"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 15.5h13" stroke-linecap="round"/><rect x="3.5" y="9" width="2.6" height="4.5" rx=".8"/><rect x="7.7" y="5.5" width="2.6" height="8" rx=".8"/><rect x="11.9" y="2.5" width="2.6" height="11" rx=".8"/></svg>Social Media Analytics</a>
       <a href="#sources" data-view="sources"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="5" r="2.2"/><circle cx="13" cy="5" r="2.2"/><circle cx="9" cy="13.5" r="2.2"/><path d="M6.5 6.7 8 11.5M11.5 6.7 10 11.5M7.2 5h3.6" stroke-linecap="round"/></svg>Sources</a>
       <a href="#analyze" data-view="analyze"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 6-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 5h4v4" stroke-linecap="round"/></svg>Analyze text</a>
     </nav>
@@ -530,6 +557,9 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       </div>
       <div class="card"><div class="card-head"><h2>Alert comparison</h2><span class="hint">same period and sources, all alerts</span></div><div class="card-body"><div class="tbl-wrap" id="r-alerts"></div></div></div>
     </section>
+
+    <!-- SOCIAL MEDIA ANALYTICS -->
+    <section class="content" id="v-sma" hidden><div id="sma-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
 
     <!-- SOURCES -->
     <section class="content" id="v-sources" hidden>
@@ -1297,6 +1327,184 @@ $("run-now").onclick=async()=>{
   runArm=false;$("run-now").textContent="Run today's collection now";
   try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
 
+/* ---------- Social Media Analytics ---------- */
+const SMA={brands:null,data:{},dataFor:{},range:30,arm:null,poll:null};
+const LI_FUNC={1:"Accounting",2:"Administrative",3:"Arts and Design",4:"Business Development",5:"Community and Social Services",6:"Consulting",7:"Education",8:"Engineering",9:"Entrepreneurship",10:"Finance",11:"Healthcare Services",12:"Human Resources",13:"Information Technology",14:"Legal",15:"Marketing",16:"Media and Communication",17:"Military and Protective Services",18:"Operations",19:"Product Management",20:"Program and Project Management",21:"Purchasing",22:"Quality Assurance",23:"Real Estate",24:"Research",25:"Sales",26:"Customer Success and Support"};
+const LI_SEN={1:"Unpaid",2:"Training",3:"Entry",4:"Senior",5:"Manager",6:"Director",7:"Vice President",8:"CXO",9:"Partner",10:"Owner"};
+const LI_SIZE={SIZE_1:"1",SIZE_2_TO_10:"2–10",SIZE_11_TO_50:"11–50",SIZE_51_TO_200:"51–200",SIZE_201_TO_500:"201–500",SIZE_501_TO_1000:"501–1,000",SIZE_1001_TO_5000:"1,001–5,000",SIZE_5001_TO_10000:"5,001–10,000",SIZE_10001_OR_MORE:"10,001+"};
+function liLabel(kind,urn){const id=String(urn||"").split(":").pop();if(kind==="function")return LI_FUNC[id]||"Function "+id;if(kind==="seniority")return LI_SEN[id]||"Seniority "+id;if(kind==="company_size")return LI_SIZE[urn]||urn;return(kind==="country"?"Country ":"Industry ")+id;}
+async function smaApi(path,opts={}){
+  const r=await fetch("api/sma"+path,Object.assign({credentials:"same-origin",cache:"no-store"},opts,{headers:Object.assign({},opts.body?{"Content-Type":"application/json"}:{})}));
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401&&AUTH_MODE==="server"){AUTH=null;go("login");}
+  if(!r.ok)throw new Error(j.error||("Server error "+r.status));return j;
+}
+function smaRoute(){const m=location.hash.slice(1).match(/^sma-(b[0-9a-f]{8})(?:-(platform|report|source|settings))?$/);return m?{bid:m[1],tab:m[2]||"platform"}:{bid:null};}
+const pctf=x=>x==null?"–":(x*100).toFixed(x<.1?2:1)+"%";
+function smaMsg(s,bad){const el=$("sma-msg");if(el){el.textContent=s||"";el.className="hint"+(bad?" neg-c":"");}}
+async function renderSMA(){
+  const root=$("sma-root");
+  if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Social Media Analytics</h1><p class="sub">This section needs the Sentimeter server and a login.</p></div></div>`;return;}
+  const r=smaRoute();
+  if(!SMA.brands){root.innerHTML=`<p class="hint">Loading brands…</p>`;try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){root.innerHTML=`<p class="neg-c">${esc(e.message)}</p>`;return;}}
+  if(!r.bid)return renderBrands(root);
+  const b=SMA.brands.find(x=>x.id===r.bid);if(!b){go("sma");return;}
+  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");
+  if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await smaLoadData(b);}
+  renderBrand(root,b,r.tab);
+  clearTimeout(SMA.poll);SMA.poll=null;if(b.linkedin.syncing)SMA.poll=setTimeout(smaRefresh,2000);
+}
+async function smaLoadData(b){try{SMA.data[b.id]=(await smaApi(`/brands/${b.id}/linkedin`)).data||{};SMA.dataFor[b.id]=b.linkedin.last_sync||"";}catch(e){SMA.data[b.id]=SMA.data[b.id]||{};}}
+async function smaRefresh(){
+  try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){}
+  if(current()!=="sma")return;
+  const a=document.activeElement;
+  if(a&&a.closest&&a.closest("#sma-root")&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)){const r=smaRoute();const b=r.bid&&SMA.brands.find(x=>x.id===r.bid);clearTimeout(SMA.poll);if(b&&b.linkedin.syncing)SMA.poll=setTimeout(smaRefresh,2000);return;}
+  renderSMA();
+}
+function renderBrands(root){
+  root.innerHTML=`<div class="page-head"><div><h1>Social Media Analytics</h1><p class="sub">Performance reports from each brand's own social accounts, connected through the platforms' official APIs.</p></div></div>
+  <div class="card"><div class="card-body"><div class="toolbar"><input type="text" id="sma-new" placeholder="New brand name, e.g. Kerala Tourism" style="flex:1;min-width:220px" aria-label="New brand name"><button class="btn primary" id="sma-add" type="button">Add brand</button><span id="sma-msg" class="hint"></span></div></div></div>
+  <div class="eyebrow">Brands</div>
+  ${SMA.brands.length?`<div class="brand-grid">${SMA.brands.map(b=>{const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
+    return `<a class="brand-card" href="#sma-${b.id}-platform"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="name">${esc(b.name)}</span><span class="pill ${ok?"pos":"neu"}">${ok?"LinkedIn connected":"Not connected"}</span></div>
+      <div class="mini-kpis"><div><span class="hint">Followers</span><b>${ok&&s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Impressions</span><b>${ok?compact(s.impressions||0):"–"}</b></div><div><span class="hint">Engagement</span><b>${ok?pctf(s.engagement_rate):"–"}</b></div></div>
+      <div class="hint" style="margin-top:-6px">Last 30 days</div><div class="plats"><span class="src" style="background:var(--c8)">in</span><span class="src" style="background:var(--neu)">f</span><span class="src" style="background:var(--neu)">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:var(--neu)">YT</span><span class="hint" style="margin-left:auto">${li.last_sync?"Synced "+relAgo(li.last_sync):"Never synced"}</span></div></a>`;}).join("")}</div>`
+  :`<div class="card"><p class="empty">No brands yet. Add your first brand above, then connect its LinkedIn page in the brand's Settings.</p></div>`}`;
+  const add=async()=>{const n=$("sma-new").value.trim();if(!n){smaMsg("Type a brand name first.",true);return;}
+    try{const j=await smaApi("/brands",{method:"POST",body:JSON.stringify({name:n})});SMA.brands=null;location.hash=`sma-${j.brand.id}-settings`;}catch(e){smaMsg(e.message,true);}};
+  $("sma-add").onclick=add;$("sma-new").onkeydown=e=>{if(e.key==="Enter")add();};
+}
+function brandHead(b,tab){
+  const T=[["platform","Platform"],["report","Report"],["source","Source"],["settings","Settings"]];
+  return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
+  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"No platform connected yet"}${b.linkedin.syncing?" · syncing…":b.linkedin.last_sync?" · synced "+relAgo(b.linkedin.last_sync):""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
+  <nav class="sma-tabs" aria-label="Brand sections">${T.map(([k,n])=>`<a href="#sma-${b.id}-${k}" aria-current="${k===tab?"page":"false"}">${n}</a>`).join("")}</nav>`;
+}
+function renderBrand(root,b,tab){
+  const body=tab==="platform"?smaPlatform(b):tab==="report"?smaReport(b):tab==="source"?smaSource(b):smaSettings(b);
+  root.innerHTML=brandHead(b,tab)+body;
+  bindBrand(b,tab);
+}
+function smaPlatform(b){
+  const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
+  const soon=[["f","Facebook","var(--c1)"],["IG","Instagram","var(--c5)"],["X","X (Twitter)","var(--c6)"],["YT","YouTube","var(--neg)"]];
+  return `<div class="plat-grid">
+    <div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--c8)">in</span><b>LinkedIn</b><span class="pill ${ok?"pos":li.connected?"neu":"neu"}" style="margin-left:auto">${ok?"Connected":li.connected?"Choose a page":"Not connected"}</span></div>
+      ${ok?`<div class="hint">${esc(li.org_name||"")} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Impressions</span><b>${compact(s.impressions||0)}</b></div><div><span class="hint">Engagement</span><b>${pctf(s.engagement_rate)}</b></div></div>
+        <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report">Open report</a><button class="btn" type="button" data-sync ${li.syncing?"disabled":""}>${li.syncing?"Syncing…":"Sync now"}</button></div>`
+      :`<p class="hint" style="margin:0">Connect the brand's LinkedIn company page to report followers, impressions, engagement, page views and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
+      ${li.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(li.last_error)}</p>`:""}
+    </div>
+    ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned after LinkedIn.</p></div>`).join("")}
+  </div>`;
+}
+function liDays(d,range){
+  const keys=Object.keys(d.daily||{}).sort();if(!keys.length)return[];
+  const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;
+}
+function smaReport(b){
+  const d=SMA.data[b.id]||{};const li=b.linkedin;
+  if(!(li.connected&&li.org_urn))return `<div class="card"><p class="empty">Connect a LinkedIn page in <a href="#sma-${b.id}-settings">Settings</a> to see the report.</p></div>`;
+  if(!d.daily||!Object.keys(d.daily).length)return `<div class="card"><p class="empty">${li.syncing?"The first sync is running. The report appears when it finishes, usually within a minute.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
+  const days=liDays(d,SMA.range);const prevDays=days.map(x=>addDays(x,-SMA.range));
+  const val=(ds,f)=>ds.reduce((a,k)=>a+((d.daily[k]||{})[f]||0),0);
+  const cur={};const prv={};["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"].forEach(f=>{cur[f]=val(days,f);prv[f]=val(prevDays,f);});
+  const eng=x=>x.clicks+x.reactions+x.comments+x.shares;const er=x=>x.impressions?eng(x)/x.impressions:null;
+  const hasPrev=prevDays.some(k=>d.daily[k]);
+  const delta=(a,b2,pts)=>hasPrev?dlt(pts?a*100:a,pts?(b2==null?null:b2*100):b2,{pts}):"";
+  const gained=cur.followers_organic+cur.followers_paid;
+  const tiles=[["Followers",d.followers_total!=null?fmtInt(d.followers_total):"–",`<span class="hint">+${fmtInt(gained)} in period</span>`],
+    ["Impressions",compact(cur.impressions),delta(cur.impressions,prv.impressions)],["Unique impressions",compact(cur.unique_impressions),delta(cur.unique_impressions,prv.unique_impressions)],
+    ["Engagement rate",pctf(er(cur)),er(cur)!=null&&er(prv)!=null?delta(er(cur),er(prv),true):""],["Clicks",compact(cur.clicks),delta(cur.clicks,prv.clicks)],
+    ["Reactions",compact(cur.reactions),delta(cur.reactions,prv.reactions)],["Comments",compact(cur.comments),delta(cur.comments,prv.comments)],
+    ["Reposts",compact(cur.shares),delta(cur.shares,prv.shares)],["Page views",compact(cur.page_views),delta(cur.page_views,prv.page_views)],["New followers",fmtInt(gained),delta(gained,prv.followers_organic+prv.followers_paid)]];
+  const posts=(d.posts||[]).filter(p=>p.published>=days[0]).sort((a,c)=>c.impressions-a.impressions).slice(0,10);
+  const demo=d.demographics||{};
+  const demoBars=(kind,title)=>{const rows=(demo[kind]||[]).slice(0,8);const tot=(demo[kind]||[]).reduce((a,r)=>a+r.count,0)||1;
+    return `<div><div class="eyebrow" style="margin-bottom:8px">${title}</div>${rows.length?`<div class="bars">${rows.map(r=>`<div class="lbl" title="${esc(liLabel(kind,r.urn))}">${esc(liLabel(kind,r.urn))}</div><div class="track"><div style="width:${r.count/rows[0].count*100}%;background:var(--accent)"></div></div><div class="num">${(r.count/tot*100).toFixed(1)}%</div>`).join("")}</div>`:`<p class="hint" style="margin:0">No data</p>`}</div>`;};
+  return `<div class="toolbar no-print"><select class="select" id="li-range" aria-label="Period">${[7,30,90,365].map(n=>`<option value="${n}" ${n===SMA.range?"selected":""}>Last ${n} days</option>`).join("")}</select>
+      <span class="hint">${fmtDay(days[0])}${days[0].slice(0,4)!==days[days.length-1].slice(0,4)?", "+days[0].slice(0,4):""} to ${fmtDay(days[days.length-1])}, ${days[days.length-1].slice(0,4)}${hasPrev?" · compared with the previous "+SMA.range+" days":""}</span><span class="spacer"></span>
+      <button class="btn" type="button" id="li-csv">Copy daily data (CSV)</button><button class="btn" type="button" id="li-print">Print / save PDF</button></div>
+    <textarea id="li-out" readonly hidden aria-label="Copied report data"></textarea>
+    <div class="eyebrow">LinkedIn · ${esc(li.org_name||"")}</div>
+    <div class="tiles">${tiles.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
+    <div class="grid2r">
+      <div class="card"><div class="card-head"><h2>Impressions per day</h2><span class="hint">all and unique</span></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"impressions",color:"var(--accent)",values:days.map(k=>(d.daily[k]||{}).impressions||0)},{label:"unique",color:"var(--c2)",values:days.map(k=>(d.daily[k]||{}).unique_impressions||0)}],{area:true,H:200})}</div></div></div>
+      <div class="card"><div class="card-head"><h2>New followers per day</h2><span class="hint">organic and paid</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>((d.daily[k]||{}).followers_organic||0)+((d.daily[k]||{}).followers_paid||0)),{every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
+    </div>
+    <div class="grid2r">
+      <div class="card"><div class="card-head"><h2>Engagement per day</h2><span class="hint">clicks, reactions, comments, reposts</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>{const x=d.daily[k]||{};return(x.clicks||0)+(x.reactions||0)+(x.comments||0)+(x.shares||0);}),{every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
+      <div class="card"><div class="card-head"><h2>Engagement mix</h2><span class="hint">share of all interactions</span></div><div class="card-body"><div class="donut-row">${donutBlock({Clicks:cur.clicks,Reactions:cur.reactions,Comments:cur.comments,Reposts:cur.shares},{Clicks:"var(--accent)",Reactions:"var(--c2)",Comments:"var(--c3)",Reposts:"var(--c4)"}).replace(/>mentions</,">interactions<")}</div></div></div>
+    </div>
+    <div class="card"><div class="card-head"><h2>Top posts</h2><span class="hint">published in this period, by impressions</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["Post"],["Published"],["Impressions","r"],["Clicks","r"],["Reactions","r"],["Comments","r"],["Reposts","r"],["Engagement","r"]],posts.map(p=>[`<a class="name-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc((p.text||"(no text)").slice(0,90))}${(p.text||"").length>90?"…":""}</a>`,fmtStamp(p.published).split(",")[0],compact(p.impressions),compact(p.clicks),compact(p.reactions),compact(p.comments),compact(p.shares),pctf(p.engagement)]))}</div></div></div>
+    <div class="card"><div class="card-head"><h2>Follower demographics</h2><span class="hint">all followers, as reported by LinkedIn</span></div><div class="card-body"><div class="grid2r">${demoBars("function","Job function")}${demoBars("seniority","Seniority")}${demoBars("company_size","Company size")}${demoBars("industry","Industry")}</div></div></div>`;
+}
+function smaSource(b){
+  const li=b.linkedin,d=SMA.data[b.id]||{};const keys=Object.keys(d.daily||{}).sort();
+  const page=li.org_urn?`https://www.linkedin.com/company/${esc(li.org_vanity||li.org_urn.split(":").pop())}/`:"";
+  const row=(k,v)=>`<dt>${k}</dt><dd>${v||"–"}</dd>`;
+  return `<div class="card"><div class="card-head"><h2>LinkedIn</h2><span class="pill ${li.connected?"pos":"neu"}">${li.connected?"Connected":"Not connected"}</span></div><div class="card-body">
+      <dl class="kv">${row("Company page",li.org_name?`<a class="name-link" href="${page}" target="_blank" rel="noopener noreferrer">${esc(li.org_name)} ↗</a>`:"")}${row("Page ID",li.org_urn?`<span class="code">${esc(li.org_urn)}</span>`:"")}
+      ${row("Connected by",esc(li.connected_by||""))}${row("Connected",li.connected_at?fmtStamp(li.connected_at)+" UTC":"")}${row("Access expires",li.token_expires?fmtStamp(li.token_expires)+" UTC"+(li.refreshable?" (renews automatically)":" (reconnect before then)"):"")}
+      ${row("Permissions granted",li.granted_scopes?`<span class="code">${esc(li.granted_scopes)}</span>`:"")}${row("API version",esc(li.version||li.default_version)+(li.version?"":" (automatic)"))}
+      ${row("Last sync",li.last_sync?fmtStamp(li.last_sync)+" UTC · "+relAgo(li.last_sync):"")}${row("Daily data stored",keys.length?`${keys.length} days, ${fmtDay(keys[0])} ${keys[0].slice(0,4)} to ${fmtDay(keys[keys.length-1])} ${keys[keys.length-1].slice(0,4)}`:"")}
+      ${row("Posts stored",d.posts?String(d.posts.length):"")}${row("Schedule","Daily at the Sources run time (India time), plus Sync now")}</dl>
+      ${li.last_error?`<p class="neg-c" style="margin:0">${esc(li.last_error)}</p>`:""}
+      <div class="toolbar no-print"><button class="btn primary" type="button" data-sync ${!(li.connected&&li.org_urn)||li.syncing?"disabled":""}>${li.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-full ${!(li.connected&&li.org_urn)||li.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="li-disconnect" ${li.connected?"":"disabled"}>Disconnect LinkedIn</button></div>
+    </div></div>
+    <div class="card"><div class="card-head"><h2>Sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["When"],["Result"],["Days"],["Time","r"]],(d.sync_log||[]).slice().reverse().map(s=>[fmtStamp(s.at)+" UTC",s.ok?`<span class="pos-c">OK</span>`:`<span class="neg-c">${esc((s.errors||[]).join("; ")).slice(0,240)||"Failed"}</span>`,s.days?(s.full?"12 months":s.days+" days"):"",s.seconds!=null?s.seconds+"s":""]))}</div></div></div>`;
+}
+function smaSettings(b){
+  const li=b.linkedin;const configured=li.client_id&&li.has_client_secret;
+  return `<div class="card"><div class="card-head"><h2>Brand</h2></div><div class="card-body"><div class="form">
+      <label class="f" for="br-name">Brand name</label><div class="toolbar"><input type="text" id="br-name" value="${esc(b.name)}" style="flex:1;min-width:200px"><button class="btn" type="button" id="br-save">Save name</button></div></div>
+      <div class="form-actions"><span class="spacer"></span><button class="btn danger" type="button" id="br-delete">Delete brand</button></div></div></div>
+    <div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c8);margin-right:8px">in</span>LinkedIn API integration</h2><span class="pill ${li.connected&&li.org_urn?"pos":li.connected?"neu":configured?"neu":"neg"}">${li.connected&&li.org_urn?"Connected":li.connected?"Choose a page":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
+      <ol class="steps">
+        <li>Open <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer">linkedin.com/developers/apps</a> and create an app linked to the brand's LinkedIn company page. A page admin has to verify the link.</li>
+        <li>In the app's <b>Products</b> tab, request the <b>Community Management API</b>. LinkedIn reviews this; it can take several days.</li>
+        <li>In the <b>Auth</b> tab, add this authorized redirect URL: <span class="code" id="li-redirect">${esc(li.redirect_uri)}</span> <button class="btn" type="button" id="li-copy-redirect" style="padding:3px 8px;font-size:12px">Copy</button></li>
+        <li>Copy the app's <b>Client ID</b> and <b>Client Secret</b> below, save, then click <b>Connect LinkedIn</b> and sign in as a page admin.</li>
+      </ol>
+      <div class="form">
+        <label class="f" for="li-cid">Client ID</label><input type="text" id="li-cid" value="${esc(li.client_id||"")}" autocomplete="off" spellcheck="false">
+        <label class="f" for="li-secret">Client Secret</label><div class="toolbar"><input type="password" id="li-secret" placeholder="${li.has_client_secret?"Saved. Paste a new one to replace it":"Paste the Client Secret"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${li.has_client_secret?"pos":"neu"}">${li.has_client_secret?"Saved":"Not set"}</span></div>
+        <label class="f" for="li-scopes">Permissions (scopes)</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="li-scopes" value="${esc(li.scopes||"")}" spellcheck="false"><span class="hint">Default reads page posts, statistics and followers. Change only if LinkedIn granted your app different scopes.</span></div>
+        <label class="f" for="li-version">API version</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="li-version" value="${esc(li.version||"")}" placeholder="${esc(li.default_version)} (automatic)" style="max-width:220px"><span class="hint">YYYYMM. Leave empty to use a recent supported version automatically.</span></div>
+      </div>
+      ${li.last_error?`<p class="neg-c" style="margin:0">${esc(li.last_error)}</p>`:""}
+      ${li.connected&&(li.orgs||[]).length>1?`<div class="form"><label class="f" for="li-org">Company page</label><div class="toolbar"><select class="select" id="li-org">${li.orgs.map(o=>`<option value="${esc(o.urn)}" ${o.urn===li.org_urn?"selected":""}>${esc(o.name)}</option>`).join("")}</select><button class="btn" type="button" id="li-org-save">Use this page</button></div></div>`:""}
+      <div class="form-actions"><span class="hint">${li.connected?`Connected by ${esc(li.connected_by||"")}${li.org_name?" · page: "+esc(li.org_name):""}`:""}</span><span class="spacer"></span>
+        <button class="btn" type="button" id="li-save">Save integration</button>
+        <a class="btn primary" id="li-connect" href="api/sma/linkedin/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${li.connected?"Reconnect LinkedIn":"Connect LinkedIn"}</a></div>
+    </div></div>
+    <div class="card"><div class="card-head"><h2>Other platforms</h2></div><div class="card-body"><p class="hint" style="margin:0">Facebook and Instagram (Meta Graph API), X and YouTube (YouTube Analytics API) will be added here next, each with its own Connect button.</p></div></div>`;
+}
+function bindBrand(b,tab){
+  document.querySelectorAll("#sma-root [data-sync],#sma-root [data-sync-full]").forEach(btn=>btn.onclick=async()=>{
+    try{await smaApi(`/brands/${b.id}/linkedin/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  if(tab==="report"&&$("li-range")){
+    $("li-range").onchange=e=>{SMA.range=+e.target.value;renderSMA();};
+    $("li-print").onclick=()=>window.print();
+    $("li-csv").onclick=e=>{const d=SMA.data[b.id]||{};const days=liDays(d,SMA.range);const F=["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"];
+      copyOutTo(["date,"+F.join(",")].concat(days.map(k=>[k].concat(F.map(f=>(d.daily[k]||{})[f]||0)).join(","))).join("\n"),e.currentTarget,"Copy daily data (CSV)",$("li-out"));};
+  }
+  if(tab==="source"&&$("li-disconnect")){$("li-disconnect").onclick=async e=>{if(SMA.arm!=="disc"){SMA.arm="disc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
+    try{await smaApi(`/brands/${b.id}/linkedin/disconnect`,{method:"POST"});await smaRefresh();smaMsg("LinkedIn disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
+  if(tab==="settings"){
+    $("br-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify({name:$("br-name").value})});await smaRefresh();smaMsg("Saved.");}catch(e){smaMsg(e.message,true);}};
+    $("br-delete").onclick=async e=>{if(SMA.arm!=="del"){SMA.arm="del";e.currentTarget.textContent="Click again to delete "+b.name;return;}SMA.arm=null;
+      try{await smaApi(`/brands/${b.id}`,{method:"DELETE"});SMA.brands=null;delete SMA.data[b.id];go("sma");}catch(err){smaMsg(err.message,true);}};
+    $("li-copy-redirect").onclick=e=>copyOutTo(b.linkedin.redirect_uri,e.currentTarget,"Copy",null);
+    $("li-save").onclick=async()=>{const body={linkedin:{client_id:$("li-cid").value.trim(),scopes:$("li-scopes").value.trim(),version:$("li-version").value.trim()}};const s=$("li-secret").value.trim();if(s)body.linkedin.client_secret=s;
+      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("li-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect LinkedIn.");}catch(e){smaMsg(e.message,true);}};
+    if($("li-org-save"))$("li-org-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}/linkedin/org`,{method:"POST",body:JSON.stringify({urn:$("li-org").value})});delete SMA.data[b.id];await smaRefresh();smaMsg("Page saved. Syncing its data now.");}catch(e){smaMsg(e.message,true);}};
+  }
+}
+function copyOutTo(text,btn,label,out){const fb=()=>{if(out){out.hidden=false;out.value=text;out.focus();out.select();}btn.textContent="Select and copy";};
+  try{navigator.clipboard.writeText(text).then(()=>{if(out)out.hidden=true;btn.textContent="Copied";setTimeout(()=>btn.textContent=label,1600);},fb);}catch(e){fb();}}
+
 /* ---------- Render: analyze ---------- */
 function renderAnalyze(){
   const r=analyze($("single-input").value);
@@ -1341,21 +1549,21 @@ function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIO
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["dashboard","mentions","reports","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
-function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";return VIEWS.includes(h)?h:"dashboard";}
+const VIEWS=["dashboard","mentions","reports","sma","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
+function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";if(h==="sma"||h.startsWith("sma-"))return"sma";return VIEWS.includes(h)?h:"dashboard";}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
   const v=current();
-  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);
+  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma");
   VIEWS.concat(PUBLIC_VIEWS).forEach(x=>$("v-"+x).hidden=x!==v);
   if(pub){renderPublic(v);return;}
   $("user-chip").hidden=!AUTH;if(AUTH)$("user-email").textContent=AUTH.email;
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.view===v?"page":"false"));
   renderChrome();
-  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
 }
 function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
-let lastView=null;window.addEventListener("hashchange",()=>{const v=current();if(v!==lastView||window.innerWidth<=1050)window.scrollTo(0,0);lastView=v;arm=null;render();});
+let lastView=null;window.addEventListener("hashchange",()=>{SMA.arm=null;const v=current();if(v!==lastView||window.innerWidth<=1050)window.scrollTo(0,0);lastView=v;arm=null;render();});
 
 /* ---------- Import ---------- */
 function parseCSV(text,delim){const rows=[];let row=[],f="",q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}else if(c==='"')q=true;else if(c===delim){row.push(f);f="";}else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f="";}else f+=c;}if(f!==""||row.length){row.push(f);rows.push(row);}return rows.filter(r=>r.some(x=>x.trim()!==""));}

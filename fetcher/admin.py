@@ -14,6 +14,10 @@ are rate limited per visitor.
 
   POST /api/auth/login | logout, GET /api/auth/me, POST /api/auth/setup (first admin only)
   GET  /api/data/mentions.json | imported.json   collected data (login only)
+  Social Media Analytics (login only):
+  GET/POST /api/sma/brands, PUT/DELETE /api/sma/brands/<id>, GET /api/sma/brands/<id>/linkedin
+  POST /api/sma/brands/<id>/linkedin/{sync,org,disconnect}
+  GET  /api/sma/linkedin/start?brand=<id>  -> LinkedIn sign-in;  GET /api/sma/linkedin/callback
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
   POST /api/keys       set the Apify tokens (default, meta, x_linkedin, other) and YOUTUBE_API_KEY (write-only)
@@ -25,12 +29,13 @@ are rate limited per visitor.
   POST /api/import?step=start|append|finish   upload an imported file in chunks (100 rows each)
   DELETE /api/import              remove the imported file
 """
-import hashlib, hmac, json, os, re, secrets, subprocess, sys, threading, time
+import hashlib, hmac, json, os, re, secrets, subprocess, sys, threading, time, urllib.parse
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch  # noqa: E402  (settings defaults, paths, usage)
+import sma  # noqa: E402  (Social Media Analytics: brands, LinkedIn)
 
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
@@ -386,6 +391,77 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {"error": "Not found"})
         return True
 
+    def redirect(self, location):
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def sma_routes(self):
+        """Social Media Analytics API. Returns True when handled."""
+        path, _, qs = self.path.partition("?")
+        if not path.startswith("/api/sma/"):
+            return False
+        q = {k: v[0] for k, v in urllib.parse.parse_qs(qs).items()}
+        m = self.command
+        email = (getattr(self, "user", None) or {}).get("email", "admin key")
+        try:
+            if path == "/api/sma/brands" and m == "GET":
+                return self.send(200, {"brands": [sma.public_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri()}) or True
+            if path == "/api/sma/brands" and m == "POST":
+                b = sma.create_brand(self.body().get("name"))
+                return self.send(201, {"brand": sma.public_brand(b)}) or True
+            if path == "/api/sma/linkedin/start" and m == "GET":
+                try:
+                    return self.redirect(sma.li_start(q.get("brand", ""), email)) or True
+                except (ValueError, KeyError) as e:
+                    sma.update_brand_record(q.get("brand", ""), lambda r: r.setdefault("linkedin", {}).update({"last_error": str(e)}))
+                    return self.redirect(f"/#sma-{q.get('brand', '')}-settings") or True
+            if path == "/api/sma/linkedin/callback" and m == "GET":
+                bid, err = sma.li_callback(q, email)
+                if bid and not err and (sma.get_brand(bid) or {}).get("linkedin", {}).get("org_urn"):
+                    sma.sync_async(bid, full=True)
+                return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            mm = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})(/linkedin(?:/(sync|org|disconnect))?)?", path)
+            if not mm:
+                return self.send(404, {"error": "Not found"}) or True
+            bid, sub, action = mm.group(1), mm.group(2), mm.group(3)
+            if not sma.get_brand(bid):
+                return self.send(404, {"error": "Brand not found"}) or True
+            if not sub:
+                if m == "GET":
+                    return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid))}) or True
+                if m == "PUT":
+                    sma.update_brand(bid, self.body())
+                    return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid))}) or True
+                if m == "DELETE":
+                    sma.delete_brand(bid)
+                    return self.send(200, {"ok": True}) or True
+            elif not action and m == "GET":
+                d = sma.li_data(bid)
+                d.pop("sync_log", None) if q.get("lite") else None
+                return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid), False), "data": d}) or True
+            elif action == "sync" and m == "POST":
+                if bid in sma.SYNCING:
+                    return self.send(409, {"error": "A sync is already running."}) or True
+                sma.sync_async(bid, full=bool(self.body().get("full")))
+                return self.send(202, {"started": True}) or True
+            elif action == "org" and m == "POST":
+                o = sma.choose_org(bid, str(self.body().get("urn", "")))
+                sma.sync_async(bid, full=True)
+                return self.send(200, {"org": o, "brand": sma.public_brand(sma.get_brand(bid), False)}) or True
+            elif action == "disconnect" and m == "POST":
+                sma.disconnect(bid)
+                return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid), False)}) or True
+            return self.send(405, {"error": "Method not allowed"}) or True
+        except ValueError as e:
+            return self.send(400, {"error": str(e)}) or True
+        except KeyError as e:
+            return self.send(404, {"error": str(e).strip("'")}) or True
+        except RuntimeError as e:
+            return self.send(502, {"error": str(e)}) or True
+
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > 65536:
@@ -405,7 +481,11 @@ class H(BaseHTTPRequestHandler):
                 "next_manual_run_in": max(0, int(LAST_MANUAL_RUN[0] + 1800 - time.time()))}
 
     def do_GET(self):
-        if self.auth_routes() or not self.authed():
+        if self.auth_routes():
+            return
+        if self.path.startswith("/api/sma/linkedin/callback") and not session_user(self.token()):
+            return self.redirect("/#login")
+        if not self.authed() or self.sma_routes():
             return
         if self.path.split("?")[0] in ("/api/data/mentions.json", "/api/data/imported.json"):
             f = os.path.join(DATA_DIR, os.path.basename(self.path.split("?")[0]))
@@ -433,7 +513,7 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {"error": "Not found"})
 
     def do_PUT(self):
-        if self.auth_routes() or not self.authed() or self.limited():
+        if self.auth_routes() or not self.authed() or self.limited() or self.sma_routes():
             return
         if self.path == "/api/shared/alerts":
             try:
@@ -462,7 +542,7 @@ class H(BaseHTTPRequestHandler):
         self.send(200, self.overview())
 
     def do_DELETE(self):
-        if self.auth_routes() or not self.authed() or self.limited():
+        if self.auth_routes() or not self.authed() or self.limited() or self.sma_routes():
             return
         if self.path == "/api/import":
             for f in ("imported.json",):
@@ -474,7 +554,7 @@ class H(BaseHTTPRequestHandler):
         self.send(404, {"error": "Not found"})
 
     def do_POST(self):
-        if self.auth_routes() or not self.authed() or self.limited(240):
+        if self.auth_routes() or not self.authed() or self.limited(240) or self.sma_routes():
             return
         if self.path == "/api/shared/edits":
             try:
@@ -569,6 +649,8 @@ def scheduler():
             today = loc.strftime("%Y-%m-%d")
             hh, mm = (s.get("run_after") or "09:00").split(":")
             due = loc.hour * 60 + loc.minute >= int(hh) * 60 + int(mm)
+            if due:
+                sma.daily_sync_due(today)
             done = fetch.load_usage().get("last_daily_run") == today
             last_try = tried.get(today, 0)
             if due and not done and not running() and time.time() - last_try > 3600:

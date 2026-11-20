@@ -121,6 +121,26 @@ News (Google News and Bing News) is checked every hour for any alert keyword or 
 
 Each post is stored once. News articles are identified by headline, so the same article from both sources, several searches or several Google News editions is one mention. Social posts are identified by their URL without tracking parameters, or by author and text when there is no URL. A post found by both account tracking and keyword search is stored once and keeps the "Tracked" mark. Apify still bills for a result returned twice in a day, so avoid tracking an account and also searching for terms it always uses.
 
+## Social Media Analytics
+
+The **Social Media Analytics** tab holds **brands**. Each brand has four sections:
+
+- **Platform**: one card per platform with connection status and 30-day figures. LinkedIn is live; Facebook, Instagram, X and YouTube are next.
+- **Report**: LinkedIn page analytics for 7, 30, 90 or 365 days: followers and new followers, impressions, unique impressions, engagement rate, clicks, reactions, comments, reposts, page views, daily charts, top posts and follower demographics, compared with the previous period. Copy as CSV or print / save as PDF.
+- **Source**: the connected company page, who connected it and when, token expiry, granted permissions, API version, stored data range and sync history. Sync now, re-sync 12 months, or disconnect.
+- **Settings**: brand name, and the LinkedIn API integration (setup guide, redirect URL, Client ID, Client Secret, scopes, API version, Connect LinkedIn, page choice).
+
+### LinkedIn setup
+
+1. Create an app at https://www.linkedin.com/developers/apps linked to the brand's company page (a page admin verifies it).
+2. Request the **Community Management API** product for the app.
+3. Add the redirect URL `https://sentimeter.starkpeople.in/api/sma/linkedin/callback` in the app's Auth tab.
+4. Paste the Client ID and Client Secret in the brand's Settings, save, and click **Connect LinkedIn** as a page admin.
+
+The first connection pulls up to 12 months of daily statistics; after that the brand syncs daily at the Sources run time (and on demand). Access tokens last 60 days and renew automatically when LinkedIn issues a refresh token; otherwise the Source tab shows when to reconnect.
+
+Storage (server only): brands in `/var/lib/sentimeter/sma/brands.json`, client secrets and tokens in `/var/lib/sentimeter/sma/secrets.json` (mode 600), synced data in `/var/lib/sentimeter/sma/<brand>/linkedin.json`. Code: `fetcher/sma.py`.
+
 ## Login
 
 The homepage (`#home`) is public. Everything else (dashboard, mentions, reports, Sources, and the data) needs a login.
