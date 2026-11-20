@@ -11,7 +11,7 @@ Storage (server only, root-readable):
   /var/lib/sentimeter/sma/secrets.json  (0600)   client secrets, access and refresh tokens
   /var/lib/sentimeter/sma/<brand>/linkedin.json  synced LinkedIn data
 """
-import hashlib, json, os, re, secrets, shutil, sys, threading, time, urllib.error, urllib.parse, urllib.request
+import hashlib, html, json, os, re, secrets, shutil, sys, threading, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 
 BASE = os.environ.get("SENTIMETER_SMA_DIR", "/var/lib/sentimeter/sma")
@@ -217,6 +217,23 @@ def li_start(bid, email):
     return f"{LI_AUTH}/authorization?{q}"
 
 
+def friendly_li_error(msg):
+    """Turn LinkedIn's OAuth errors into plain instructions."""
+    msg = html.unescape(str(msg or "")).strip()
+    m = re.search(r'[Ss]cope "?([a-z_]+)"? is not authorized', msg)
+    if m:
+        return (f"LinkedIn has not granted this app the {m.group(1)} permission yet. That permission comes with the "
+                "Community Management API: request it in the app's Products tab, wait for LinkedIn's approval, check that the "
+                "scope appears under OAuth 2.0 scopes in the Auth tab, then click Connect LinkedIn again.")
+    if "redirect_uri" in msg.lower():
+        return ("LinkedIn rejected the redirect URL. In the app's Auth tab, add exactly: " + redirect_uri())
+    if "user_cancelled" in msg.lower() or "user cancelled" in msg.lower():
+        return "The LinkedIn sign-in was cancelled. Click Connect LinkedIn to try again."
+    if "client" in msg.lower() and ("invalid" in msg.lower() or "not found" in msg.lower()):
+        return "LinkedIn did not recognise the Client ID or Client Secret. Copy both again from the app's Auth tab and save."
+    return "LinkedIn: " + msg
+
+
 def _token_request(form):
     data = urllib.parse.urlencode(form).encode()
     req = urllib.request.Request(f"{LI_AUTH}/accessToken", data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
@@ -230,7 +247,7 @@ def _token_request(form):
             body = j.get("error_description") or j.get("message") or body
         except Exception:
             pass
-        raise RuntimeError(f"LinkedIn refused the token request: {body}")
+        raise RuntimeError(friendly_li_error(body))
 
 
 def _store_tokens(bid, tok):
@@ -251,8 +268,8 @@ def li_callback(params, email):
         return None, "The LinkedIn sign-in expired or was started elsewhere. Click Connect LinkedIn again."
     bid = st["brand"]
     if params.get("error"):
-        msg = params.get("error_description") or params["error"]
-        update_brand_record(bid, lambda b: b.setdefault("linkedin", {}).update({"last_error": f"LinkedIn: {msg}"}))
+        msg = friendly_li_error(params.get("error_description") or params["error"])
+        update_brand_record(bid, lambda b: b.setdefault("linkedin", {}).update({"last_error": msg}))
         return bid, msg
     b = get_brand(bid)
     try:

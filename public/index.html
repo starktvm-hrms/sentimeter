@@ -87,6 +87,8 @@ main{min-width:0;display:flex;flex-direction:column}
 .badge{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 .btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:10px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;position:relative;overflow:hidden;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;filter:none}
+.btn:disabled:hover{border-color:var(--line)}
 a.btn{text-decoration:none;color:inherit}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .btn.danger{color:var(--neg)}
