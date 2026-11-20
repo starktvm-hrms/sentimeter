@@ -163,17 +163,20 @@ Storage (server only): brands in `/var/lib/sentimeter/sma/brands.json`, client s
 
 ### Monthly report
 
-Each brand has a **Monthly report** tab with the same Stark template for every brand: a cover with the Stark logo and the brand's logo, then
+Each brand has a **Monthly report** tab that builds a 16:9 slide deck in the standard Stark template (the same for every brand):
 
-1. **Summary**: number of platforms, posts published (and how many were cross-posted), total post reach, engagements and engagement rate, posts per platform, and a per-platform table with followers and new followers for the month.
-2. **Facebook & Instagram posts**: a preview of every post (image and caption). A post shared on both (captions matched within 3 days) is shown once, with its reach and engagement on each platform and a total.
-3. **YouTube videos**: each video in its own section, with views and engagement. LinkedIn posts get their own section once LinkedIn is connected.
+1. Cover: brand logo, "Social Media Report", month, Stark logo (black background, so a white or light brand logo works best).
+2. **Overall Performance dashboard**: reach, impressions, engagements, video views, link clicks (LinkedIn only), followers gained, posts published and average engagement rate for the reporting period.
+3. **Platform-wise performance** table: reach, impressions, engagements, engagement rate and lifetime followers per platform.
+4. One slide per platform (Facebook, Instagram, each YouTube channel, LinkedIn): headline numbers with change against the same days of the previous month, and daily charts.
+5. **Post-wise performance**, two posts per slide: Facebook & Instagram together (a post shared on both, captions matched within 3 days, is shown once with each platform's reach and engagement), YouTube videos separately, LinkedIn separately.
+6. Thank you slide.
 
-Pick the month at the top (current month shows "to date"), sort posts by date, engagement or reach, and use **Print / Save PDF** for an A4 report. **Copy posts (CSV)** copies one row per post per platform.
+Pick the month at the top (the current month shows "to date"), sort posts by date, engagement or reach, or keep only the top 10/20. **Download PDF** saves the deck as a 16:9 PDF; **Download PPT** saves an editable PowerPoint (.pptx) with native charts and tables. Both are built in the browser with libraries kept in `public/vendor/` (PptxGenJS, html2canvas-pro, jsPDF; MIT licence).
 
-Upload the brand logo in the brand's **Settings > Brand** (PNG, JPG, WebP or SVG; it is resized in the browser and stored on the server). Post images from Facebook, Instagram and YouTube are saved on the server during sync because the platforms' image links expire. Syncs now keep post history (up to about 400 days) instead of only the latest posts, so a month is complete once a sync has run during or after it.
+Upload the brand logo in the brand's **Settings > Brand**. Post images are saved on the server during sync because the platforms' image links expire. Syncs keep post history (up to about 400 days).
 
-Reach is Facebook/Instagram post reach, LinkedIn unique impressions and YouTube views. Engagement is reactions + comments + shares (Facebook), total interactions (Instagram), clicks + reactions + comments + shares (LinkedIn) and likes + comments (YouTube).
+Reach is Facebook/Instagram reach and LinkedIn unique impressions; impressions are views for Facebook, Instagram and YouTube. Engagement is reactions + comments + shares (Facebook), total interactions (Instagram), clicks + reactions + comments + shares (LinkedIn) and likes + comments + shares (YouTube, daily) or likes + comments (per video).
 
 ## Login
 

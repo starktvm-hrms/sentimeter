@@ -11,7 +11,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Jost:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <script>(function(){try{var t=localStorage.getItem("sentimeter-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <style>
 /* Layout: quiet sidebar on the left, filter bar on top, cards in a 3-up grid (2-up, then 1-up). Minimal: hairlines, one blue accent. */
@@ -219,65 +219,81 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 .steps code,.code{font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 .kv{display:grid;grid-template-columns:minmax(120px,200px) minmax(0,1fr);gap:8px 16px;font-size:14px}
 .kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere}
-/* Monthly report: fixed Stark template, the same for every brand and both themes */
-.mr{--g:#5cb044;--gd:#3d8a2b;--gl:#eef7ea;--ink:#16211a;--mut:#5d6b61;--ln:#e3e9e4;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:1060px;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.mr section{padding:28px 32px;border-top:1px solid var(--ln)}
-.mr-cover{position:relative;padding:30px 32px 28px!important;border-top:0!important;background:linear-gradient(135deg,#fff 55%,var(--gl))}
-.mr-cover:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--g)}
-.mr-logos{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:34px}
-.mr-stark{height:40px;width:auto;display:block}
-.mr-blogo{height:64px;max-width:200px;object-fit:contain;display:block}
-.mr-binit{height:60px;min-width:60px;padding:0 14px;border-radius:12px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;letter-spacing:.02em}
-.mr-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gd)}
-.mr h1{margin:6px 0 2px;font-size:34px;line-height:1.15;letter-spacing:-.02em;color:var(--ink)}
-.mr-month{font-size:20px;font-weight:600;color:var(--ink)}
-.mr-meta{margin-top:14px;color:var(--mut);font-size:13px}
-.mr h2{display:flex;align-items:baseline;gap:10px;margin:0 0 18px;font-size:19px;color:var(--ink)}
-.mr h2 span{font-family:"JetBrains Mono",monospace;font-size:13px;color:#fff;background:var(--g);border-radius:6px;padding:2px 7px}
-.mr-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:22px}
-.mr-kpi{border:1px solid var(--ln);border-radius:10px;padding:12px 14px;min-width:0}
-.mr-kpi b{display:block;font-size:22px;margin-top:4px;color:var(--ink);overflow-wrap:anywhere}
-.mr-kpi span,.mr-hint{color:var(--mut);font-size:12.5px}
-.mr-kpi.hl{background:var(--gl);border-color:transparent}
-.mr-sub{font-size:13px;font-weight:700;color:var(--ink);margin:0 0 10px}
-.mr-bars{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
-.mr-bar{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:10px;font-size:13.5px}
-.mr-bar .tr{height:12px;background:#f1f4f2;border-radius:6px;overflow:hidden}
-.mr-bar .tr i{display:block;height:100%;border-radius:6px}
-.mr-bar b{text-align:right}
-.mr-chip{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;border-radius:6px;color:#fff;font-size:11px;font-weight:800;margin-right:7px;vertical-align:middle;flex:none}
-.mr table{width:100%;border-collapse:collapse;font-size:13px}
-.mr th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700;padding:8px 8px;border-bottom:1px solid var(--ln);white-space:nowrap}
-.mr td{padding:9px 8px;border-bottom:1px solid var(--ln);color:var(--ink)}
-.mr .r{text-align:right}
-.mr-tw{overflow-x:auto}
-.mr-posts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.mr-post{border:1px solid var(--ln);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;min-width:0}
-.mr-thumb{aspect-ratio:16/9;background:#f1f4f2;position:relative;overflow:hidden}
-.mr-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.mr-thumb .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px}
-.mr-thumb .rank{position:absolute;left:10px;top:10px;background:rgba(22,33,26,.82);color:#fff;font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px}
-.mr-pb{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.mr-pd{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--mut)}
-.mr-cap{font-size:13.5px;line-height:1.45;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:0}
-.mr-post table td,.mr-post table th{padding:6px 6px}
-.mr-post tfoot td{font-weight:700;border-bottom:0}
-.mr a{color:var(--gd);text-decoration:none}
-.mr-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 32px;border-top:1px solid var(--ln);color:var(--mut);font-size:12px}
-.mr-foot img{height:20px}
-.mr-notes{font-size:12px;color:var(--mut);line-height:1.5;margin:16px 0 0;padding-left:18px}
-.mr .ps{display:none}
-.mr-empty{padding:26px;text-align:center;color:var(--mut);border:1px dashed var(--ln);border-radius:12px}
+/* Monthly report: 16:9 slide deck in the Stark template (fixed colours, the same for every brand and both themes) */
+.deck-wrap{overflow-x:auto;max-width:1120px}
+.deck{container-type:inline-size;display:flex;flex-direction:column;gap:20px;min-width:640px}
+.sl{--ol:#93a93c;--gr:#5bb542;--bl:#4889b1;--or:#eea143;--ink:#1b1f1c;--mut:#6b726d;--ln:#e4e8e4;--card:#eff3ef;
+  position:relative;width:100%;aspect-ratio:16/9;background:#fff;color:var(--ink);overflow:hidden;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 1px var(--line);
+  font-family:Arial,Helvetica,sans-serif;font-size:1.15cqw;line-height:1.35;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.deck.cap .sl{border-radius:0;box-shadow:none}
+.sl-dark{background:#000;color:#fff}
+.sl-bar{position:absolute;left:0;top:0;bottom:0;width:2cqw;background:var(--ol)}
+.sl-cv-logo{position:absolute;left:6cqw;width:22cqw;top:20cqw;height:16cqw;display:flex;align-items:center;justify-content:center}
+.sl-cv-logo img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.sl-cv-name{font-family:Jost,Arial,sans-serif;font-weight:700;font-size:3cqw;text-align:center;color:#fff;line-height:1.15}
+.sl-div{position:absolute;left:31.8cqw;top:13cqw;height:33cqw;width:.15cqw;background:#5a5a5a}
+.sl-cv-t{position:absolute;left:37.5cqw;top:24.6cqw;right:3cqw}
+.sl-cv-t b{display:block;font-family:Jost,Arial,sans-serif;font-weight:700;font-size:3.65cqw;color:var(--ol);letter-spacing:.02em;line-height:1.1}
+.sl-cv-t span{display:block;font-family:Jost,Arial,sans-serif;font-size:2.25cqw;color:#fff;margin-top:1.1cqw;letter-spacing:.02em}
+.sl-stark{position:absolute;right:1.6cqw;bottom:2.2cqw;width:6cqw}
+.sl-eb{position:absolute;left:4.3cqw;top:2.2cqw;font-size:.95cqw;font-weight:700;color:var(--gr);letter-spacing:.03em;text-transform:uppercase}
+.sl-pg{position:absolute;right:4.3cqw;top:2.2cqw;font-size:.95cqw;color:var(--mut)}
+.sl-h{position:absolute;left:4.3cqw;right:4.3cqw;top:4.1cqw;font-size:2.7cqw;font-weight:700;margin:0;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.sl-hr{position:absolute;left:4.1cqw;right:4.3cqw;top:8.9cqw;height:.2cqw;background:var(--gr)}
+.sl-ft{position:absolute;left:0;right:0;bottom:0;height:2cqw;background:linear-gradient(90deg,var(--ol) 50%,#000 50%)}
+.sl-body{position:absolute;left:4.3cqw;right:4.3cqw;top:11cqw;bottom:3.4cqw}
+.sl-dash{display:grid;grid-template-columns:repeat(4,1fr);gap:2.4cqw 2.2cqw;margin-top:6.2cqw}
+.sl-kc{background:var(--card);border-radius:.9cqw;padding:1.4cqw 1.5cqw 1.3cqw 1.9cqw;position:relative;box-shadow:.15cqw .25cqw .45cqw rgba(0,0,0,.2);overflow:hidden;min-width:0}
+.sl-kc:before{content:"";position:absolute;left:0;top:0;bottom:0;width:.45cqw;background:var(--a)}
+.sl-kc i{display:block;font-style:normal;font-size:.95cqw;font-weight:700;color:#5f6661;text-transform:uppercase}
+.sl-kc b{display:block;font-size:2.8cqw;margin:.8cqw 0 .7cqw;white-space:nowrap}
+.sl-kc span{font-size:.95cqw;color:var(--mut)}
+.sl-tb{width:100%;border-collapse:separate;border-spacing:.25cqw;font-size:1.1cqw;margin-top:1.2cqw}
+.sl-tb th{background:#141414;color:#fff;font-size:.95cqw;font-weight:700;text-transform:uppercase;padding:1.3cqw .6cqw;text-align:center}
+.sl-tb td{padding:1.35cqw .6cqw;text-align:center}
+.sl-tb tbody tr:nth-child(odd) td{background:#eef5ea}
+.sl-plat{display:grid;grid-template-columns:19cqw 1fr;gap:1.2cqw;height:100%}
+.sl-tiles{display:flex;flex-direction:column;gap:1.2cqw;min-height:0}
+.sl-tile{flex:1;border:1px solid var(--ln);border-radius:.8cqw;padding:1cqw 1.4cqw;display:flex;flex-direction:column;justify-content:center;min-height:0}
+.sl-tile i{font-style:normal;font-size:1cqw;letter-spacing:.08em;text-transform:uppercase;color:#4a524c}
+.sl-tile b{font-size:2.6cqw;margin:.3cqw 0 .5cqw;display:block;line-height:1.15}
+.sl-chg{align-self:flex-start;font-size:.95cqw;font-weight:700;border-radius:.4cqw;padding:.2cqw .6cqw;background:#e5f6e8;color:#1c7c35;font-family:"JetBrains Mono",monospace}
+.sl-chg.neg{background:#fde8e8;color:#b42318}
+.sl-chg.na{background:#f1f3f1;color:var(--mut)}
+.sl-charts{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1.2cqw;min-height:0;min-width:0}
+.sl-ch{border:1px solid var(--ln);border-radius:.8cqw;padding:1cqw 1.2cqw .6cqw;display:flex;flex-direction:column;min-height:0;min-width:0}
+.sl-ch.wide{grid-column:1/-1}
+.sl-ch h4{margin:0 0 .4cqw;font-size:.95cqw;display:flex;justify-content:space-between;gap:1cqw;color:var(--ink)}
+.sl-ch h4 span{font-weight:400;color:var(--mut)}
+.sl-ch svg{flex:1;width:100%;min-height:0;display:block}
+.sl-ch svg text{fill:#6b726d;font-family:Arial,sans-serif}
+.sl-posts{display:grid;grid-template-columns:1fr 1fr;gap:2.2cqw;height:100%;padding:0 3.5cqw}
+.sl-pc{border:1px solid var(--ln);border-radius:.9cqw;overflow:hidden;display:flex;flex-direction:column;min-height:0;min-width:0;box-shadow:0 .1cqw .3cqw rgba(0,0,0,.08)}
+.sl-im{height:19cqw;background:#f1f4f2;position:relative;flex:none;overflow:hidden}
+.sl-im img{width:100%;height:100%;object-fit:cover;display:block;position:relative}
+.sl-im .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.5cqw}
+.sl-im .rank{position:absolute;left:.8cqw;top:.8cqw;background:rgba(27,31,28,.82);color:#fff;font-size:.85cqw;font-weight:700;border-radius:.4cqw;padding:.2cqw .6cqw;z-index:1}
+.sl-pb{padding:1cqw 1.3cqw .8cqw;display:flex;flex-direction:column;gap:.5cqw;min-height:0;flex:1}
+.sl-pd{display:flex;justify-content:space-between;align-items:center;font-size:.95cqw;color:var(--mut)}
+.sl-cap{margin:0;font-size:1.05cqw;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;color:var(--ink)}
+.sl-cap.t{font-weight:700;-webkit-line-clamp:1}
+.sl-cap.t+.sl-cap{-webkit-line-clamp:2}
+.sl-pt{width:100%;border-collapse:collapse;font-size:.92cqw;margin-top:auto}
+.sl-pt th{font-size:.8cqw;text-transform:uppercase;color:var(--mut);text-align:left;padding:.4cqw .3cqw;border-bottom:1px solid var(--ln);font-weight:700}
+.sl-pt td{padding:.45cqw .3cqw;border-bottom:1px solid var(--ln);color:var(--ink)}
+.sl-pt .r{text-align:right}
+.sl-pt tfoot td{font-weight:700;border-bottom:0}
+.sl-pt a{color:inherit;text-decoration:none}
+.sl-chip{display:inline-flex;align-items:center;justify-content:center;min-width:1.5cqw;height:1.5cqw;padding:0 .3cqw;border-radius:.35cqw;color:#fff;font-size:.75cqw;font-weight:800;margin-right:.4cqw;vertical-align:middle}
+.sl-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--mut);font-size:1.3cqw;text-align:center;padding:0 6cqw}
+.sl-note{position:absolute;left:4.3cqw;right:4.3cqw;bottom:2.5cqw;font-size:.8cqw;color:var(--mut)}
+.mr-empty{padding:26px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
 .logo-prev{width:120px;height:56px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;flex:none}
 .logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
 .brand-logo{height:26px;max-width:90px;object-fit:contain;border-radius:4px;background:#fff;padding:2px}
-@media (max-width:760px){.mr section{padding:22px 18px}.mr-cover{padding:24px 18px 22px!important}.mr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-posts{grid-template-columns:1fr}.mr-bar{grid-template-columns:110px 1fr 40px}.mr h1{font-size:27px}.mr-stark{height:30px}.mr-blogo{height:48px;max-width:140px}.mr-foot{padding:14px 18px}}
-@page{size:A4;margin:12mm}
 @media print{.side,.topbar,.no-print,.sma-tabs{display:none!important}.app{display:block;background:#fff}.content{padding:0}.card{break-inside:avoid}
-  .mr-mode .page-head,.mr-mode .crumbs{display:none!important}.mr{border:0;border-radius:0;max-width:none}.mr section{padding:18px 4px}.mr-cover{padding:20px 14px!important}
-  .mr-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.mr-posts{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.mr-posts-sec{break-before:page}.mr a{color:var(--ink)}
-  .mr-tw{overflow:visible}.mr table{font-size:10.5px}.mr th{font-size:9px;white-space:normal;padding:6px 4px}.mr td{padding:6px 4px}.mr-chip{min-width:18px;height:18px;font-size:9px;margin-right:4px}
-  .mr-thumb{aspect-ratio:4/3}.mr-pb{padding:8px 9px 10px;gap:6px}.mr-cap{font-size:11px;-webkit-line-clamp:3}.mr-pd{font-size:10.5px}.mr-post td,.mr-post th{padding:4px 3px}.mr-post .pn{display:none}.mr-post .ps{display:inline}html,body{background:#fff!important}}
+  .mr-mode .page-head,.mr-mode .crumbs{display:none!important}.mr-mode .deck-wrap{max-width:none;overflow:visible}.mr-mode .deck{gap:0;min-width:0}
+  .mr-mode .sl{break-after:page;page-break-after:always;border-radius:0;box-shadow:none}html,body{background:#fff!important}}
 
 /* Public pages: homepage and login */
 .app.public{grid-template-columns:minmax(0,1fr);background:var(--bg)}
@@ -1708,61 +1724,222 @@ function mrCollect(b,month){
     add("youtube",yd.channel.title||cid,yd.channel.subscribers??null,g==null?null:g-(l||0),yd.uploads,x=>({text:x.description||x.title,title:x.title,match:x.description||"",reach:n(x.total_views),eng:sum([x.total_likes,x.total_comments])}));});
   const groups=mrGroup(posts);
   return {days,accts,posts,groups,plats:[...new Set(accts.map(a=>a.plat))]};}
-function smaMonthly(b){
+/* ----- Monthly report: data model shared by the on-screen deck, the PDF and the PowerPoint ----- */
+const SLC={ol:"93A93C",gr:"5BB542",bl:"4889B1",or:"EEA143",ink:"1B1F1C",mut:"6B726D",ln:"E4E8E4",card:"EFF3EF",line1:"2563EB",line2:"38BDF8",bar:"2563EB"};
+function mrModel(b){
   if(!SMA.month)SMA.month=mrDefaultMonth();
-  const R=mrCollect(b,SMA.month);const mName=(mrMonths().find(m=>m[0]===SMA.month)||[0,SMA.month])[1].replace(" (to date)","");
-  const today=localDay(new Date());const toDate=R.days[R.days.length-1]>=today;const lastDay=toDate?today:R.days[R.days.length-1];
+  const R=mrCollect(b,SMA.month);const month=SMA.month;const [Y,M]=month.split("-").map(Number);
+  const mName=new Date(Y,M-1,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+  const today=localDay(new Date());const days=R.days.filter(d=>d<=today);const toDate=R.days[R.days.length-1]>today;
+  const pAll=[];for(let d=new Date(Y,M-2,1);d.getMonth()===(M+10)%12;d.setDate(d.getDate()+1))pAll.push(localDay(d));
+  const prevDays=pAll.slice(0,days.length);
   const fd=k=>new Date(k+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
-  const tot=k=>R.accts.reduce((s,a)=>s+(a[k]||0),0);const totReach=tot("reach"),totEng=tot("eng");
-  const perPlat=Object.keys(MRP).map(k=>[k,R.posts.filter(p=>p.plat===k).length,R.accts.some(a=>a.plat===k)]).filter(x=>x[2]);
-  const maxP=Math.max(1,...perPlat.map(x=>x[1]));
-  const rate=(e,r)=>r?pctf(e/r):"–";const num=v=>v==null?"–":fmtInt(v);
-  const srt=list=>{const g=[...list];if(SMA.mrSort==="reach")g.sort((x,y)=>y.reach-x.reach);else if(SMA.mrSort==="eng")g.sort((x,y)=>y.eng-x.eng);else g.sort((x,y)=>x.published<y.published?-1:1);return g;};
-  const isYT=g=>g.posts[0].plat==="youtube";
-  const secs=[["Facebook & Instagram posts",R.groups.filter(g=>!isYT(g)&&g.posts.some(p=>p.plat!=="linkedin"))],["YouTube videos",R.groups.filter(isYT)],["LinkedIn posts",R.groups.filter(g=>g.posts.every(p=>p.plat==="linkedin"))]]
-    .map(([title,list])=>({title,all:srt(list),rank:[...list].sort((x,y)=>y.eng-x.eng)}));
-  const hasFBIG=R.plats.includes("facebook")||R.plats.includes("instagram");
-  const multi=R.groups.filter(g=>g.posts.length>1).length;
-  const initials=b.name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
-  const card=(g,S)=>{const rk=S.rank.indexOf(g)+1;const plats=[...new Set(g.posts.map(p=>p.plat))];
-    return `<article class="mr-post"><div class="mr-thumb"><div class="ph">${plats.map(mrChip).join("")}</div>${(()=>{const srcs=(g.thumb?[thumbUrl(b.id,g.thumb)]:[]).concat(g.pics);return srcs.length?`<img src="${esc(srcs[0])}" data-alt-src="${esc(srcs.slice(1).join(" "))}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:relative">`:"";})()}${rk<=3&&S.rank.length>3?`<span class="rank">Top ${rk} by engagement</span>`:""}</div>
-      <div class="mr-pb"><div class="mr-pd"><span>${fd(localDay(new Date(g.published)))}</span><span>${plats.map(mrChip).join("")}</span></div>
-      ${g.title?`<p class="mr-cap" style="font-weight:700;-webkit-line-clamp:2">${esc(g.title)}</p>`:""}<p class="mr-cap">${esc(g.text||"(No caption)")}</p>
-      <div class="mr-tw"><table><thead><tr><th><span class="pn">Platform</span></th><th class="r">Reach</th><th class="r"><span class="pn">Engagement</span><span class="ps">Eng.</span></th><th class="r">Rate</th></tr></thead><tbody>
-      ${g.posts.map(p=>`<tr><td style="white-space:nowrap">${mrChip(p.plat)}<span class="pn">${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${MRP[p.plat].n}</a>`:MRP[p.plat].n}</span></td><td class="r">${num(p.reach)}</td><td class="r">${num(p.eng)}</td><td class="r">${p.reach?rate(p.eng,p.reach):"–"}</td></tr>`).join("")}</tbody>
-      ${g.posts.length>1?`<tfoot><tr><td><span class="pn">All platforms</span><span class="ps">Total</span></td><td class="r">${g.hasReach?fmtInt(g.reach):"–"}</td><td class="r">${fmtInt(g.eng)}</td><td class="r">${g.reach?rate(g.eng,g.reach):"–"}</td></tr></tfoot>`:""}</table></div></div></article>`;};
+  const sd=k=>new Date(k+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+  const period=days.length?`${sd(days[0])} – ${fd(days[days.length-1])}`:mName;
+  const S=(daily,f,ds)=>{let any=false,s=0;(ds||days).forEach(k=>{const v=((daily||{})[k]||{})[f];if(v!=null){any=true;s+=+v||0;}});return any?s:null;};
+  const SM=(daily,fs,ds)=>{const v=fs.map(f=>S(daily,f,ds));return v.every(x=>x==null)?null:v.reduce((a,x)=>a+(x||0),0);};
+  const cut=daily=>{const has=days.filter(k=>(daily||{})[k]&&Object.values(daily[k]).some(v=>v!=null));return has.length?days.filter(k=>k<=has[has.length-1]):days;};
+  let CD=days;const A=(daily,fs)=>{CD=cut(daily);return CD.map(k=>fs.reduce((a,f)=>a+(+(((daily||{})[k]||{})[f])||0),0));};
+  const chg=(c,p)=>c==null||p==null||!p?null:(c-p)/p;
+  const plats=[];
+  const md=SMA.meta[b.id]||{},ld=SMA.data[b.id]||{};
+  if(b.meta.page_connected||md.fb_daily){const d=md.fb_daily||{};
+    const views=S(d,"views"),reach=S(d,"reach"),eng=S(d,"engagements"),fol=S(d,"follows"),unf=S(d,"unfollows");
+    plats.push({key:"facebook",name:"Facebook",reach,impr:views,eng,videoViews:S(d,"video_views"),followers:(md.page||{}).followers??null,gained:fol==null?null:fol-(unf||0),
+      tiles:[["Views",views,chg(views,S(d,"views",prevDays))],["Reach",reach,chg(reach,S(d,"reach",prevDays))],["Engagements",eng,chg(eng,S(d,"engagements",prevDays))]],
+      charts:[{title:"Views and reach per day",kind:"line",series:[{name:"Views",color:SLC.line1,values:A(d,["views"])},{name:"Reach",color:SLC.line2,values:A(d,["reach"])}]},
+        {title:"Engagements per day",kind:"bar",series:[{name:"Engagements",color:SLC.bar,values:A(d,["engagements"])}]},
+        {title:"New followers per day",kind:"bar",wide:true,series:[{name:"New followers",color:SLC.bar,values:A(d,["follows"])}]}],days:CD});}
+  if(b.meta.page_connected&&b.meta.ig_id||md.ig_daily){const d=md.ig_daily||{};
+    const views=S(d,"views"),reach=S(d,"reach"),eng=S(d,"interactions");
+    plats.push({key:"instagram",name:"Instagram",reach,impr:views,eng,followers:(md.ig||{}).followers??null,gained:S(d,"followers_gained"),
+      tiles:[["Views",views,chg(views,S(d,"views",prevDays))],["Reach",reach,chg(reach,S(d,"reach",prevDays))],["Engagements",eng,chg(eng,S(d,"interactions",prevDays))]],
+      charts:[{title:"Views and reach per day",kind:"line",series:[{name:"Views",color:SLC.line1,values:A(d,["views"])},{name:"Reach",color:SLC.line2,values:A(d,["reach"])}]},
+        {title:"Engagements per day",kind:"bar",series:[{name:"Engagements",color:SLC.bar,values:A(d,["interactions"])}]},
+        {title:"New followers per day",kind:"bar",wide:true,note:"Instagram keeps the last 30 days",series:[{name:"New followers",color:SLC.bar,values:A(d,["followers_gained"])}]}],days:CD});}
+  Object.entries(SMA.ytAll[b.id]||{}).forEach(([cid,yd])=>{if(!yd.channel)return;const d=yd.daily||{};
+    const views=S(d,"views"),wm=S(d,"watch_minutes"),likes=S(d,"likes"),eng=SM(d,["likes","comments","shares"]),g=S(d,"subs_gained"),l=S(d,"subs_lost");
+    const multi=Object.keys(SMA.ytAll[b.id]).length>1;
+    plats.push({key:"youtube",name:"YouTube"+(multi?" · "+yd.channel.title:""),reach:null,impr:views,videoViews:views,eng,followers:yd.channel.subscribers??null,gained:g==null?null:g-(l||0),
+      tiles:[["Views",views,chg(views,S(d,"views",prevDays))],["Watch time (hours)",wm==null?null:wm/60,chg(wm,S(d,"watch_minutes",prevDays))],["Likes",likes,chg(likes,S(d,"likes",prevDays))]],
+      charts:[{title:"Views per day",kind:"line",series:[{name:"Views",color:SLC.line1,values:A(d,["views"])}]},
+        {title:"Watch hours per day",kind:"bar",series:[{name:"Watch hours",color:SLC.bar,values:A(d,["watch_minutes"]).map(v=>Math.round(v/6)/10)}]},
+        {title:"New subscribers per day",kind:"bar",wide:true,series:[{name:"New subscribers",color:SLC.bar,values:A(d,["subs_gained"])}]}],days:CD});});
+  if(b.linkedin.connected&&b.linkedin.org_urn||ld.daily){const d=ld.daily||{};
+    const impr=S(d,"impressions"),reach=S(d,"unique_impressions"),eng=SM(d,["clicks","reactions","comments","shares"]),gained=SM(d,["followers_organic","followers_paid"]);
+    plats.push({key:"linkedin",name:"LinkedIn",reach,impr,eng,clicks:S(d,"clicks"),followers:ld.followers_total??null,gained,
+      tiles:[["Impressions",impr,chg(impr,S(d,"impressions",prevDays))],["Reach",reach,chg(reach,S(d,"unique_impressions",prevDays))],["Engagements",eng,chg(eng,SM(d,["clicks","reactions","comments","shares"],prevDays))]],
+      charts:[{title:"Impressions and reach per day",kind:"line",series:[{name:"Impressions",color:SLC.line1,values:A(d,["impressions"])},{name:"Reach",color:SLC.line2,values:A(d,["unique_impressions"])}]},
+        {title:"Engagements per day",kind:"bar",series:[{name:"Engagements",color:SLC.bar,values:A(d,["clicks","reactions","comments","shares"])}]},
+        {title:"New followers per day",kind:"bar",wide:true,series:[{name:"New followers",color:SLC.bar,values:A(d,["followers_organic","followers_paid"])}]}],days:CD});}
+  const tot=(k,ps=plats)=>{const v=ps.map(p=>p[k]).filter(x=>x!=null);return v.length?v.reduce((a,x)=>a+x,0):null;};
+  const rates=plats.map(p=>p.eng!=null&&(p.reach||p.impr)?p.eng/(p.reach||p.impr):null).filter(x=>x!=null);
+  const cards=[["Reach",tot("reach"),SLC.gr],["Impressions",tot("impr"),SLC.bl],["Engagements",tot("eng"),SLC.or],["Video views",tot("videoViews"),SLC.gr],
+    ["Link clicks",tot("clicks"),SLC.gr,"LinkedIn only"],["Followers gained",tot("gained"),SLC.bl],["Posts published",R.posts.length,SLC.or],["Avg. engagement rate",rates.length?rates.reduce((a,x)=>a+x,0)/rates.length:null,SLC.gr,null,true]];
+  const srt=list=>{const g=[...list];if(SMA.mrSort==="reach")g.sort((x,y)=>y.reach-x.reach);else if(SMA.mrSort==="eng")g.sort((x,y)=>y.eng-x.eng);else g.sort((x,y)=>x.published<y.published?-1:1);return SMA.mrLimit?g.slice(0,SMA.mrLimit):g;};
+  const isYT=g=>g.posts[0].plat==="youtube",isLI=g=>g.posts.every(p=>p.plat==="linkedin");
+  const social=R.groups.filter(g=>!isYT(g)&&!isLI(g)),yts=R.groups.filter(isYT),lis=R.groups.filter(isLI);
+  const rankOf=list=>{const r=[...list].sort((x,y)=>y.eng-x.eng);return g=>list.length>3?r.indexOf(g)+1:0;};
+  const slides=[{type:"cover"},{type:"dash",cards,period},{type:"table",rows:plats}];
+  const postSlides=(title,list,kind)=>{const rk=rankOf(list);const sh=srt(list);const n=Math.max(1,Math.ceil(sh.length/2));
+    for(let i=0;i<n;i++)slides.push({type:"posts",title,kind,cards:sh.slice(i*2,i*2+2).map(g=>({g,rank:rk(g)})),page:i+1,pages:n,empty:!sh.length});};
+  plats.filter(p=>p.key==="facebook"||p.key==="instagram").forEach(p=>slides.push({type:"plat",p}));
+  if(plats.some(p=>p.key==="facebook"||p.key==="instagram")||social.length)postSlides("Post-wise performance - Facebook & Instagram",social,"social");
+  plats.filter(p=>p.key==="youtube").forEach(p=>slides.push({type:"plat",p}));
+  if(plats.some(p=>p.key==="youtube"))postSlides("Post-wise performance - YouTube",yts,"yt");
+  plats.filter(p=>p.key==="linkedin").forEach(p=>slides.push({type:"plat",p}));
+  if(plats.some(p=>p.key==="linkedin"))postSlides("Post-wise performance - LinkedIn",lis,"li");
+  slides.push({type:"thanks"});
+  return {R,b,mName,period,toDate,days,plats,slides,file:`${b.name} - Social Media Report - ${mName}`};
+}
+const mrFmt=(v,pct)=>v==null?"–":pct?(v*100).toFixed(2)+"%":compact(v);
+const mrChg=c=>c==null?["na","–"]:[c<0?"neg":"",(c>0?"+":"")+(Math.abs(c)>=10?Math.round(c*100).toLocaleString("en-IN"):(c*100).toFixed(c*100%1&&Math.abs(c)<.1?1:0))+"%"];
+function slChart(c,days,W,H){
+  const L=56,Rr=12,T=c.series.length>1?30:12,B=30;const vals=c.series.flatMap(s=>s.values);const{step,top}=niceTicks(Math.max(1,...vals));
+  const n=days.length,x=c.kind==="bar"?(i=>L+(i+.5)*(W-L-Rr)/Math.max(1,n)):(i=>L+(n<=1?(W-L-Rr)/2:i*(W-L-Rr)/(n-1))),y=v=>T+(H-T-B)*(1-v/top);
+  let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(c.title)}">`;
+  for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e8e4"/><text x="${L-8}" y="${y(v)+6}" text-anchor="end" font-size="17">${compact(v)}</text>`;
+  const every=Math.max(1,Math.ceil(n/(W>1000?10:5)));days.forEach((d,i)=>{if(i%every===0)s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="17">${fmtDay(d)}</text>`;});
+  if(c.series.length>1)c.series.forEach((se,k)=>{s+=`<rect x="${L+k*130}" y="4" width="14" height="14" rx="3" fill="#${se.color}"/><text x="${L+20+k*130}" y="16" font-size="16">${esc(se.name)}</text>`;});
+  if(c.kind==="bar"){const bw=(W-L-Rr)/Math.max(1,n),w=Math.max(2,bw*.66);c.series[0].values.forEach((v,i)=>{if(v>0)s+=`<rect x="${x(i)-w/2}" y="${y(v)}" width="${w}" height="${y(0)-y(v)}" rx="2" fill="#${c.series[0].color}"/>`;});}
+  else c.series.forEach(se=>{const pts=se.values.map((v,i)=>[x(i),y(v)]);if(!pts.length)return;const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+    s+=`<path d="${d}L${pts[pts.length-1][0]} ${y(0)}L${pts[0][0]} ${y(0)}Z" fill="#${se.color}" fill-opacity=".18"/><path d="${d}" fill="none" stroke="#${se.color}" stroke-width="3" stroke-linejoin="round"/>`;
+    if(pts.length<=31)pts.forEach(p=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.6" fill="#${se.color}"/>`;});});
+  return s+"</svg>";}
+const slChip=k=>`<span class="sl-chip" style="background:${MRP[k].c}">${MRP[k].a}</span>`;
+const slHead=(eb,title,pg)=>`<div class="sl-eb">${eb}</div>${pg?`<div class="sl-pg">${pg}</div>`:""}<h3 class="sl-h">${esc(title)}</h3><div class="sl-hr"></div><div class="sl-ft"></div>`;
+function slPostCard(b,M,c,kind){const g=c.g;const plats=[...new Set(g.posts.map(p=>p.plat))];const num=v=>v==null?"–":fmtInt(v);const rate=(e,r)=>r?pctf(e/r):"–";
+  const srcs=(g.thumb?[thumbUrl(b.id,g.thumb)]:[]).concat(g.pics);
+  return `<div class="sl-pc"><div class="sl-im"><div class="ph">${plats.map(slChip).join("")}</div>${srcs.length?`<img src="${esc(srcs[0])}" data-alt-src="${esc(srcs.slice(1).join(" "))}" alt="" referrerpolicy="no-referrer">`:""}${c.rank&&c.rank<=3?`<span class="rank">Top ${c.rank} by engagement</span>`:""}</div>
+    <div class="sl-pb"><div class="sl-pd"><span>${new Date(g.published).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</span><span>${plats.map(slChip).join("")}</span></div>
+    ${g.title?`<p class="sl-cap t">${esc(g.title)}</p>`:""}<p class="sl-cap">${esc(g.text||"(No caption)")}</p>
+    <table class="sl-pt"><thead><tr><th>Platform</th><th class="r">${kind==="yt"?"Views":"Reach"}</th><th class="r">Engagement</th><th class="r">Rate</th></tr></thead><tbody>
+    ${g.posts.map(p=>`<tr><td style="white-space:nowrap">${slChip(p.plat)}${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${MRP[p.plat].n}</a>`:MRP[p.plat].n}</td><td class="r">${num(p.reach)}</td><td class="r">${num(p.eng)}</td><td class="r">${p.reach?rate(p.eng,p.reach):"–"}</td></tr>`).join("")}</tbody>
+    ${g.posts.length>1?`<tfoot><tr><td>All platforms</td><td class="r">${g.hasReach?fmtInt(g.reach):"–"}</td><td class="r">${fmtInt(g.eng)}</td><td class="r">${g.reach?rate(g.eng,g.reach):"–"}</td></tr></tfoot>`:""}</table></div></div>`;}
+function slHTML(b,M,s){
+  if(s.type==="cover"||s.type==="thanks")return `<section class="sl sl-dark"><div class="sl-bar"></div>
+    ${s.type==="cover"?`<div class="sl-cv-logo">${b.logo?`<img src="${logoUrl(b)}" alt="${esc(b.name)}">`:`<div class="sl-cv-name">${esc(b.name)}</div>`}</div>`:""}<div class="sl-div"></div>
+    <div class="sl-cv-t">${s.type==="cover"?`<b>SOCIAL MEDIA REPORT</b><span>${esc(M.mName.toUpperCase())}${M.toDate?" (TO DATE)":""}</span>`:`<b>THANK YOU</b>`}</div>${s.type==="cover"?`<img class="sl-stark" src="stark-logo.png" alt="Stark">`:""}</section>`;
+  if(s.type==="dash")return `<section class="sl">${slHead("02 / Core metrics","Overall Performance dashboard")}<div class="sl-body"><div class="sl-dash">
+    ${s.cards.map(([l,v,c,note,pct])=>`<div class="sl-kc" style="--a:#${c}"><i>${l}</i><b>${mrFmt(v,pct)}</b><span>${v==null&&note?note:"Reporting period: "+esc(s.period)}</span></div>`).join("")}</div></div></section>`;
+  if(s.type==="table")return `<section class="sl">${slHead("03 / Channel analysis","Platform-wise performance")}<div class="sl-body"><table class="sl-tb"><thead><tr><th>Platform</th><th>Reach</th><th>Impressions</th><th>Engagements</th><th>Eng. rate</th><th>Lifetime followers</th></tr></thead><tbody>
+    ${s.rows.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.reach==null?"–":fmtInt(p.reach)}</td><td>${p.impr==null?"–":fmtInt(p.impr)}</td><td>${p.eng==null?"–":fmtInt(p.eng)}</td><td>${p.eng!=null&&(p.reach||p.impr)?pctf(p.eng/(p.reach||p.impr)):"–"}</td><td>${p.followers==null?"–":fmtInt(p.followers)}</td></tr>`).join("")||`<tr><td colspan="6">No platform connected</td></tr>`}</tbody></table></div>
+    <div class="sl-note">Reporting period: ${esc(M.period)}. Impressions are views for Facebook, Instagram and YouTube. Engagement rate is engagements / reach (YouTube: / views).</div></section>`;
+  if(s.type==="plat"){const p=s.p;return `<section class="sl">${slHead("03 / Channel analysis","Platform-wise performance - "+p.name)}<div class="sl-body"><div class="sl-plat">
+    <div class="sl-tiles">${p.tiles.map(([l,v,c])=>{const[cl,tx]=mrChg(c);return `<div class="sl-tile"><i>${l}</i><b>${mrFmt(v)}</b><span class="sl-chg ${cl}" title="Change vs the same days of the previous month">${tx}</span></div>`;}).join("")}</div>
+    <div class="sl-charts">${p.charts.map(c=>`<div class="sl-ch${c.wide?" wide":""}"><h4>${c.title}${c.note?`<span>${c.note}</span>`:""}</h4>${slChart(c,p.days,c.wide?1376:652,332)}</div>`).join("")}</div></div></div></section>`;}
+  if(s.type==="posts")return `<section class="sl">${slHead("03 / Channel analysis",s.title,s.pages>1?`${s.page} / ${s.pages}`:"")}<div class="sl-body">
+    ${s.empty?`<div class="sl-empty">Nothing was published here in ${esc(M.mName)}.</div>`:`<div class="sl-posts">${s.cards.map(c=>slPostCard(b,M,c,s.kind)).join("")}</div>`}</div></section>`;
+  return "";
+}
+function smaMonthly(b){
+  const M=mrModel(b);SMA.mrModel=M;
   const toolbar=`<div class="toolbar no-print" style="margin:4px 0 14px">
     <select class="select" id="mr-month" aria-label="Report month">${mrMonths().map(([k,l])=>`<option value="${k}" ${k===SMA.month?"selected":""}>${l}</option>`).join("")}</select>
     <select class="select" id="mr-sort" aria-label="Sort posts"><option value="date" ${SMA.mrSort==="date"?"selected":""}>Posts by date</option><option value="eng" ${SMA.mrSort==="eng"?"selected":""}>Posts by engagement</option><option value="reach" ${SMA.mrSort==="reach"?"selected":""}>Posts by reach</option></select>
     <select class="select" id="mr-limit" aria-label="Posts shown">${[[0,"All posts"],[10,"Top 10"],[20,"Top 20"]].map(([v,l])=>`<option value="${v}" ${SMA.mrLimit===v?"selected":""}>${l}</option>`).join("")}</select>
-    <span class="spacer" style="flex:1"></span><button class="btn" type="button" id="mr-csv">Copy posts (CSV)</button><button class="btn primary" type="button" id="mr-print">Print / Save PDF</button></div>
+    <span class="spacer" style="flex:1"></span><button class="btn" type="button" id="mr-csv">Copy posts (CSV)</button><button class="btn" type="button" id="mr-ppt">Download PPT</button><button class="btn primary" type="button" id="mr-pdf">Download PDF</button></div>
     <textarea id="mr-out" class="no-print" hidden rows="4" style="width:100%;margin-bottom:12px" aria-label="CSV output"></textarea>`;
-  if(!R.accts.length)return toolbar+`<div class="card"><p class="empty">No platform is connected for ${esc(b.name)} yet. Connect Facebook, Instagram, LinkedIn or YouTube in <a href="#sma-${b.id}-settings">Settings</a>, sync, and the monthly report fills in automatically.</p></div>`;
-  return toolbar+`<div class="mr" id="mr">
-    <section class="mr-cover"><div class="mr-logos"><img class="mr-stark" src="stark-logo.png" alt="Stark">${b.logo?`<img class="mr-blogo" src="${logoUrl(b)}" alt="${esc(b.name)}">`:`<div class="mr-binit" aria-hidden="true">${esc(initials)}</div>`}</div>
-      <div class="mr-eyebrow">Monthly social media report</div><h1>${esc(b.name)}</h1><div class="mr-month">${esc(mName)}</div>
-      <div class="mr-meta">Period: ${fd(R.days[0])} – ${fd(lastDay)}${toDate?" (month to date)":""} · Prepared by Stark · Generated ${fd(today)}</div></section>
-    <section><h2><span>01</span>Summary</h2>
-      <div class="mr-kpis"><div class="mr-kpi hl"><span>Platforms</span><b>${R.plats.length}</b><span>${R.plats.map(k=>MRP[k].n).join(", ")}</span></div>
-        <div class="mr-kpi hl"><span>Posts published</span><b>${fmtInt(R.posts.length)}</b><span>${R.groups.length} unique post${R.groups.length===1?"":"s"}${multi?`, ${multi} cross-posted`:""}</span></div>
-        <div class="mr-kpi"><span>Post reach</span><b>${R.accts.some(a=>a.reach!=null)?compact(totReach):"–"}</b><span>Sum across platforms</span></div>
-        <div class="mr-kpi"><span>Engagements</span><b>${compact(totEng)}</b><span>Reactions, comments, shares${R.plats.includes("instagram")?", saves":""}</span></div>
-        <div class="mr-kpi"><span>Engagement rate</span><b>${rate(totEng,totReach)}</b><span>Engagements / reach</span></div></div>
-      <div class="mr-sub">Posts per platform</div>
-      <div class="mr-bars">${perPlat.map(([k,c])=>`<div class="mr-bar"><span style="display:flex;align-items:center">${mrChip(k)}${MRP[k].n}</span><span class="tr"><i style="width:${Math.max(c?3:0,c/maxP*100)}%;background:${MRP[k].c}"></i></span><b>${c}</b></div>`).join("")}</div>
-      <div class="mr-sub">Platform overview</div>
-      <div class="mr-tw"><table><thead><tr><th>Platform</th><th>Account</th><th class="r">Posts</th><th class="r">Post reach</th><th class="r">Engagements</th><th class="r">Eng. rate</th><th class="r">Followers</th><th class="r">New followers</th></tr></thead><tbody>
-        ${R.accts.map(a=>`<tr><td style="white-space:nowrap">${mrChip(a.plat)}${MRP[a.plat].n}</td><td>${esc(a.account)}</td><td class="r">${a.posts}</td><td class="r">${num(a.reach)}</td><td class="r">${fmtInt(a.eng)}</td><td class="r">${rate(a.eng,a.reach)}</td><td class="r">${num(a.followers)}</td><td class="r">${a.gained==null?"–":(a.gained>0?"+":"")+fmtInt(a.gained)}</td></tr>`).join("")}</tbody>
-        <tfoot><tr><td colspan="2"><b>Total</b></td><td class="r"><b>${R.posts.length}</b></td><td class="r"><b>${R.accts.some(a=>a.reach!=null)?fmtInt(totReach):"–"}</b></td><td class="r"><b>${fmtInt(totEng)}</b></td><td class="r"><b>${rate(totEng,totReach)}</b></td><td class="r"></td><td class="r"></td></tr></tfoot></table></div></section>
-    ${secs.filter(S=>S.all.length||(S.title.startsWith("Facebook")&&hasFBIG)||(S.title.startsWith("YouTube")&&R.plats.includes("youtube"))).map((S,i)=>{const shown=SMA.mrLimit?S.all.slice(0,SMA.mrLimit):S.all;
-      return `<section class="mr-posts-sec"><h2><span>0${i+2}</span>${S.title}</h2>
-      <p class="mr-hint" style="margin:-8px 0 16px">${shown.length<S.all.length?`Showing ${shown.length} of ${S.all.length}. `:""}${S.title.startsWith("Facebook")&&S.all.length?"A post shared on both Facebook and Instagram is shown once, with its reach and engagement on each platform.":""}</p>
-      ${shown.length?`<div class="mr-posts">${shown.map(g=>card(g,S)).join("")}</div>`:`<div class="mr-empty">Nothing was published here in ${esc(mName)}.</div>`}</section>`;}).join("")}
-    <section style="border-top:0;padding-top:0">
-      <ul class="mr-notes" style="margin-top:0"><li>Reach: Facebook and Instagram post reach (unique accounts); LinkedIn unique impressions; YouTube video views (lifetime, at the last sync).</li>
-        <li>Engagement: Facebook reactions, comments and shares; Instagram total interactions (likes, comments, saves, shares); LinkedIn clicks, reactions, comments and shares; YouTube likes and comments.</li>
-        <li>Post statistics are as of the last sync${[b.meta.last_sync,b.linkedin.last_sync,b.youtube.last_sync].filter(Boolean).length?" ("+fd(localDay(new Date([b.meta.last_sync,b.linkedin.last_sync,b.youtube.last_sync].filter(Boolean).sort().pop())))+")":""}. Post history is kept from the first sync, so months before it may be incomplete.</li></ul></section>
-    <div class="mr-foot"><img src="stark-logo.png" alt="Stark"><span>${esc(b.name)} · ${esc(mName)} · Social media report</span></div></div>`;
+  if(!M.plats.length&&!M.R.posts.length)return toolbar+`<div class="card"><p class="empty">No platform is connected for ${esc(b.name)} yet. Connect Facebook, Instagram, LinkedIn or YouTube in <a href="#sma-${b.id}-settings">Settings</a>, sync, and the monthly report fills in automatically.</p></div>`;
+  return toolbar+`<p class="hint no-print" style="margin:-4px 0 12px">${M.slides.length} slides · ${esc(M.period)}${M.toDate?" (month to date)":""}. Statistics are as of the last sync.</p><div class="deck-wrap"><div class="deck" id="mr-deck">${M.slides.map(s=>slHTML(b,M,s)).join("")}</div></div>`;
+}
+const MR_LIBS={};
+function mrLoad(src){return MR_LIBS[src]||(MR_LIBS[src]=new Promise((ok,bad)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>{delete MR_LIBS[src];bad(new Error("Could not load the export library. Check your connection and try again."));};document.head.appendChild(s);}));}
+async function mrImgsReady(root){await Promise.all([...root.querySelectorAll("img")].map(im=>im.complete?0:new Promise(r=>{im.addEventListener("load",r,{once:true});im.addEventListener("error",r,{once:true});setTimeout(r,8000);})));try{await document.fonts.ready;}catch(e){}}
+async function mrPDF(M,btn){
+  const deck=$("mr-deck");if(!deck)return;
+  await Promise.all([mrLoad("vendor/html2canvas-pro.min.js"),mrLoad("vendor/jspdf.umd.min.js")]);
+  await mrImgsReady(deck);deck.classList.add("cap");
+  try{const{jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:"landscape",unit:"pt",format:[960,540],compress:true});const sl=[...deck.querySelectorAll(".sl")];
+    for(let i=0;i<sl.length;i++){btn.textContent=`Creating PDF ${i+1}/${sl.length}…`;
+      const cv=await html2canvas(sl[i],{scale:1920/sl[i].offsetWidth,useCORS:true,backgroundColor:"#ffffff",logging:false});
+      if(i)pdf.addPage([960,540],"landscape");pdf.addImage(cv.toDataURL("image/jpeg",.9),"JPEG",0,0,960,540,undefined,"FAST");}
+    pdf.save(M.file+".pdf");}
+  finally{deck.classList.remove("cap");}
+}
+function mrImgData(srcs,boxW,boxH,mode){return new Promise(res=>{const list=srcs.filter(Boolean);
+  const tryOne=i=>{if(i>=list.length)return res(null);const im=new Image();im.crossOrigin="anonymous";im.referrerPolicy="no-referrer";
+    im.onload=()=>{try{const nw=im.naturalWidth||400,nh=im.naturalHeight||400;let cv=document.createElement("canvas"),ctx;
+      if(mode==="cover"){cv.width=Math.round(boxW*160);cv.height=Math.round(boxH*160);ctx=cv.getContext("2d");const s=Math.max(cv.width/nw,cv.height/nh);ctx.drawImage(im,(cv.width-nw*s)/2,(cv.height-nh*s)/2,nw*s,nh*s);res({data:cv.toDataURL("image/jpeg",.86),w:boxW,h:boxH});}
+      else{const s=Math.min(1,900/Math.max(nw,nh));cv.width=Math.round(nw*s);cv.height=Math.round(nh*s);ctx=cv.getContext("2d");ctx.drawImage(im,0,0,cv.width,cv.height);const r=Math.min(boxW/nw,boxH/nh);res({data:cv.toDataURL("image/png"),w:nw*r,h:nh*r});}}catch(e){tryOne(i+1);}};
+    im.onerror=()=>tryOne(i+1);im.src=list[i];};tryOne(0);});}
+async function mrPPT(M,btn){
+  await mrLoad("vendor/pptxgen.bundle.js");const b=M.b;
+  const pptx=new PptxGenJS();pptx.layout="LAYOUT_16x9";pptx.author="Stark";pptx.company="Stark";pptx.title=M.file;
+  const F="Arial",J="Jost";const C=SLC;
+  const head=(s,eb,title,pg)=>{s.addText(eb.toUpperCase(),{x:.43,y:.14,w:6,h:.2,fontFace:F,fontSize:7,bold:true,color:C.gr,margin:0});
+    if(pg)s.addText(pg,{x:7.6,y:.14,w:1.97,h:.2,fontFace:F,fontSize:7,color:C.mut,align:"right",margin:0});
+    s.addText(title,{x:.43,y:.36,w:9.14,h:.45,fontFace:F,fontSize:19.5,bold:true,color:C.ink,margin:0,fit:"shrink"});
+    s.addShape(pptx.shapes.LINE,{x:.41,y:.89,w:9.16,h:0,line:{color:C.gr,width:1.5}});
+    s.addShape(pptx.shapes.RECTANGLE,{x:0,y:5.425,w:5,h:.2,fill:{color:C.ol},line:{color:C.ol,width:0}});
+    s.addShape(pptx.shapes.RECTANGLE,{x:5,y:5.425,w:5,h:.2,fill:{color:"000000"},line:{color:"000000",width:0}});};
+  const chip=(s,k,x,y)=>{s.addText(MRP[k].a,{x,y,w:.21,h:.15,shape:pptx.shapes.ROUNDED_RECTANGLE,rectRadius:.03,fill:{color:MRP[k].c.slice(1)},color:"FFFFFF",fontSize:5.5,bold:true,fontFace:F,align:"center",valign:"middle",margin:0});};
+  const logo=b.logo?await mrImgData([logoUrl(b)],2.2,1.6,"contain"):null;const stark=await mrImgData(["stark-logo.png"],.6,.25,"contain");
+  const imgs={};let n=0;const all=M.slides.filter(s=>s.type==="posts").flatMap(s=>s.cards);
+  for(const c of all){n++;btn.textContent=`Preparing images ${n}/${all.length}…`;const g=c.g;imgs[g.t+"|"+g.posts[0].id]=await mrImgData((g.thumb?[thumbUrl(b.id,g.thumb)]:[]).concat(g.pics),4.11,1.9,"cover");}
+  btn.textContent="Building slides…";
+  for(const sd of M.slides){const s=pptx.addSlide();
+    if(sd.type==="cover"||sd.type==="thanks"){s.background={color:"000000"};
+      s.addShape(pptx.shapes.RECTANGLE,{x:0,y:0,w:.2,h:5.625,fill:{color:C.ol},line:{color:C.ol,width:0}});
+      s.addShape(pptx.shapes.LINE,{x:3.18,y:1.3,w:0,h:3.3,line:{color:"5A5A5A",width:1}});
+      if(sd.type==="cover"){if(logo)s.addImage({data:logo.data,x:.6+(2.2-logo.w)/2,y:2+(1.6-logo.h)/2,w:logo.w,h:logo.h});
+        else s.addText(b.name,{x:.6,y:2,w:2.2,h:1.6,fontFace:J,fontSize:22,bold:true,color:"FFFFFF",align:"center",valign:"middle"});
+        s.addText("SOCIAL MEDIA REPORT",{x:3.75,y:2.32,w:6,h:.5,fontFace:J,fontSize:26,bold:true,color:C.ol,margin:0});
+        s.addText(M.mName.toUpperCase()+(M.toDate?" (TO DATE)":""),{x:3.75,y:2.86,w:6,h:.36,fontFace:J,fontSize:16,color:"FFFFFF",margin:0});
+        if(stark)s.addImage({data:stark.data,x:9.82-stark.w,y:5.2-stark.h,w:stark.w,h:stark.h});}
+      else s.addText("THANK YOU",{x:3.75,y:2.5,w:6,h:.6,fontFace:J,fontSize:26,bold:true,color:C.ol,margin:0});
+      continue;}
+    if(sd.type==="dash"){head(s,"02 / Core metrics","Overall Performance dashboard");const cw=(9.14-3*.22)/4;
+      sd.cards.forEach(([l,v,c,note,pct],i)=>{const x=.43+(i%4)*(cw+.22),y=1.72+Math.floor(i/4)*1.42;
+        s.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x,y,w:cw,h:1.18,rectRadius:.08,fill:{color:C.card},line:{color:C.card,width:0},shadow:{type:"outer",blur:3,offset:1.5,angle:45,color:"000000",opacity:.25}});
+        s.addShape(pptx.shapes.RECTANGLE,{x,y:y+.03,w:.045,h:1.12,fill:{color:c},line:{color:c,width:0}});
+        s.addText(l.toUpperCase(),{x:x+.19,y:y+.12,w:cw-.3,h:.2,fontFace:F,fontSize:7,bold:true,color:"5F6661",margin:0});
+        s.addText(mrFmt(v,pct),{x:x+.19,y:y+.36,w:cw-.3,h:.4,fontFace:F,fontSize:20,bold:true,color:C.ink,margin:0});
+        s.addText(v==null&&note?note:"Reporting period: "+sd.period,{x:x+.19,y:y+.86,w:cw-.25,h:.2,fontFace:F,fontSize:6.5,color:C.mut,margin:0});});continue;}
+    if(sd.type==="table"){head(s,"03 / Channel analysis","Platform-wise performance");
+      const hd=["Platform","Reach","Impressions","Engagements","Eng. rate","Lifetime followers"].map(t=>({text:t.toUpperCase(),options:{bold:true,color:"FFFFFF",fill:{color:"141414"},fontSize:7.5,align:"center",valign:"middle"}}));
+      const rows=sd.rows.map((p,i)=>[p.name,p.reach==null?"–":fmtInt(p.reach),p.impr==null?"–":fmtInt(p.impr),p.eng==null?"–":fmtInt(p.eng),p.eng!=null&&(p.reach||p.impr)?pctf(p.eng/(p.reach||p.impr)):"–",p.followers==null?"–":fmtInt(p.followers)]
+        .map(t=>({text:String(t),options:{fill:{color:i%2?"FFFFFF":"EEF5EA"},fontSize:8.5,align:"center",valign:"middle",color:C.ink}})));
+      s.addTable([hd,...rows],{x:.43,y:1.12,w:9.14,colW:Array(6).fill(9.14/6),rowH:.44,fontFace:F,border:{type:"solid",pt:2,color:"FFFFFF"}});
+      s.addText(`Reporting period: ${M.period}. Impressions are views for Facebook, Instagram and YouTube. Engagement rate is engagements / reach (YouTube: / views).`,{x:.43,y:5.05,w:9.14,h:.22,fontFace:F,fontSize:6.5,color:C.mut,margin:0});continue;}
+    if(sd.type==="plat"){const p=sd.p;head(s,"03 / Channel analysis","Platform-wise performance - "+p.name);const th=(4.185-.24)/3;
+      p.tiles.forEach(([l,v,c],i)=>{const y=1.1+i*(th+.12);s.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x:.43,y,w:1.9,h:th,rectRadius:.07,fill:{color:"FFFFFF"},line:{color:C.ln,width:.75}});
+        s.addText(l.toUpperCase(),{x:.57,y:y+.2,w:1.7,h:.2,fontFace:F,fontSize:7.5,color:"4A524C",charSpacing:1,margin:0});
+        s.addText(mrFmt(v),{x:.57,y:y+.42,w:1.7,h:.4,fontFace:F,fontSize:19,bold:true,color:C.ink,margin:0});
+        const[cl,tx]=mrChg(c);s.addText(tx,{x:.57,y:y+.88,w:.75,h:.2,shape:pptx.shapes.ROUNDED_RECTANGLE,rectRadius:.04,fill:{color:cl==="neg"?"FDE8E8":cl==="na"?"F1F3F1":"E5F6E8"},color:cl==="neg"?"B42318":cl==="na"?C.mut:"1C7C35",fontSize:7,bold:true,fontFace:"Courier New",align:"center",valign:"middle",margin:0});});
+      const cx=2.45,cw=7.12,hw=(cw-.12)/2,ch=2.03;const labels=p.days.map(fmtDay);
+      p.charts.forEach((c,i)=>{const x=c.wide?cx:cx+(i%2)*(hw+.12),y=c.wide?1.1+ch+.12:1.1,w=c.wide?cw:hw;
+        s.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x,y,w,h:ch,rectRadius:.07,fill:{color:"FFFFFF"},line:{color:C.ln,width:.75}});
+        s.addText(c.title,{x:x+.12,y:y+.08,w:w-.24,h:.18,fontFace:F,fontSize:7,bold:true,color:C.ink,margin:0});
+        if(c.note)s.addText(c.note,{x:x+.12,y:y+.08,w:w-.24,h:.18,fontFace:F,fontSize:6.5,color:C.mut,align:"right",margin:0});
+        const ev=Math.max(1,Math.ceil(labels.length/(c.wide?10:5)));const lbs=labels.map((l,k)=>k%ev===0?l:"");
+        const data=c.series.map(se=>({name:se.name,labels:lbs,values:se.values}));
+        const o={x:x+.06,y:y+.28,w:w-.12,h:ch-.34,chartColors:c.series.map(se=>se.color),showLegend:c.series.length>1,legendPos:"t",legendFontSize:6.5,legendFontFace:F,
+          catAxisLabelFontSize:6,valAxisLabelFontSize:6,catAxisLabelColor:C.mut,valAxisLabelColor:C.mut,catAxisLabelFontFace:F,valAxisLabelFontFace:F,
+          valGridLine:{color:C.ln,size:.5},catGridLine:{style:"none"},catAxisLineShow:false,valAxisLineShow:false,valAxisLabelFormatCode:"#,##0",
+          catAxisLabelRotate:0};
+        if(c.kind==="bar")s.addChart(pptx.charts.BAR,data,{...o,barDir:"col",barGapWidthPct:45});
+        else s.addChart(pptx.charts.LINE,data,{...o,lineSize:1.5,lineDataSymbol:labels.length<=31?"circle":"none",lineDataSymbolSize:3});});continue;}
+    if(sd.type==="posts"){head(s,"03 / Channel analysis",sd.title,sd.pages>1?`${sd.page} / ${sd.pages}`:"");
+      if(sd.empty){s.addText(`Nothing was published here in ${M.mName}.`,{x:.43,y:2.5,w:9.14,h:.5,fontFace:F,fontSize:11,color:C.mut,align:"center"});continue;}
+      sd.cards.forEach((c,i)=>{const g=c.g,x=.78+i*(4.11+.22),y=1.1,w=4.11,h=4.18;const plats=[...new Set(g.posts.map(p=>p.plat))];
+        s.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x,y,w,h,rectRadius:.08,fill:{color:"FFFFFF"},line:{color:C.ln,width:.75}});
+        const im=imgs[g.t+"|"+g.posts[0].id];
+        if(im)s.addImage({data:im.data,x:x+.01,y:y+.01,w:w-.02,h:1.9});
+        else{s.addShape(pptx.shapes.RECTANGLE,{x:x+.01,y:y+.01,w:w-.02,h:1.9,fill:{color:"F1F4F2"},line:{color:"F1F4F2",width:0}});plats.forEach((k,j)=>chip(s,k,x+w/2-plats.length*.13+j*.26,y+.88));}
+        if(c.rank&&c.rank<=3)s.addText(`Top ${c.rank} by engagement`,{x:x+.08,y:y+.08,w:1.25,h:.2,fill:{color:"1B1F1C",transparency:15},color:"FFFFFF",fontSize:6.5,bold:true,fontFace:F,align:"center",valign:"middle",margin:0});
+        s.addText(new Date(g.published).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}),{x:x+.13,y:y+1.99,w:1.6,h:.2,fontFace:F,fontSize:7,color:C.mut,margin:0});
+        plats.forEach((k,j)=>chip(s,k,x+w-.15-(plats.length-j)*.25,y+2.01));
+        let ty=y+2.24;const cut=(t,n)=>t.length>n?t.slice(0,n-1).trimEnd()+"…":t;
+        if(g.title){s.addText(cut(g.title,90),{x:x+.13,y:ty,w:w-.26,h:.2,fontFace:F,fontSize:8,bold:true,color:C.ink,margin:0,valign:"top"});ty+=.22;}
+        s.addText(cut(g.text||"(No caption)",g.title?140:210),{x:x+.13,y:ty,w:w-.26,h:g.title?.38:.6,fontFace:F,fontSize:7.5,color:C.ink,margin:0,valign:"top",fit:"shrink"});
+        const num=v=>v==null?"–":fmtInt(v),rate=(e,r)=>r?pctf(e/r):"–";const cell=(t,o={})=>({text:String(t),options:{fontSize:6.8,color:C.ink,border:[{type:"none"},{type:"none"},{type:"solid",pt:.5,color:C.ln},{type:"none"}],...o}});
+        const rows=[["Platform",sd.kind==="yt"?"Views":"Reach","Engagement","Rate"].map((t,k)=>cell(t.toUpperCase(),{bold:true,color:C.mut,fontSize:5.8,align:k?"right":"left"})),
+          ...g.posts.map(p=>[cell(MRP[p.plat].n,{color:MRP[p.plat].c.slice(1),bold:true,hyperlink:p.url?{url:p.url}:undefined}),cell(num(p.reach),{align:"right"}),cell(num(p.eng),{align:"right"}),cell(p.reach?rate(p.eng,p.reach):"–",{align:"right"})])];
+        if(g.posts.length>1)rows.push([cell("All platforms",{bold:true}),cell(g.hasReach?fmtInt(g.reach):"–",{bold:true,align:"right"}),cell(fmtInt(g.eng),{bold:true,align:"right"}),cell(g.reach?rate(g.eng,g.reach):"–",{bold:true,align:"right"})]);
+        s.addTable(rows,{x:x+.1,y:y+h-.12-rows.length*.22,w:w-.2,colW:[1.3,.85,.95,.81],rowH:.22,fontFace:F,margin:.03});});}
+  }
+  await pptx.writeFile({fileName:M.file+".pptx"});
 }
 async function logoDataUrl(file){const url=URL.createObjectURL(file);
   try{const img=new Image();await new Promise((ok,bad)=>{img.onload=ok;img.onerror=()=>bad(new Error("Could not read that image. Use a PNG, JPG, WebP or SVG file."));img.src=url;});
@@ -1986,7 +2163,7 @@ function smaSettings(b){
       <label class="f" for="br-name">Brand name</label><div class="toolbar"><input type="text" id="br-name" value="${esc(b.name)}" style="flex:1;min-width:200px"><button class="btn" type="button" id="br-save">Save name</button></div>
       <label class="f" for="br-logo-pick">Brand logo</label><div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="toolbar"><div class="logo-prev">${b.logo?`<img src="${logoUrl(b)}" alt="${esc(b.name)} logo">`:`<span class="hint">No logo</span>`}</div>
         <input type="file" id="br-logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden><button class="btn" type="button" id="br-logo-pick">${b.logo?"Replace logo":"Upload logo"}</button>${b.logo?`<button class="btn danger" type="button" id="br-logo-del">Remove</button>`:""}</div>
-        <span class="hint">PNG, JPG, WebP or SVG. A logo with a transparent background looks best. Shown on the monthly report cover, next to the Stark logo.</span></div></div>
+        <span class="hint">PNG, JPG, WebP or SVG. The monthly report cover is black, so a white or light logo with a transparent background looks best.</span></div></div>
       <div class="form-actions"><span class="spacer"></span><button class="btn danger" type="button" id="br-delete">Delete brand</button></div></div></div>
     <div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c8);margin-right:8px">in</span>LinkedIn API integration</h2><span class="pill ${li.connected&&li.org_urn?"pos":li.connected?"neu":configured?"neu":"neg"}">${li.connected&&li.org_urn?"Connected":li.connected?"Choose a page":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
       <ol class="steps">
@@ -2084,12 +2261,14 @@ function bindBrand(b,tab){
     $("mr-month").onchange=e=>{SMA.month=e.target.value;renderSMA();};
     $("mr-sort").onchange=e=>{SMA.mrSort=e.target.value;renderSMA();};
     $("mr-limit").onchange=e=>{SMA.mrLimit=+e.target.value;renderSMA();};
-    $("mr-print").onclick=()=>window.print();
-    document.querySelectorAll("#mr .mr-thumb img").forEach(im=>{const next=()=>{const alt=(im.dataset.altSrc||"").split(" ").filter(Boolean);if(alt.length){im.dataset.altSrc=alt.slice(1).join(" ");im.src=alt[0];}else im.remove();};im.onerror=next;if(im.complete&&!im.naturalWidth)next();});
-    $("mr-csv").onclick=e=>{const R=mrCollect(b,SMA.month);const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
+    const exp=(id,fn,label)=>{const btn=$(id);if(!btn)return;btn.onclick=async()=>{if(btn.disabled)return;btn.disabled=true;
+      try{await fn(SMA.mrModel,btn);smaMsg("Downloaded.");}catch(err){smaMsg(err.message||String(err),true);}finally{btn.disabled=false;btn.textContent=label;}};};
+    exp("mr-pdf",mrPDF,"Download PDF");exp("mr-ppt",mrPPT,"Download PPT");
+    $("mr-csv").onclick=e=>{const R=SMA.mrModel.R;const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
       const rows=[["group","date","platform","account","reach","engagements","engagement_rate","url","caption"].join(",")];
       R.groups.forEach((g,i)=>g.posts.forEach(p=>rows.push([i+1,p.published.slice(0,10),MRP[p.plat].n,q(p.account),p.reach??"",p.eng??"",p.reach&&p.eng!=null?(p.eng/p.reach).toFixed(4):"",q(p.url),q(p.text.slice(0,300))].join(","))));
       copyOutTo(rows.join("\n"),e.currentTarget,"Copy posts (CSV)",$("mr-out"));};
+    document.querySelectorAll("#mr-deck .sl-im img").forEach(im=>{const next=()=>{const alt=(im.dataset.altSrc||"").split(" ").filter(Boolean);if(alt.length){im.dataset.altSrc=alt.slice(1).join(" ");im.src=alt[0];}else im.remove();};im.onerror=next;if(im.complete&&!im.naturalWidth)next();});
   }
   document.querySelectorAll("#sma-root [data-open-plat]").forEach(a=>a.addEventListener("click",()=>{SMA.plat=a.dataset.openPlat;}));
   document.querySelectorAll("#sma-root [data-plat]").forEach(x=>x.onclick=()=>{SMA.plat=x.dataset.plat;renderSMA();});
