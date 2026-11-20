@@ -18,6 +18,8 @@ are rate limited per visitor.
   GET/POST /api/sma/brands, PUT/DELETE /api/sma/brands/<id>, GET /api/sma/brands/<id>/linkedin
   POST /api/sma/brands/<id>/linkedin/{sync,org,disconnect}
   GET  /api/sma/linkedin/start?brand=<id>  -> LinkedIn sign-in;  GET /api/sma/linkedin/callback
+  GET  /api/sma/brands/<id>/meta, POST /api/sma/brands/<id>/meta/{sync,page,disconnect}
+  GET  /api/sma/meta/start?brand=<id>  -> Facebook Login;  GET /api/sma/meta/callback
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
   POST /api/keys       set the Apify tokens (default, meta, x_linkedin, other) and YOUTUBE_API_KEY (write-only)
@@ -36,6 +38,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch  # noqa: E402  (settings defaults, paths, usage)
 import sma  # noqa: E402  (Social Media Analytics: brands, LinkedIn)
+import sma_meta  # noqa: E402  (Social Media Analytics: Facebook and Instagram)
 
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
@@ -398,6 +401,14 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    @staticmethod
+    def pub_brand(b, counts=True):
+        out = sma.public_brand(b, counts)
+        out["meta"] = sma_meta.public(b)
+        if counts and out["meta"]["page_connected"]:
+            out["meta_summary"] = sma_meta.summary(sma_meta.data(b["id"]))
+        return out
+
     def sma_routes(self):
         """Social Media Analytics API. Returns True when handled."""
         path, _, qs = self.path.partition("?")
@@ -408,10 +419,10 @@ class H(BaseHTTPRequestHandler):
         email = (getattr(self, "user", None) or {}).get("email", "admin key")
         try:
             if path == "/api/sma/brands" and m == "GET":
-                return self.send(200, {"brands": [sma.public_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri()}) or True
+                return self.send(200, {"brands": [self.pub_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri()}) or True
             if path == "/api/sma/brands" and m == "POST":
                 b = sma.create_brand(self.body().get("name"))
-                return self.send(201, {"brand": sma.public_brand(b)}) or True
+                return self.send(201, {"brand": self.pub_brand(b)}) or True
             if path == "/api/sma/linkedin/start" and m == "GET":
                 try:
                     return self.redirect(sma.li_start(q.get("brand", ""), email)) or True
@@ -423,6 +434,37 @@ class H(BaseHTTPRequestHandler):
                 if bid and not err and (sma.get_brand(bid) or {}).get("linkedin", {}).get("org_urn"):
                     sma.sync_async(bid, full=True)
                 return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            if path == "/api/sma/meta/start" and m == "GET":
+                try:
+                    return self.redirect(sma_meta.start(q.get("brand", ""), email)) or True
+                except (ValueError, KeyError) as e:
+                    sma.update_brand_record(q.get("brand", ""), lambda r: r.setdefault("meta", {}).update({"last_error": str(e)}))
+                    return self.redirect(f"/#sma-{q.get('brand', '')}-settings") or True
+            if path == "/api/sma/meta/callback" and m == "GET":
+                bid, err = sma_meta.callback(q, email)
+                if bid and not err and sma_meta.cfg(sma.get_brand(bid)).get("page_id"):
+                    sma_meta.sync_async(bid, full=True)
+                return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            mt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/meta(?:/(sync|page|disconnect))?", path)
+            if mt:
+                bid, action = mt.group(1), mt.group(2)
+                if not sma.get_brand(bid):
+                    return self.send(404, {"error": "Brand not found"}) or True
+                if not action and m == "GET":
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False), "data": sma_meta.data(bid)}) or True
+                if action == "sync" and m == "POST":
+                    if sma_meta.key(bid) in sma.SYNCING:
+                        return self.send(409, {"error": "A sync is already running."}) or True
+                    sma_meta.sync_async(bid, full=bool(self.body().get("full")))
+                    return self.send(202, {"started": True}) or True
+                if action == "page" and m == "POST":
+                    pg = sma_meta.choose_page(bid, str(self.body().get("page_id", "")))
+                    sma_meta.sync_async(bid, full=True)
+                    return self.send(200, {"page": pg, "brand": self.pub_brand(sma.get_brand(bid), False)}) or True
+                if action == "disconnect" and m == "POST":
+                    sma_meta.disconnect(bid)
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
+                return self.send(405, {"error": "Method not allowed"}) or True
             mm = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})(/linkedin(?:/(sync|org|disconnect))?)?", path)
             if not mm:
                 return self.send(404, {"error": "Not found"}) or True
@@ -431,17 +473,19 @@ class H(BaseHTTPRequestHandler):
                 return self.send(404, {"error": "Brand not found"}) or True
             if not sub:
                 if m == "GET":
-                    return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid))}) or True
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid))}) or True
                 if m == "PUT":
-                    sma.update_brand(bid, self.body())
-                    return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid))}) or True
+                    body = self.body()
+                    sma.update_brand(bid, body)
+                    sma_meta.update(bid, body)
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid))}) or True
                 if m == "DELETE":
                     sma.delete_brand(bid)
                     return self.send(200, {"ok": True}) or True
             elif not action and m == "GET":
                 d = sma.li_data(bid)
                 d.pop("sync_log", None) if q.get("lite") else None
-                return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid), False), "data": d}) or True
+                return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False), "data": d}) or True
             elif action == "sync" and m == "POST":
                 if bid in sma.SYNCING:
                     return self.send(409, {"error": "A sync is already running."}) or True
@@ -450,10 +494,10 @@ class H(BaseHTTPRequestHandler):
             elif action == "org" and m == "POST":
                 o = sma.choose_org(bid, str(self.body().get("urn", "")))
                 sma.sync_async(bid, full=True)
-                return self.send(200, {"org": o, "brand": sma.public_brand(sma.get_brand(bid), False)}) or True
+                return self.send(200, {"org": o, "brand": self.pub_brand(sma.get_brand(bid), False)}) or True
             elif action == "disconnect" and m == "POST":
                 sma.disconnect(bid)
-                return self.send(200, {"brand": sma.public_brand(sma.get_brand(bid), False)}) or True
+                return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
             return self.send(405, {"error": "Method not allowed"}) or True
         except ValueError as e:
             return self.send(400, {"error": str(e)}) or True
@@ -483,7 +527,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.auth_routes():
             return
-        if self.path.startswith("/api/sma/linkedin/callback") and not session_user(self.token()):
+        if (self.path.startswith("/api/sma/linkedin/callback") or self.path.startswith("/api/sma/meta/callback")) and not session_user(self.token()):
             return self.redirect("/#login")
         if not self.authed() or self.sma_routes():
             return
@@ -651,6 +695,7 @@ def scheduler():
             due = loc.hour * 60 + loc.minute >= int(hh) * 60 + int(mm)
             if due:
                 sma.daily_sync_due(today)
+                sma_meta.daily_due(today)
             done = fetch.load_usage().get("last_daily_run") == today
             last_try = tried.get(today, 0)
             if due and not done and not running() and time.time() - last_try > 3600:

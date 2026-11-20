@@ -125,10 +125,20 @@ Each post is stored once. News articles are identified by headline, so the same 
 
 The **Social Media Analytics** tab holds **brands**. Each brand has four sections:
 
-- **Platform**: one card per platform with connection status and 30-day figures. LinkedIn is live; Facebook, Instagram, X and YouTube are next.
+- **Platform**: one card per platform with connection status and 30-day figures. LinkedIn, Facebook and Instagram are live; X and YouTube are next.
 - **Report**: LinkedIn page analytics for 7, 30, 90 or 365 days: followers and new followers, impressions, unique impressions, engagement rate, clicks, reactions, comments, reposts, page views, daily charts, top posts and follower demographics, compared with the previous period. Copy as CSV or print / save as PDF.
 - **Source**: the connected company page, who connected it and when, token expiry, granted permissions, API version, stored data range and sync history. Sync now, re-sync 12 months, or disconnect.
 - **Settings**: brand name, and the LinkedIn API integration (setup guide, redirect URL, Client ID, Client Secret, scopes, API version, Connect LinkedIn, page choice).
+
+### Facebook and Instagram setup (Meta Graph API)
+
+1. The brand's Instagram must be a Professional (Business or Creator) account linked to its Facebook Page.
+2. Create an app of type **Business** at https://developers.facebook.com/apps and add **Facebook Login for Business**.
+3. Under Facebook Login > Settings, add the Valid OAuth Redirect URI `https://sentimeter.starkpeople.in/api/sma/meta/callback`.
+4. Give everyone who will connect Pages an admin or developer role on the app (no app review is needed for your own Pages while the app is in development mode).
+5. Paste the App ID and App Secret (App settings > Basic) in the brand's Settings, save, click **Connect Facebook & Instagram**, and choose the Page.
+
+Permissions requested: `pages_show_list pages_read_engagement read_insights business_management instagram_basic instagram_manage_insights`. The short-lived login is exchanged for a 60-day token and then a Page token, which does not expire while the admin keeps the app's permissions. Each statistic is requested on its own with the newer Meta name first (for example `page_media_view`, then `page_impressions`), so retired metrics show as unavailable instead of failing the sync. Facebook keeps up to 12 months of daily history on first sync; Instagram provides only the last 30 days, so its history grows from the first sync. Code: `fetcher/sma_meta.py`; data in `/var/lib/sentimeter/sma/<brand>/meta.json`.
 
 ### LinkedIn setup
 

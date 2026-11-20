@@ -1330,7 +1330,7 @@ $("run-now").onclick=async()=>{
   try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
 
 /* ---------- Social Media Analytics ---------- */
-const SMA={brands:null,data:{},dataFor:{},range:30,arm:null,poll:null};
+const SMA={brands:null,data:{},dataFor:{},meta:{},metaFor:{},plat:null,range:30,arm:null,poll:null};
 const LI_FUNC={1:"Accounting",2:"Administrative",3:"Arts and Design",4:"Business Development",5:"Community and Social Services",6:"Consulting",7:"Education",8:"Engineering",9:"Entrepreneurship",10:"Finance",11:"Healthcare Services",12:"Human Resources",13:"Information Technology",14:"Legal",15:"Marketing",16:"Media and Communication",17:"Military and Protective Services",18:"Operations",19:"Product Management",20:"Program and Project Management",21:"Purchasing",22:"Quality Assurance",23:"Real Estate",24:"Research",25:"Sales",26:"Customer Success and Support"};
 const LI_SEN={1:"Unpaid",2:"Training",3:"Entry",4:"Senior",5:"Manager",6:"Director",7:"Vice President",8:"CXO",9:"Partner",10:"Owner"};
 const LI_SIZE={SIZE_1:"1",SIZE_2_TO_10:"2–10",SIZE_11_TO_50:"11–50",SIZE_51_TO_200:"51–200",SIZE_201_TO_500:"201–500",SIZE_501_TO_1000:"501–1,000",SIZE_1001_TO_5000:"1,001–5,000",SIZE_5001_TO_10000:"5,001–10,000",SIZE_10001_OR_MORE:"10,001+"};
@@ -1351,17 +1351,18 @@ async function renderSMA(){
   if(!SMA.brands){root.innerHTML=`<p class="hint">Loading brands…</p>`;try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){root.innerHTML=`<p class="neg-c">${esc(e.message)}</p>`;return;}}
   if(!r.bid)return renderBrands(root);
   const b=SMA.brands.find(x=>x.id===r.bid);if(!b){go("sma");return;}
-  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");
-  if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await smaLoadData(b);}
+  const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");const mstale=SMA.metaFor[b.id]!==(b.meta.last_sync||"");
+  if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale||!SMA.meta[b.id]||mstale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await Promise.all([smaLoadData(b),smaLoadMeta(b)]);}
   renderBrand(root,b,r.tab);
-  clearTimeout(SMA.poll);SMA.poll=null;if(b.linkedin.syncing)SMA.poll=setTimeout(smaRefresh,2000);
+  clearTimeout(SMA.poll);SMA.poll=null;if(b.linkedin.syncing||b.meta.syncing)SMA.poll=setTimeout(smaRefresh,2000);
 }
+async function smaLoadMeta(b){try{SMA.meta[b.id]=(await smaApi(`/brands/${b.id}/meta`)).data||{};SMA.metaFor[b.id]=b.meta.last_sync||"";}catch(e){SMA.meta[b.id]=SMA.meta[b.id]||{};}}
 async function smaLoadData(b){try{SMA.data[b.id]=(await smaApi(`/brands/${b.id}/linkedin`)).data||{};SMA.dataFor[b.id]=b.linkedin.last_sync||"";}catch(e){SMA.data[b.id]=SMA.data[b.id]||{};}}
 async function smaRefresh(){
   try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){}
   if(current()!=="sma")return;
   const a=document.activeElement;
-  if(a&&a.closest&&a.closest("#sma-root")&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)){const r=smaRoute();const b=r.bid&&SMA.brands.find(x=>x.id===r.bid);clearTimeout(SMA.poll);if(b&&b.linkedin.syncing)SMA.poll=setTimeout(smaRefresh,2000);return;}
+  if(a&&a.closest&&a.closest("#sma-root")&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)){const r=smaRoute();const b=r.bid&&SMA.brands.find(x=>x.id===r.bid);clearTimeout(SMA.poll);if(b&&(b.linkedin.syncing||b.meta.syncing))SMA.poll=setTimeout(smaRefresh,2000);return;}
   renderSMA();
 }
 function renderBrands(root){
@@ -1369,9 +1370,12 @@ function renderBrands(root){
   <div class="card"><div class="card-body"><div class="toolbar"><input type="text" id="sma-new" placeholder="New brand name, e.g. Kerala Tourism" style="flex:1;min-width:220px" aria-label="New brand name"><button class="btn primary" id="sma-add" type="button">Add brand</button><span id="sma-msg" class="hint"></span></div></div></div>
   <div class="eyebrow">Brands</div>
   ${SMA.brands.length?`<div class="brand-grid">${SMA.brands.map(b=>{const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
-    return `<a class="brand-card" href="#sma-${b.id}-platform"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="name">${esc(b.name)}</span><span class="pill ${ok?"pos":"neu"}">${ok?"LinkedIn connected":"Not connected"}</span></div>
-      <div class="mini-kpis"><div><span class="hint">Followers</span><b>${ok&&s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Impressions</span><b>${ok?compact(s.impressions||0):"–"}</b></div><div><span class="hint">Engagement</span><b>${ok?pctf(s.engagement_rate):"–"}</b></div></div>
-      <div class="hint" style="margin-top:-6px">Last 30 days</div><div class="plats"><span class="src" style="background:var(--c8)">in</span><span class="src" style="background:var(--neu)">f</span><span class="src" style="background:var(--neu)">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:var(--neu)">YT</span><span class="hint" style="margin-left:auto">${li.last_sync?"Synced "+relAgo(li.last_sync):"Never synced"}</span></div></a>`;}).join("")}</div>`
+    const ms=b.meta_summary||{};const fbOk=b.meta.page_connected,igOk=fbOk&&b.meta.ig_id;const n=[ok,fbOk,igOk].filter(Boolean).length;
+    return `<a class="brand-card" href="#sma-${b.id}-platform"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="name">${esc(b.name)}</span><span class="pill ${n?"pos":"neu"}">${n?n+" platform"+(n>1?"s":"")+" connected":"Not connected"}</span></div>
+      ${(()=>{const src=ok?["LinkedIn",s.followers,s.impressions,"Impressions",s.engagement_rate]:fbOk&&ms.facebook?["Facebook",ms.facebook.followers,ms.facebook.reach,"Reach",ms.facebook.engagement_rate]:igOk&&ms.instagram?["Instagram",ms.instagram.followers,ms.instagram.reach,"Reach",ms.instagram.engagement_rate]:null;
+        const others=[ok&&src&&src[0]!=="LinkedIn"?`LinkedIn ${compact(s.followers||0)} followers`:"",fbOk&&ms.facebook&&src&&src[0]!=="Facebook"?`Facebook ${compact(ms.facebook.followers||0)} followers`:"",igOk&&ms.instagram&&src&&src[0]!=="Instagram"?`Instagram ${compact(ms.instagram.followers||0)} followers`:""].filter(Boolean);
+        return `<div class="mini-kpis"><div><span class="hint">Followers</span><b>${src&&src[1]!=null?compact(src[1]):"–"}</b></div><div><span class="hint">${src?src[3]:"Impressions"}</span><b>${src?compact(src[2]||0):"–"}</b></div><div><span class="hint">Engagement</span><b>${src?pctf(src[4]):"–"}</b></div></div>
+        <div class="hint" style="margin-top:-6px">${src?src[0]+", last 30 days":"Connect a platform in Settings"}${others.length?" · "+others.join(" · "):""}</div>`;})()}<div class="plats"><span class="src" style="background:${ok?"var(--c8)":"var(--neu)"}">in</span><span class="src" style="background:${fbOk?"var(--c1)":"var(--neu)"}">f</span><span class="src" style="background:${igOk?"var(--c5)":"var(--neu)"}">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:var(--neu)">YT</span><span class="hint" style="margin-left:auto">${(li.last_sync||b.meta.last_sync)?"Synced "+relAgo([li.last_sync,b.meta.last_sync].filter(Boolean).sort().pop()):"Never synced"}</span></div></a>`;}).join("")}</div>`
   :`<div class="card"><p class="empty">No brands yet. Add your first brand above, then connect its LinkedIn page in the brand's Settings.</p></div>`}`;
   const add=async()=>{const n=$("sma-new").value.trim();if(!n){smaMsg("Type a brand name first.",true);return;}
     try{const j=await smaApi("/brands",{method:"POST",body:JSON.stringify({name:n})});SMA.brands=null;location.hash=`sma-${j.brand.id}-settings`;}catch(e){smaMsg(e.message,true);}};
@@ -1380,7 +1384,7 @@ function renderBrands(root){
 function brandHead(b,tab){
   const T=[["platform","Platform"],["report","Report"],["source","Source"],["settings","Settings"]];
   return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
-  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"No platform connected yet"}${b.linkedin.syncing?" · syncing…":b.linkedin.last_sync?" · synced "+relAgo(b.linkedin.last_sync):""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
+  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):""].filter(Boolean).join(" · ")||"No platform connected yet"}${b.linkedin.syncing||b.meta.syncing?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
   <nav class="sma-tabs" aria-label="Brand sections">${T.map(([k,n])=>`<a href="#sma-${b.id}-${k}" aria-current="${k===tab?"page":"false"}">${n}</a>`).join("")}</nav>`;
 }
 function renderBrand(root,b,tab){
@@ -1390,7 +1394,15 @@ function renderBrand(root,b,tab){
 }
 function smaPlatform(b){
   const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
-  const soon=[["f","Facebook","var(--c1)"],["IG","Instagram","var(--c5)"],["X","X (Twitter)","var(--c6)"],["YT","YouTube","var(--neg)"]];
+  const soon=[["X","X (Twitter)","var(--c6)"],["YT","YouTube","var(--neg)"]];
+  const mt=b.meta,ms=b.meta_summary||{};
+  const metaCard=(abbr,name,color,ok,sum,extra)=>`<div class="plat-card"><div class="plat-head"><span class="src" style="background:${color}">${abbr}</span><b>${name}</b><span class="pill ${ok?"pos":"neu"}" style="margin-left:auto">${ok?"Connected":mt.connected&&!mt.page_id?"Choose a Page":"Not connected"}</span></div>
+    ${ok&&sum?`<div class="hint">${extra} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${sum.followers!=null?compact(sum.followers):"–"}</b></div><div><span class="hint">Reach</span><b>${compact(sum.reach||0)}</b></div><div><span class="hint">Engagement</span><b>${pctf(sum.engagement_rate)}</b></div></div>
+      <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report" data-open-plat="${name.toLowerCase()}">Open report</a><button class="btn" type="button" data-sync-meta ${mt.syncing?"disabled":""}>${mt.syncing?"Syncing…":"Sync now"}</button></div>`
+    :ok?`<p class="hint" style="margin:0">${mt.syncing?"First sync running…":"No data yet. Click Sync now."}</p><div class="toolbar"><button class="btn" type="button" data-sync-meta ${mt.syncing?"disabled":""}>Sync now</button></div>`
+    :name==="Instagram"&&mt.page_connected?`<p class="hint" style="margin:0">No Instagram professional account is linked to the Facebook Page ${esc(mt.page_name||"")}. Link it in Instagram (Settings > Account type and tools) or in the Page settings, then reconnect.</p>`
+    :`<p class="hint" style="margin:0">Connect the brand's Facebook Page${name==="Instagram"?" and its linked Instagram professional account":""} to report followers, reach, views and engagement.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
+    ${mt.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(mt.last_error)}</p>`:""}</div>`;
   return `<div class="plat-grid">
     <div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--c8)">in</span><b>LinkedIn</b><span class="pill ${ok?"pos":li.connected?"neu":"neu"}" style="margin-left:auto">${ok?"Connected":li.connected?"Choose a page":"Not connected"}</span></div>
       ${ok?`<div class="hint">${esc(li.org_name||"")} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Impressions</span><b>${compact(s.impressions||0)}</b></div><div><span class="hint">Engagement</span><b>${pctf(s.engagement_rate)}</b></div></div>
@@ -1398,7 +1410,9 @@ function smaPlatform(b){
       :`<p class="hint" style="margin:0">Connect the brand's LinkedIn company page to report followers, impressions, engagement, page views and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
       ${li.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(li.last_error)}</p>`:""}
     </div>
-    ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned after LinkedIn.</p></div>`).join("")}
+    ${metaCard("f","Facebook","var(--c1)",mt.page_connected,ms.facebook,esc(mt.page_name||""))}
+    ${metaCard("IG","Instagram","var(--c5)",mt.page_connected&&!!mt.ig_id,ms.instagram,"@"+esc(mt.ig_username||""))}
+    ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned after Facebook and Instagram.</p></div>`).join("")}
   </div>`;
 }
 function liDays(d,range){
@@ -1406,6 +1420,60 @@ function liDays(d,range){
   const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;
 }
 function smaReport(b){
+  const opts=[["linkedin","LinkedIn",b.linkedin.connected&&b.linkedin.org_urn],["facebook","Facebook",b.meta.page_connected],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id]];
+  if(!SMA.plat||!opts.find(o=>o[0]===SMA.plat&&o[2]))SMA.plat=(opts.find(o=>o[2])||opts[0])[0];
+  const sw=`<div class="tabs no-print" role="tablist" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;max-width:420px">${opts.map(([k,n,ok])=>`<button role="tab" type="button" data-plat="${k}" aria-selected="${k===SMA.plat}" ${ok?"":`title="Not connected" style="opacity:.5"`}>${n}</button>`).join("")}</div>`;
+  const body=SMA.plat==="linkedin"?smaReportLI(b):smaReportMeta(b,SMA.plat);
+  return sw+body;
+}
+function rangeDays(daily,range){const keys=Object.keys(daily||{}).sort();if(!keys.length)return[];const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;}
+function smaToolbar(days,hasPrev,csvId,printId){return `<div class="toolbar no-print"><select class="select" id="li-range" aria-label="Period">${[7,30,90,365].map(n=>`<option value="${n}" ${n===SMA.range?"selected":""}>Last ${n} days</option>`).join("")}</select>
+  <span class="hint">${fmtDay(days[0])}${days[0].slice(0,4)!==days[days.length-1].slice(0,4)?", "+days[0].slice(0,4):""} to ${fmtDay(days[days.length-1])}, ${days[days.length-1].slice(0,4)}${hasPrev?" · compared with the previous "+SMA.range+" days":""}</span><span class="spacer"></span>
+  <button class="btn" type="button" id="${csvId}">Copy daily data (CSV)</button><button class="btn" type="button" id="${printId}">Print / save PDF</button></div><textarea id="li-out" readonly hidden aria-label="Copied report data"></textarea>`;}
+function smaReportMeta(b,plat){
+  const mt=b.meta,d=SMA.meta[b.id]||{};const isFb=plat==="facebook";
+  if(!mt.page_connected)return `<div class="card"><p class="empty">Connect the brand's Facebook Page in <a href="#sma-${b.id}-settings">Settings</a> to see this report.</p></div>`;
+  if(!isFb&&!mt.ig_id)return `<div class="card"><p class="empty">No Instagram professional account is linked to ${esc(mt.page_name||"the Facebook Page")}. Link it, then reconnect in Settings.</p></div>`;
+  const daily=isFb?d.fb_daily:d.ig_daily;
+  if(!daily||!Object.keys(daily).length)return `<div class="card"><p class="empty">${mt.syncing?"The first sync is running. The report appears when it finishes.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
+  let days=rangeDays(daily,SMA.range);const lead=isFb?["views","reach"]:["reach","views"];
+  while(days.length>7&&!(daily[days[0]]&&lead.every(f=>daily[days[0]][f]!=null||!Object.values(daily).some(r=>r[f]!=null))))days.shift();
+  const prevDays=days.map(x=>addDays(x,-SMA.range));const hasPrev=prevDays.some(k=>daily[k]);
+  const F=isFb?["views","reach","engagements","follows","unfollows","page_views","video_views"]:["reach","views","interactions","likes","comments","shares","saves","profile_views","accounts_engaged","followers_gained"];
+  const sum=(ds,f)=>ds.reduce((a,k)=>a+((daily[k]||{})[f]||0),0);const cur={},prv={};F.forEach(f=>{cur[f]=sum(days,f);prv[f]=sum(prevDays,f);});
+  const has=f=>days.some(k=>daily[k]&&daily[k][f]!=null);
+  const delta=(a,c,pts)=>hasPrev?dlt(pts?a*100:a,pts?(c==null?null:c*100):c,{pts}):"";
+  const eng=isFb?"engagements":"interactions";const er=x=>x.reach?x[eng]/x.reach:null;
+  const acct=isFb?d.page||{}:d.ig||{};
+  const T=[["Followers",acct.followers!=null?fmtInt(acct.followers):"–",isFb?(has("follows")?`<span class="hint">+${fmtInt(cur.follows)} / −${fmtInt(cur.unfollows)} in period</span>`:""):(has("followers_gained")?`<span class="hint">+${fmtInt(cur.followers_gained)} in period</span>`:"")]];
+  const L=isFb?{views:"Views",reach:"Reach",engagements:"Engagements",page_views:"Page views",video_views:"Video views"}:{reach:"Reach",views:"Views",interactions:"Interactions",likes:"Likes",comments:"Comments",shares:"Shares",saves:"Saves",profile_views:"Profile views",accounts_engaged:"Accounts engaged"};
+  Object.entries(L).forEach(([f,n])=>{if(has(f))T.push([n,compact(cur[f]),delta(cur[f],prv[f])]);});
+  if(er(cur)!=null)T.splice(3,0,["Engagement rate",pctf(er(cur)),er(prv)!=null?delta(er(cur),er(prv),true):""]);
+  const s1=isFb?[["views","var(--accent)","views"],["reach","var(--c2)","reach"]]:[["reach","var(--accent)","reach"],["views","var(--c2)","views"]];
+  const lineSeries=s1.filter(([f])=>has(f)).map(([f,c,l])=>({label:l,color:c,values:days.map(k=>(daily[k]||{})[f]||0)}));
+  const posts=((isFb?d.fb_posts:d.ig_media)||[]).filter(p=>p.published>=days[0]).sort((a,c)=>(((c.reach||0)+(c.likes||c.reactions||0))-((a.reach||0)+(a.likes||a.reactions||0)))).slice(0,10);
+  const pv=v=>v==null?"–":compact(v);
+  const ptable=isFb?tbl([["Post"],["Published"],["Views","r"],["Reach","r"],["Reactions","r"],["Comments","r"],["Shares","r"]],posts.map(p=>[`<a class="name-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc((p.text||"(no text)").slice(0,90))}${(p.text||"").length>90?"…":""}</a>`,fmtStamp(p.published).split(",")[0],pv(p.views),pv(p.reach),pv(p.reactions),pv(p.comments),pv(p.shares)]))
+    :tbl([["Post"],["Type"],["Published"],["Reach","r"],["Views","r"],["Likes","r"],["Comments","r"],["Saves","r"],["Shares","r"]],posts.map(p=>[`<a class="name-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc((p.text||"(no caption)").slice(0,80))}${(p.text||"").length>80?"…":""}</a>`,esc((p.type||"").replace("FEED","Post").replace("CAROUSEL_ALBUM","Carousel").replace("REELS","Reel").replace("STORY","Story")),fmtStamp(p.published).split(",")[0],pv(p.reach),pv(p.views),pv(p.likes),pv(p.comments),pv(p.saves),pv(p.shares)]));
+  const demo=d.ig_demographics||{};
+  const demoBars=(k,title)=>{const rows=(demo[k]||[]).slice(0,8);const tot=(demo[k]||[]).reduce((a,r)=>a+r.count,0)||1;
+    return `<div><div class="eyebrow" style="margin-bottom:8px">${title}</div>${rows.length?`<div class="bars">${rows.map(r=>`<div class="lbl" title="${esc(r.label)}">${esc(k==="gender"?({F:"Women",M:"Men",U:"Unspecified"}[r.label]||r.label):r.label)}</div><div class="track"><div style="width:${r.count/rows[0].count*100}%;background:var(--accent)"></div></div><div class="num">${(r.count/tot*100).toFixed(1)}%</div>`).join("")}</div>`:`<p class="hint" style="margin:0">Not available (Instagram needs at least 100 followers)</p>`}</div>`;};
+  const notes=(d.notes||[]).filter(n=>isFb?/^Facebook/.test(n):/^Instagram|No Instagram/.test(n));
+  return smaToolbar(days,hasPrev,"li-csv","li-print")+`
+    <div class="eyebrow">${isFb?"Facebook · "+esc(acct.name||mt.page_name||""):"Instagram · @"+esc(acct.username||mt.ig_username||"")}</div>
+    <div class="tiles">${T.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
+    <div class="grid2r">
+      <div class="card"><div class="card-head"><h2>${isFb?"Views and reach per day":"Reach and views per day"}</h2></div><div class="card-body"><div class="chart">${lineSeries.length?lineChart(days,lineSeries,{area:true,H:200}):`<p class="hint">Not available for this account.</p>`}</div></div></div>
+      <div class="card"><div class="card-head"><h2>${isFb?"Engagements per day":"Interactions per day"}</h2></div><div class="card-body"><div class="chart">${has(eng)?barChart(days.map(fmtDay),days.map(k=>(daily[k]||{})[eng]||0),{every:Math.ceil(days.length/8),W:520,H:200}):`<p class="hint">Not available for this account.</p>`}</div></div></div>
+    </div>
+    ${isFb?(has("follows")?`<div class="card"><div class="card-head"><h2>Follows and unfollows per day</h2></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"follows",color:"var(--pos)",values:days.map(k=>(daily[k]||{}).follows||0)},{label:"unfollows",color:"var(--neg)",values:days.map(k=>(daily[k]||{}).unfollows||0)}],{H:180})}</div></div></div>`:"")
+      :(has("followers_gained")?`<div class="card"><div class="card-head"><h2>New followers per day</h2><span class="hint">Instagram keeps the last 30 days</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>(daily[k]||{}).followers_gained||0),{every:Math.ceil(days.length/8),W:760,H:180})}</div></div></div>`:"")}
+    <div class="card"><div class="card-head"><h2>Top ${isFb?"posts":"posts and Reels"}</h2><span class="hint">published in this period</span></div><div class="card-body"><div class="tbl-wrap">${ptable}</div></div></div>
+    ${isFb?"":`<div class="card"><div class="card-head"><h2>Follower demographics</h2><span class="hint">as reported by Instagram</span></div><div class="card-body"><div class="grid2r">${demoBars("age","Age")}${demoBars("gender","Gender")}${demoBars("country","Country")}${demoBars("city","City")}</div></div></div>`}
+    ${notes.length?`<p class="hint">Some statistics are not available from Meta for this account: ${esc(notes.join("; ")).slice(0,600)}</p>`:""}
+    ${!isFb&&Object.keys(daily).length<60?`<p class="hint">Instagram history starts from the first sync (Meta provides only the last 30 days), so longer periods fill in over time.</p>`:""}`;
+}
+function smaReportLI(b){
   const d=SMA.data[b.id]||{};const li=b.linkedin;
   if(!(li.connected&&li.org_urn))return `<div class="card"><p class="empty">Connect a LinkedIn page in <a href="#sma-${b.id}-settings">Settings</a> to see the report.</p></div>`;
   if(!d.daily||!Object.keys(d.daily).length)return `<div class="card"><p class="empty">${li.syncing?"The first sync is running. The report appears when it finishes, usually within a minute.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
@@ -1455,7 +1523,27 @@ function smaSource(b){
       ${li.last_error?`<p class="neg-c" style="margin:0">${esc(li.last_error)}</p>`:""}
       <div class="toolbar no-print"><button class="btn primary" type="button" data-sync ${!(li.connected&&li.org_urn)||li.syncing?"disabled":""}>${li.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-full ${!(li.connected&&li.org_urn)||li.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="li-disconnect" ${li.connected?"":"disabled"}>Disconnect LinkedIn</button></div>
     </div></div>
-    <div class="card"><div class="card-head"><h2>Sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["When"],["Result"],["Days"],["Time","r"]],(d.sync_log||[]).slice().reverse().map(s=>[fmtStamp(s.at)+" UTC",s.ok?`<span class="pos-c">OK</span>`:`<span class="neg-c">${esc((s.errors||[]).join("; ")).slice(0,240)||"Failed"}</span>`,s.days?(s.full?"12 months":s.days+" days"):"",s.seconds!=null?s.seconds+"s":""]))}</div></div></div>`;
+    <div class="card"><div class="card-head"><h2>LinkedIn sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${syncTable(d.sync_log)}</div></div></div>
+    ${smaSourceMeta(b)}`;
+}
+function syncTable(log){return tbl([["When"],["Result"],["Days"],["Time","r"]],(log||[]).slice().reverse().map(s=>[fmtStamp(s.at)+" UTC",s.ok?`<span class="pos-c">OK</span>${s.notes?` <span class="hint">· ${s.notes} statistics unavailable</span>`:""}`:`<span class="neg-c">${esc((s.errors||[]).join("; ")).slice(0,240)||"Failed"}</span>`,s.days?(s.full?"12 months":s.days+" days"):"",s.seconds!=null?s.seconds+"s":""]));}
+function smaSourceMeta(b){
+  const mt=b.meta,d=SMA.meta[b.id]||{};const fk=Object.keys(d.fb_daily||{}).sort(),ik=Object.keys(d.ig_daily||{}).sort();
+  const row=(k,v)=>`<dt>${k}</dt><dd>${v||"–"}</dd>`;const span=ks=>ks.length?`${ks.length} days, ${fmtDay(ks[0])} ${ks[0].slice(0,4)} to ${fmtDay(ks[ks.length-1])} ${ks[ks.length-1].slice(0,4)}`:"";
+  const pageLink=d.page&&d.page.link?d.page.link:mt.page_id?`https://www.facebook.com/${esc(mt.page_id)}`:"";
+  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c1);margin-right:4px">f</span><span class="src" style="background:var(--c5);margin-right:8px">IG</span>Facebook &amp; Instagram</h2><span class="pill ${mt.page_connected?"pos":"neu"}">${mt.page_connected?"Connected":mt.connected?"Choose a Page":"Not connected"}</span></div><div class="card-body">
+    <dl class="kv">${row("Facebook Page",mt.page_name?`<a class="name-link" href="${esc(pageLink)}" target="_blank" rel="noopener noreferrer">${esc(mt.page_name)} ↗</a>`:"")}${row("Page ID",mt.page_id?`<span class="code">${esc(mt.page_id)}</span>`:"")}
+      ${row("Instagram account",mt.ig_username?`<a class="name-link" href="https://www.instagram.com/${esc(mt.ig_username)}/" target="_blank" rel="noopener noreferrer">@${esc(mt.ig_username)} ↗</a>`:mt.page_connected?"None linked to this Page":"")}
+      ${row("Connected by",esc(mt.connected_by||""))}${row("Connected",mt.connected_at?fmtStamp(mt.connected_at)+" UTC":"")}
+      ${row("Access",mt.page_connected?"Page access does not expire while the Page admin keeps the app's permissions":"")}${row("Login token expires",mt.user_token_expires?fmtStamp(mt.user_token_expires)+" UTC (only needed to change Pages)":"")}
+      ${row("Permissions granted",mt.granted_scopes?`<span class="code">${esc(mt.granted_scopes)}</span>`:"")}${row("Graph API version",esc(mt.version||mt.default_version)+(mt.version?"":" (automatic)"))}
+      ${row("Last sync",mt.last_sync?fmtStamp(mt.last_sync)+" UTC · "+relAgo(mt.last_sync):"")}${row("Facebook daily data",span(fk))}${row("Instagram daily data",span(ik))}
+      ${row("Posts stored",(d.fb_posts||d.ig_media)?`${(d.fb_posts||[]).length} Facebook, ${(d.ig_media||[]).length} Instagram`:"")}</dl>
+    ${(d.notes||[]).length?`<details><summary class="hint">${d.notes.length} statistics not available from Meta for this account</summary><ul class="hint">${d.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></details>`:""}
+    ${mt.last_error?`<p class="neg-c" style="margin:0">${esc(mt.last_error)}</p>`:""}
+    <div class="toolbar no-print"><button class="btn primary" type="button" data-sync-meta ${!mt.page_connected||mt.syncing?"disabled":""}>${mt.syncing?"Syncing…":"Sync now"}</button><button class="btn" type="button" data-sync-meta-full ${!mt.page_connected||mt.syncing?"disabled":""}>Re-sync last 12 months</button><span class="spacer"></span><button class="btn danger" type="button" id="meta-disconnect" ${mt.connected?"":"disabled"}>Disconnect Facebook &amp; Instagram</button></div>
+  </div></div>
+  <div class="card"><div class="card-head"><h2>Facebook &amp; Instagram sync history</h2><span class="hint">last 30</span></div><div class="card-body"><div class="tbl-wrap">${syncTable(d.sync_log)}</div></div></div>`;
 }
 function smaSettings(b){
   const li=b.linkedin;const configured=li.client_id&&li.has_client_secret;
@@ -1481,16 +1569,56 @@ function smaSettings(b){
         <button class="btn" type="button" id="li-save">Save integration</button>
         <a class="btn primary" id="li-connect" href="api/sma/linkedin/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${li.connected?"Reconnect LinkedIn":"Connect LinkedIn"}</a></div>
     </div></div>
-    <div class="card"><div class="card-head"><h2>Other platforms</h2></div><div class="card-body"><p class="hint" style="margin:0">Facebook and Instagram (Meta Graph API), X and YouTube (YouTube Analytics API) will be added here next, each with its own Connect button.</p></div></div>`;
+    ${smaSettingsMeta(b)}
+    <div class="card"><div class="card-head"><h2>Other platforms</h2></div><div class="card-body"><p class="hint" style="margin:0">X and YouTube (YouTube Analytics API) will be added here next, each with its own Connect button.</p></div></div>`;
+}
+function smaSettingsMeta(b){
+  const mt=b.meta;const configured=mt.app_id&&mt.has_app_secret;
+  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c1);margin-right:4px">f</span><span class="src" style="background:var(--c5);margin-right:8px">IG</span>Facebook &amp; Instagram API integration</h2><span class="pill ${mt.page_connected?"pos":mt.connected?"neu":configured?"neu":"neg"}">${mt.page_connected?"Connected":mt.connected?"Choose a Page":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
+    <ol class="steps">
+      <li>Make sure the brand's Instagram is a <b>Professional</b> account (Business or Creator) and is <b>linked to its Facebook Page</b>.</li>
+      <li>Open <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer">developers.facebook.com/apps</a>, create an app of type <b>Business</b>, and add the <b>Facebook Login for Business</b> product.</li>
+      <li>In Facebook Login > Settings, add this <b>Valid OAuth Redirect URI</b>: <span class="code" id="meta-redirect">${esc(mt.redirect_uri)}</span> <button class="btn" type="button" id="meta-copy-redirect" style="padding:3px 8px;font-size:12px">Copy</button></li>
+      <li>Add everyone who will connect Pages as an <b>admin or developer</b> of the app (App roles). While the app is in development mode, only they can connect, and no app review is needed for your own Pages.</li>
+      <li>Copy the <b>App ID</b> and <b>App Secret</b> from App settings > Basic below, save, then click <b>Connect Facebook &amp; Instagram</b> and choose the Page (and its business) when Facebook asks.</li>
+    </ol>
+    <div class="form">
+      <label class="f" for="meta-appid">App ID</label><input type="text" id="meta-appid" value="${esc(mt.app_id||"")}" autocomplete="off" inputmode="numeric" spellcheck="false">
+      <label class="f" for="meta-secret">App Secret</label><div class="toolbar"><input type="password" id="meta-secret" placeholder="${mt.has_app_secret?"Saved. Paste a new one to replace it":"Paste the App Secret"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${mt.has_app_secret?"pos":"neu"}">${mt.has_app_secret?"Saved":"Not set"}</span></div>
+      <label class="f" for="meta-scopes">Permissions</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="meta-scopes" value="${esc(mt.scopes||"")}" spellcheck="false"><span class="hint">Default reads Pages, Page and Instagram insights and posts. Remove business_management if your Pages are not in a Meta Business portfolio.</span></div>
+      <label class="f" for="meta-version">Graph API version</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="meta-version" value="${esc(mt.version||"")}" placeholder="${esc(mt.default_version)} (automatic)" style="max-width:220px"><span class="hint">Like v23.0. Leave empty for the default.</span></div>
+    </div>
+    ${mt.last_error?`<p class="neg-c" style="margin:0">${esc(mt.last_error)}</p>`:""}
+    ${mt.connected&&(mt.pages||[]).length>1?`<div class="form"><label class="f" for="meta-page">Facebook Page</label><div class="toolbar"><select class="select" id="meta-page">${mt.pages.map(p=>`<option value="${esc(p.id)}" ${p.id===mt.page_id?"selected":""}>${esc(p.name)}${p.ig_username?" · Instagram @"+esc(p.ig_username):" · no Instagram linked"}</option>`).join("")}</select><button class="btn" type="button" id="meta-page-save">Use this Page</button></div></div>`:""}
+    <div class="form-actions"><span class="hint">${mt.connected?`Connected by ${esc(mt.connected_by||"")}${mt.page_name?" · Page: "+esc(mt.page_name):""}${mt.ig_username?" · Instagram: @"+esc(mt.ig_username):""}`:""}</span><span class="spacer"></span>
+      <button class="btn" type="button" id="meta-save">Save integration</button>
+      <a class="btn primary" href="api/sma/meta/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${mt.connected?"Reconnect Facebook & Instagram":"Connect Facebook & Instagram"}</a></div>
+  </div></div>`;
 }
 function bindBrand(b,tab){
   document.querySelectorAll("#sma-root [data-sync],#sma-root [data-sync-full]").forEach(btn=>btn.onclick=async()=>{
     try{await smaApi(`/brands/${b.id}/linkedin/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  document.querySelectorAll("#sma-root [data-sync-meta],#sma-root [data-sync-meta-full]").forEach(btn=>btn.onclick=async()=>{
+    try{await smaApi(`/brands/${b.id}/meta/sync`,{method:"POST",body:JSON.stringify({full:btn.hasAttribute("data-sync-meta-full")})});smaMsg("Sync started.");setTimeout(smaRefresh,1500);}catch(e){smaMsg(e.message,true);}});
+  document.querySelectorAll("#sma-root [data-open-plat]").forEach(a=>a.addEventListener("click",()=>{SMA.plat=a.dataset.openPlat;}));
+  document.querySelectorAll("#sma-root [data-plat]").forEach(x=>x.onclick=()=>{SMA.plat=x.dataset.plat;renderSMA();});
+  if(tab==="source"&&$("meta-disconnect")){$("meta-disconnect").onclick=async e=>{if(SMA.arm!=="mdisc"){SMA.arm="mdisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
+    try{await smaApi(`/brands/${b.id}/meta/disconnect`,{method:"POST"});await smaRefresh();smaMsg("Facebook & Instagram disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
+  if(tab==="settings"){
+    $("meta-copy-redirect").onclick=e=>copyOutTo(b.meta.redirect_uri,e.currentTarget,"Copy",null);
+    $("meta-save").onclick=async()=>{const body={meta:{app_id:$("meta-appid").value.trim(),scopes:$("meta-scopes").value.trim(),version:$("meta-version").value.trim()}};const s=$("meta-secret").value.trim();if(s)body.meta.app_secret=s;
+      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("meta-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect Facebook & Instagram.");}catch(e){smaMsg(e.message,true);}};
+    if($("meta-page-save"))$("meta-page-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}/meta/page`,{method:"POST",body:JSON.stringify({page_id:$("meta-page").value})});delete SMA.meta[b.id];await smaRefresh();smaMsg("Page saved. Syncing its data now.");}catch(e){smaMsg(e.message,true);}};
+  }
   if(tab==="report"&&$("li-range")){
     $("li-range").onchange=e=>{SMA.range=+e.target.value;renderSMA();};
     $("li-print").onclick=()=>window.print();
-    $("li-csv").onclick=e=>{const d=SMA.data[b.id]||{};const days=liDays(d,SMA.range);const F=["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"];
-      copyOutTo(["date,"+F.join(",")].concat(days.map(k=>[k].concat(F.map(f=>(d.daily[k]||{})[f]||0)).join(","))).join("\n"),e.currentTarget,"Copy daily data (CSV)",$("li-out"));};
+    $("li-csv").onclick=e=>{let daily,F;
+      if(SMA.plat==="linkedin"){daily=(SMA.data[b.id]||{}).daily||{};F=["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"];}
+      else if(SMA.plat==="facebook"){daily=(SMA.meta[b.id]||{}).fb_daily||{};F=["views","reach","engagements","follows","unfollows","page_views","video_views"];}
+      else{daily=(SMA.meta[b.id]||{}).ig_daily||{};F=["reach","views","interactions","likes","comments","shares","saves","profile_views","accounts_engaged","followers_gained"];}
+      const days=rangeDays(daily,SMA.range);
+      copyOutTo(["date,"+F.join(",")].concat(days.map(k=>[k].concat(F.map(f=>(daily[k]||{})[f]??"")).join(","))).join("\n"),e.currentTarget,"Copy daily data (CSV)",$("li-out"));};
   }
   if(tab==="source"&&$("li-disconnect")){$("li-disconnect").onclick=async e=>{if(SMA.arm!=="disc"){SMA.arm="disc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
     try{await smaApi(`/brands/${b.id}/linkedin/disconnect`,{method:"POST"});await smaRefresh();smaMsg("LinkedIn disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
