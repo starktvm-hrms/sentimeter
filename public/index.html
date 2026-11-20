@@ -1684,7 +1684,8 @@ function mrGroup(posts){const groups=[];
   const ord=["instagram","facebook","linkedin","youtube"];
   groups.forEach(g=>{g.posts.sort((x,y)=>ord.indexOf(x.plat)-ord.indexOf(y.plat));g.published=g.posts.map(p=>p.published).sort()[0];
     g.reach=g.posts.reduce((s,p)=>s+(p.reach||0),0);g.eng=g.posts.reduce((s,p)=>s+(p.eng||0),0);g.hasReach=g.posts.some(p=>p.reach!=null);
-    g.text=g.posts.map(p=>p.text).sort((x,y)=>y.length-x.length)[0]||"";g.thumb=(g.posts.find(p=>p.thumb)||{}).thumb||null;g.pics=g.posts.map(p=>p.pic).filter(Boolean);});
+    const social=g.posts.filter(p=>p.plat!=="youtube"&&p.text).map(p=>p.text).sort((x,y)=>y.length-x.length);const yt=g.posts.find(p=>p.plat==="youtube");
+    g.title=yt?yt.title:"";g.text=social[0]||(yt?yt.text:"")||"";if(g.text===g.title)g.title="";g.thumb=(g.posts.find(p=>p.thumb)||{}).thumb||null;g.pics=g.posts.map(p=>p.pic).filter(Boolean);});
   return groups;}
 function mrCollect(b,month){
   const sum=(a)=>a.reduce((s,v)=>s+(v||0),0),n=v=>v==null||v===""?null:+v;
@@ -1692,8 +1693,8 @@ function mrCollect(b,month){
   const dsum=(daily,f)=>{let any=false,s=0;days.forEach(k=>{const v=((daily||{})[k]||{})[f];if(v!=null){any=true;s+=+v||0;}});return any?s:null;};
   const inM=p=>p&&p.published&&localMonth(p.published)===month;
   const accts=[],posts=[];
-  const add=(plat,account,followers,gained,list,map)=>{const ps=(list||[]).filter(inM).map(x=>{const m=map(x);return {plat,key:plat+"|"+account,account,id:x.id,text:String(m.text||""),published:x.published,url:x.url||"",thumb:x.thumb||null,
-    pic:/^https:\/\//.test(x.picture||"")?x.picture:plat==="youtube"&&/^[\w-]{6,20}$/.test(x.id||"")?`https://i.ytimg.com/vi/${x.id}/mqdefault.jpg`:null,reach:m.reach,eng:m.eng,toks:mrTokens(m.text)};});
+  const add=(plat,account,followers,gained,list,map)=>{const ps=(list||[]).filter(inM).map(x=>{const m=map(x);return {plat,key:plat+"|"+account,account,id:x.id,text:String(m.text||""),title:m.title||"",published:x.published,url:x.url||"",thumb:x.thumb||null,
+    pic:/^https:\/\//.test(x.picture||"")?x.picture:plat==="youtube"&&/^[\w-]{6,20}$/.test(x.id||"")?`https://i.ytimg.com/vi/${x.id}/mqdefault.jpg`:null,reach:m.reach,eng:m.eng,toks:mrTokens(m.match!=null?m.match:m.text)};});
     posts.push(...ps);accts.push({plat,account,followers,gained,posts:ps.length,reach:ps.some(p=>p.reach!=null)?sum(ps.map(p=>p.reach)):null,eng:sum(ps.map(p=>p.eng))});};
   const li=b.linkedin,ld=SMA.data[b.id]||{};
   if(li.connected&&li.org_urn||(ld.posts||[]).length){const g=[dsum(ld.daily,"followers_organic"),dsum(ld.daily,"followers_paid")];
@@ -1704,7 +1705,7 @@ function mrCollect(b,month){
   if(b.meta.page_connected&&b.meta.ig_id||(md.ig_media||[]).length){
     add("instagram","@"+((md.ig||{}).username||b.meta.ig_username||"instagram"),(md.ig||{}).followers??null,dsum(md.ig_daily,"followers_gained"),md.ig_media,x=>({text:x.text,reach:n(x.reach),eng:x.total_interactions!=null?+x.total_interactions:sum([x.likes,x.comments,x.saves,x.shares])}));}
   Object.entries(SMA.ytAll[b.id]||{}).forEach(([cid,yd])=>{if(!yd.channel)return;const g=dsum(yd.daily,"subs_gained"),l=dsum(yd.daily,"subs_lost");
-    add("youtube",yd.channel.title||cid,yd.channel.subscribers??null,g==null?null:g-(l||0),yd.uploads,x=>({text:x.title,reach:n(x.total_views),eng:sum([x.total_likes,x.total_comments])}));});
+    add("youtube",yd.channel.title||cid,yd.channel.subscribers??null,g==null?null:g-(l||0),yd.uploads,x=>({text:x.description||x.title,title:x.title,match:x.description||"",reach:n(x.total_views),eng:sum([x.total_likes,x.total_comments])}));});
   const groups=mrGroup(posts);
   return {days,accts,posts,groups,plats:[...new Set(accts.map(a=>a.plat))]};}
 function smaMonthly(b){
@@ -1724,7 +1725,7 @@ function smaMonthly(b){
   const card=g=>{const rk=rankBy.indexOf(g)+1;const plats=[...new Set(g.posts.map(p=>p.plat))];
     return `<article class="mr-post"><div class="mr-thumb"><div class="ph">${plats.map(mrChip).join("")}</div>${(()=>{const srcs=(g.thumb?[thumbUrl(b.id,g.thumb)]:[]).concat(g.pics);return srcs.length?`<img src="${esc(srcs[0])}" data-alt-src="${esc(srcs.slice(1).join(" "))}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:relative">`:"";})()}${rk<=3&&R.groups.length>3?`<span class="rank">Top ${rk} by engagement</span>`:""}</div>
       <div class="mr-pb"><div class="mr-pd"><span>${fd(localDay(new Date(g.published)))}</span><span>${plats.map(mrChip).join("")}</span></div>
-      <p class="mr-cap">${esc(g.text||"(No caption)")}</p>
+      ${g.title?`<p class="mr-cap" style="font-weight:700;-webkit-line-clamp:2">${esc(g.title)}</p>`:""}<p class="mr-cap">${esc(g.text||"(No caption)")}</p>
       <div class="mr-tw"><table><thead><tr><th><span class="pn">Platform</span></th><th class="r">Reach</th><th class="r"><span class="pn">Engagement</span><span class="ps">Eng.</span></th><th class="r">Rate</th></tr></thead><tbody>
       ${g.posts.map(p=>`<tr><td style="white-space:nowrap">${mrChip(p.plat)}<span class="pn">${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${MRP[p.plat].n}</a>`:MRP[p.plat].n}</span></td><td class="r">${num(p.reach)}</td><td class="r">${num(p.eng)}</td><td class="r">${p.reach?rate(p.eng,p.reach):"–"}</td></tr>`).join("")}</tbody>
       ${g.posts.length>1?`<tfoot><tr><td><span class="pn">All platforms</span><span class="ps">Total</span></td><td class="r">${g.hasReach?fmtInt(g.reach):"–"}</td><td class="r">${fmtInt(g.eng)}</td><td class="r">${g.reach?rate(g.eng,g.reach):"–"}</td></tr></tfoot>`:""}</table></div></div></article>`;};

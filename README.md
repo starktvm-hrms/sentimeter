@@ -166,7 +166,7 @@ Storage (server only): brands in `/var/lib/sentimeter/sma/brands.json`, client s
 Each brand has a **Monthly report** tab with the same Stark template for every brand: a cover with the Stark logo and the brand's logo, then
 
 1. **Summary**: number of platforms, posts published (and how many were cross-posted), total post reach, engagements and engagement rate, posts per platform, and a per-platform table with followers and new followers for the month.
-2. **Post performance**: a preview of every post (image and caption). A post published on several platforms (matched by caption within 3 days) is shown once, with its reach and engagement on each platform and a total.
+2. **Post performance**: a preview of every post (image and caption). A post published on several platforms (Facebook and Instagram captions are compared with each other and with the YouTube video description, never the video title, within 3 days) is shown once, with its reach and engagement on each platform and a total.
 
 Pick the month at the top (current month shows "to date"), sort posts by date, engagement or reach, and use **Print / Save PDF** for an A4 report. **Copy posts (CSV)** copies one row per post per platform.
 

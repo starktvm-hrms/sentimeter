@@ -363,7 +363,7 @@ def _videos(bid, cid, ids):
         j = api(bid, f"{DATA_API}/videos", {"part": "snippet,statistics,contentDetails", "id": ",".join(ids[i:i + 50])}, cid)
         for v in j.get("items", []):
             s, st = v.get("snippet") or {}, v.get("statistics") or {}
-            out[v["id"]] = {"id": v["id"], "title": s.get("title", ""), "published": (s.get("publishedAt") or "")[:19] + "Z",
+            out[v["id"]] = {"id": v["id"], "title": s.get("title", ""), "description": (s.get("description") or "")[:2000], "published": (s.get("publishedAt") or "")[:19] + "Z",
                             "url": f"https://www.youtube.com/watch?v={v['id']}", "duration": (v.get("contentDetails") or {}).get("duration", ""),
                             "picture": ((s.get("thumbnails") or {}).get("medium") or (s.get("thumbnails") or {}).get("default") or {}).get("url", ""),
                             "total_views": _n(st.get("viewCount")), "total_likes": _n(st.get("likeCount")), "total_comments": _n(st.get("commentCount"))}
