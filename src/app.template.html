@@ -1505,7 +1505,7 @@ function mrSim(a,b){if(a.length<3||b.length<3)return 0;const pre=Math.min(a.leng
   const A=new Set(a),B=new Set(b);let i=0;A.forEach(w=>{if(B.has(w))i++;});const jac=i/(A.size+B.size-i),mn=Math.min(A.size,B.size);return Math.max(jac,mn>=5?.85*i/mn:0);}
 function mrGroup(posts){const groups=[];
   [...posts].sort((x,y)=>x.published<y.published?-1:1).forEach(p=>{let best=null,bs=.55;const t=+new Date(p.published);
-    for(const g of groups){if(g.posts.some(q=>q.key===p.key))continue;if(Math.abs(g.t-t)>3*864e5)continue;const s=Math.max(...g.posts.map(q=>mrSim(p.toks,q.toks)));if(s>=bs){bs=s;best=g;}}
+    for(const g of groups){if(g.posts.some(q=>q.key===p.key))continue;if((p.plat==="youtube")!==(g.posts[0].plat==="youtube"))continue;if(Math.abs(g.t-t)>3*864e5)continue;const s=Math.max(...g.posts.map(q=>mrSim(p.toks,q.toks)));if(s>=bs){bs=s;best=g;}}
     if(best)best.posts.push(p);else groups.push({t,posts:[p]});});
   const ord=["instagram","facebook","linkedin","youtube"];
   groups.forEach(g=>{g.posts.sort((x,y)=>ord.indexOf(x.plat)-ord.indexOf(y.plat));g.published=g.posts.map(p=>p.published).sort()[0];
@@ -1543,13 +1543,15 @@ function smaMonthly(b){
   const perPlat=Object.keys(MRP).map(k=>[k,R.posts.filter(p=>p.plat===k).length,R.accts.some(a=>a.plat===k)]).filter(x=>x[2]);
   const maxP=Math.max(1,...perPlat.map(x=>x[1]));
   const rate=(e,r)=>r?pctf(e/r):"–";const num=v=>v==null?"–":fmtInt(v);
-  let groups=[...R.groups];
-  if(SMA.mrSort==="reach")groups.sort((x,y)=>y.reach-x.reach);else if(SMA.mrSort==="eng")groups.sort((x,y)=>y.eng-x.eng);else groups.sort((x,y)=>x.published<y.published?-1:1);
-  const rankBy=[...R.groups].sort((x,y)=>y.eng-x.eng);const shown=SMA.mrLimit?groups.slice(0,SMA.mrLimit):groups;
+  const srt=list=>{const g=[...list];if(SMA.mrSort==="reach")g.sort((x,y)=>y.reach-x.reach);else if(SMA.mrSort==="eng")g.sort((x,y)=>y.eng-x.eng);else g.sort((x,y)=>x.published<y.published?-1:1);return g;};
+  const isYT=g=>g.posts[0].plat==="youtube";
+  const secs=[["Facebook & Instagram posts",R.groups.filter(g=>!isYT(g)&&g.posts.some(p=>p.plat!=="linkedin"))],["YouTube videos",R.groups.filter(isYT)],["LinkedIn posts",R.groups.filter(g=>g.posts.every(p=>p.plat==="linkedin"))]]
+    .map(([title,list])=>({title,all:srt(list),rank:[...list].sort((x,y)=>y.eng-x.eng)}));
+  const hasFBIG=R.plats.includes("facebook")||R.plats.includes("instagram");
   const multi=R.groups.filter(g=>g.posts.length>1).length;
   const initials=b.name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
-  const card=g=>{const rk=rankBy.indexOf(g)+1;const plats=[...new Set(g.posts.map(p=>p.plat))];
-    return `<article class="mr-post"><div class="mr-thumb"><div class="ph">${plats.map(mrChip).join("")}</div>${(()=>{const srcs=(g.thumb?[thumbUrl(b.id,g.thumb)]:[]).concat(g.pics);return srcs.length?`<img src="${esc(srcs[0])}" data-alt-src="${esc(srcs.slice(1).join(" "))}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:relative">`:"";})()}${rk<=3&&R.groups.length>3?`<span class="rank">Top ${rk} by engagement</span>`:""}</div>
+  const card=(g,S)=>{const rk=S.rank.indexOf(g)+1;const plats=[...new Set(g.posts.map(p=>p.plat))];
+    return `<article class="mr-post"><div class="mr-thumb"><div class="ph">${plats.map(mrChip).join("")}</div>${(()=>{const srcs=(g.thumb?[thumbUrl(b.id,g.thumb)]:[]).concat(g.pics);return srcs.length?`<img src="${esc(srcs[0])}" data-alt-src="${esc(srcs.slice(1).join(" "))}" alt="" loading="lazy" referrerpolicy="no-referrer" style="position:relative">`:"";})()}${rk<=3&&S.rank.length>3?`<span class="rank">Top ${rk} by engagement</span>`:""}</div>
       <div class="mr-pb"><div class="mr-pd"><span>${fd(localDay(new Date(g.published)))}</span><span>${plats.map(mrChip).join("")}</span></div>
       ${g.title?`<p class="mr-cap" style="font-weight:700;-webkit-line-clamp:2">${esc(g.title)}</p>`:""}<p class="mr-cap">${esc(g.text||"(No caption)")}</p>
       <div class="mr-tw"><table><thead><tr><th><span class="pn">Platform</span></th><th class="r">Reach</th><th class="r"><span class="pn">Engagement</span><span class="ps">Eng.</span></th><th class="r">Rate</th></tr></thead><tbody>
@@ -1578,10 +1580,12 @@ function smaMonthly(b){
       <div class="mr-tw"><table><thead><tr><th>Platform</th><th>Account</th><th class="r">Posts</th><th class="r">Post reach</th><th class="r">Engagements</th><th class="r">Eng. rate</th><th class="r">Followers</th><th class="r">New followers</th></tr></thead><tbody>
         ${R.accts.map(a=>`<tr><td style="white-space:nowrap">${mrChip(a.plat)}${MRP[a.plat].n}</td><td>${esc(a.account)}</td><td class="r">${a.posts}</td><td class="r">${num(a.reach)}</td><td class="r">${fmtInt(a.eng)}</td><td class="r">${rate(a.eng,a.reach)}</td><td class="r">${num(a.followers)}</td><td class="r">${a.gained==null?"–":(a.gained>0?"+":"")+fmtInt(a.gained)}</td></tr>`).join("")}</tbody>
         <tfoot><tr><td colspan="2"><b>Total</b></td><td class="r"><b>${R.posts.length}</b></td><td class="r"><b>${R.accts.some(a=>a.reach!=null)?fmtInt(totReach):"–"}</b></td><td class="r"><b>${fmtInt(totEng)}</b></td><td class="r"><b>${rate(totEng,totReach)}</b></td><td class="r"></td><td class="r"></td></tr></tfoot></table></div></section>
-    <section class="mr-posts-sec"><h2><span>02</span>Post performance</h2>
-      <p class="mr-hint" style="margin:-8px 0 16px">${R.groups.length?`${shown.length<groups.length?`Showing ${shown.length} of ${groups.length} posts. `:""}The same post shared on several platforms is shown once, with its reach and engagement on each platform.`:""}</p>
-      ${shown.length?`<div class="mr-posts">${shown.map(card).join("")}</div>`:`<div class="mr-empty">No posts were published on the connected platforms in ${esc(mName)}.</div>`}
-      <ul class="mr-notes"><li>Reach: Facebook and Instagram post reach (unique accounts); LinkedIn unique impressions; YouTube video views (lifetime, at the last sync).</li>
+    ${secs.filter(S=>S.all.length||(S.title.startsWith("Facebook")&&hasFBIG)||(S.title.startsWith("YouTube")&&R.plats.includes("youtube"))).map((S,i)=>{const shown=SMA.mrLimit?S.all.slice(0,SMA.mrLimit):S.all;
+      return `<section class="mr-posts-sec"><h2><span>0${i+2}</span>${S.title}</h2>
+      <p class="mr-hint" style="margin:-8px 0 16px">${shown.length<S.all.length?`Showing ${shown.length} of ${S.all.length}. `:""}${S.title.startsWith("Facebook")&&S.all.length?"A post shared on both Facebook and Instagram is shown once, with its reach and engagement on each platform.":""}</p>
+      ${shown.length?`<div class="mr-posts">${shown.map(g=>card(g,S)).join("")}</div>`:`<div class="mr-empty">Nothing was published here in ${esc(mName)}.</div>`}</section>`;}).join("")}
+    <section style="border-top:0;padding-top:0">
+      <ul class="mr-notes" style="margin-top:0"><li>Reach: Facebook and Instagram post reach (unique accounts); LinkedIn unique impressions; YouTube video views (lifetime, at the last sync).</li>
         <li>Engagement: Facebook reactions, comments and shares; Instagram total interactions (likes, comments, saves, shares); LinkedIn clicks, reactions, comments and shares; YouTube likes and comments.</li>
         <li>Post statistics are as of the last sync${[b.meta.last_sync,b.linkedin.last_sync,b.youtube.last_sync].filter(Boolean).length?" ("+fd(localDay(new Date([b.meta.last_sync,b.linkedin.last_sync,b.youtube.last_sync].filter(Boolean).sort().pop())))+")":""}. Post history is kept from the first sync, so months before it may be incomplete.</li></ul></section>
     <div class="mr-foot"><img src="stark-logo.png" alt="Stark"><span>${esc(b.name)} · ${esc(mName)} · Social media report</span></div></div>`;
