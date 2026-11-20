@@ -1308,7 +1308,7 @@ const pct=x=>Math.round(x*100)+"%";
 function stats(arr){return{n:arr.length,reach:arr.reduce((a,m)=>a+m.reach,0),authors:new Set(arr.map(m=>m.author)).size,s:splits(arr)};}
 function dlt(cur,prev,{pts=false,invert=false}={}){
   if(prev==null)return `<span class="delta flat">n/a</span>`;
-  let d,txt;if(pts){d=Math.round(cur-prev);txt=signed(d)+" pts";}else{if(!prev)return `<span class="delta flat">${cur?"new":"0%"}</span>`;d=Math.round((cur-prev)/prev*100);txt=(d>0?"+":"")+d+"%";}
+  let d,txt;if(pts){d=Math.round(cur-prev);txt=signed(d)+" pts";}else{if(!prev)return `<span class="delta flat">${cur?"new":"0%"}</span>`;const raw=(cur-prev)/prev*100;d=Math.round(raw);txt=(d>0?"+":"")+(Math.abs(raw)>=99.5&&Math.abs(raw)<100&&raw<0?raw.toFixed(1):Math.abs(raw)>=1000?compact(Math.round(raw)):d)+"%";}
   const good=invert?d<0:d>0,bad=invert?d>0:d<0;return `<span class="delta ${good?"up":bad?"down":"flat"}">${txt}</span>`;}
 function tbl(head,rows){if(!rows.length)return `<p class="empty" style="padding:6px 0">No mentions in this period.</p>`;return `<table class="tbl"><thead><tr>${head.map(h=>`<th class="${h[1]||""}">${h[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${head[i][1]||""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;}
 const netCell=n=>`<span class="${n>=5?"pos-c":n<=-5?"neg-c":""}">${signed(n)}</span>`;
