@@ -156,7 +156,7 @@ mark.n{background:var(--neg-soft);color:var(--neg);font-weight:600}
 mark.m{text-decoration:underline dotted var(--muted);text-underline-offset:3px}
 mark.k{background:var(--accent-soft);color:var(--accent)}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-input[type="search"],input[type="text"],input[type="password"]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+input[type="search"],input[type="text"],input[type="password"],input[type="date"]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
 .empty{color:var(--muted);padding:18px 16px;font-size:14px}
 
 /* Settings */
@@ -1330,7 +1330,7 @@ $("run-now").onclick=async()=>{
   try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
 
 /* ---------- Social Media Analytics ---------- */
-const SMA={brands:null,data:{},dataFor:{},meta:{},metaFor:{},yt:{},ytFor:{},plat:null,range:30,arm:null,poll:null};
+const SMA={custom:null,brands:null,data:{},dataFor:{},meta:{},metaFor:{},yt:{},ytFor:{},plat:null,range:30,arm:null,poll:null};
 const LI_FUNC={1:"Accounting",2:"Administrative",3:"Arts and Design",4:"Business Development",5:"Community and Social Services",6:"Consulting",7:"Education",8:"Engineering",9:"Entrepreneurship",10:"Finance",11:"Healthcare Services",12:"Human Resources",13:"Information Technology",14:"Legal",15:"Marketing",16:"Media and Communication",17:"Military and Protective Services",18:"Operations",19:"Product Management",20:"Program and Project Management",21:"Purchasing",22:"Quality Assurance",23:"Real Estate",24:"Research",25:"Sales",26:"Customer Success and Support"};
 const LI_SEN={1:"Unpaid",2:"Training",3:"Entry",4:"Senior",5:"Manager",6:"Director",7:"Vice President",8:"CXO",9:"Partner",10:"Owner"};
 const LI_SIZE={SIZE_1:"1",SIZE_2_TO_10:"2–10",SIZE_11_TO_50:"11–50",SIZE_51_TO_200:"51–200",SIZE_201_TO_500:"201–500",SIZE_501_TO_1000:"501–1,000",SIZE_1001_TO_5000:"1,001–5,000",SIZE_5001_TO_10000:"5,001–10,000",SIZE_10001_OR_MORE:"10,001+"};
@@ -1427,10 +1427,7 @@ function smaPlatform(b){
     ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned next.</p></div>`).join("")}
   </div>`;
 }
-function liDays(d,range){
-  const keys=Object.keys(d.daily||{}).sort();if(!keys.length)return[];
-  const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;
-}
+function liDays(d,range){return rangeDays(d.daily,range);}
 function smaReport(b){
   const opts=[["linkedin","LinkedIn",b.linkedin.connected&&b.linkedin.org_urn],["facebook","Facebook",b.meta.page_connected],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id],["youtube","YouTube",b.youtube.connected&&!!b.youtube.channel_id]];
   if(!SMA.plat||!opts.find(o=>o[0]===SMA.plat&&o[2]))SMA.plat=(opts.find(o=>o[2])||opts[0])[0];
@@ -1438,9 +1435,17 @@ function smaReport(b){
   const body=SMA.plat==="linkedin"?smaReportLI(b):SMA.plat==="youtube"?ytChannelPicker(b,"Channel")+smaReportYT(b):smaReportMeta(b,SMA.plat);
   return sw+body;
 }
-function rangeDays(daily,range){const keys=Object.keys(daily||{}).sort();if(!keys.length)return[];const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;}
-function smaToolbar(days,hasPrev,csvId,printId){return `<div class="toolbar no-print"><select class="select" id="li-range" aria-label="Period">${[7,30,90,365].map(n=>`<option value="${n}" ${n===SMA.range?"selected":""}>Last ${n} days</option>`).join("")}</select>
-  <span class="hint">${fmtDay(days[0])}${days[0].slice(0,4)!==days[days.length-1].slice(0,4)?", "+days[0].slice(0,4):""} to ${fmtDay(days[days.length-1])}, ${days[days.length-1].slice(0,4)}${hasPrev?" · compared with the previous "+SMA.range+" days":""}</span><span class="spacer"></span>
+function rangeDays(daily,range){const keys=Object.keys(daily||{}).sort();if(!keys.length)return[];
+  if(range==="custom"&&SMA.custom){const out=[];for(let d=SMA.custom.from;d<=SMA.custom.to&&out.length<800;d=addDays(d,1))out.push(d);return out;}
+  const end=keys[keys.length-1];const out=[];for(let i=range-1;i>=0;i--)out.push(addDays(end,-i));return out;}
+function periodControl(days,hasPrev,daily){
+  const isC=SMA.range==="custom";const n=days.length;const ks=Object.keys(daily||{}).sort();SMA.shown=[days[0],days[n-1]];
+  const cover=isC&&ks.length&&(days[0]<ks[0]||days[n-1]>ks[ks.length-1])?` <span class="neg-c">Stored data covers ${fmtDay(ks[0])} ${ks[0].slice(0,4)} to ${fmtDay(ks[ks.length-1])} ${ks[ks.length-1].slice(0,4)}; days outside it count as zero.</span>`:"";
+  return `<select class="select" id="li-range" aria-label="Period">${[7,30,90,365].map(v=>`<option value="${v}" ${v===SMA.range?"selected":""}>Last ${v} days</option>`).join("")}<option value="custom" ${isC?"selected":""}>Custom range…</option></select>
+    ${isC?`<span class="toolbar" style="gap:6px"><label class="hint" for="sma-from">From</label><input type="date" id="sma-from" value="${SMA.custom.from}" max="${SMA.custom.to}"><label class="hint" for="sma-to">To</label><input type="date" id="sma-to" value="${SMA.custom.to}" min="${SMA.custom.from}"><button class="btn primary" type="button" id="sma-apply" style="padding:7px 12px">Apply</button></span>`:""}
+    <span class="hint">${fmtDay(days[0])}${days[0].slice(0,4)!==days[n-1].slice(0,4)?", "+days[0].slice(0,4):""} to ${fmtDay(days[n-1])}, ${days[n-1].slice(0,4)} · ${n} day${n>1?"s":""}${hasPrev?" · compared with the previous "+n+" days":""}${cover}</span>`;
+}
+function smaToolbar(days,hasPrev,csvId,printId,daily){return `<div class="toolbar no-print">${periodControl(days,hasPrev,daily)}<span class="spacer"></span>
   <button class="btn" type="button" id="${csvId}">Copy daily data (CSV)</button><button class="btn" type="button" id="${printId}">Print / save PDF</button></div><textarea id="li-out" readonly hidden aria-label="Copied report data"></textarea>`;}
 const YT_SRC={YT_SEARCH:"YouTube search",RELATED_VIDEO:"Suggested videos",SUBSCRIBER:"Browse features",EXT_URL:"External",NO_LINK_OTHER:"Direct or unknown",YT_CHANNEL:"Channel pages",PLAYLIST:"Playlists",YT_PLAYLIST_PAGE:"Playlist page",SHORTS:"Shorts feed",NOTIFICATION:"Notifications",END_SCREEN:"End screens",ANNOTATION:"Cards and annotations",CAMPAIGN_CARD:"Campaign cards",ADVERTISING:"YouTube ads",PROMOTED:"Promoted",HASHTAGS:"Hashtag pages",YT_OTHER_PAGE:"Other YouTube pages",NO_LINK_EMBEDDED:"Embedded players",LIVE_REDIRECT:"Live redirects",SOUND_PAGE:"Sound pages",VIDEO_REMIXES:"Remixes",PRODUCT_PAGE:"Product pages"};
 const YT_DEV={MOBILE:"Mobile",DESKTOP:"Computer",TV:"TV",TABLET:"Tablet",GAME_CONSOLE:"Game console",UNKNOWN_PLATFORM:"Unknown"};
@@ -1451,7 +1456,7 @@ function smaReportYT(b){
   if(!(yt.connected&&yt.channel_id))return `<div class="card"><p class="empty">Connect the brand's YouTube channel in <a href="#sma-${b.id}-settings">Settings</a> to see this report.</p></div>`;
   const daily=d.daily||{};
   if(!Object.keys(daily).length)return `<div class="card"><p class="empty">${yt.syncing?"The first sync is running. The report appears when it finishes.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
-  const days=rangeDays(daily,SMA.range);const prevDays=days.map(x=>addDays(x,-SMA.range));const hasPrev=prevDays.some(k=>daily[k]);
+  const days=rangeDays(daily,SMA.range);const prevDays=days.map(x=>addDays(x,-days.length));const hasPrev=prevDays.some(k=>daily[k]);
   const sum=(ds,f)=>ds.reduce((a,k)=>a+((daily[k]||{})[f]||0),0);
   const wavg=(ds,f)=>{let w=0,v=0;ds.forEach(k=>{const x=daily[k];if(x&&x.views&&x[f]!=null){w+=x.views;v+=x[f]*x.views;}});return w?v/w:null;};
   const cur={},prv={};["views","watch_minutes","subs_gained","subs_lost","likes","comments","shares"].forEach(f=>{cur[f]=sum(days,f);prv[f]=sum(prevDays,f);});
@@ -1471,10 +1476,10 @@ function smaReportYT(b){
   const ageRows=Object.entries(byAge).map(([k,v])=>({k:k.replace("age","").replace("-"," to "),v})).sort((a,c)=>a.k.localeCompare(c.k));
   const genRows=Object.entries(byGender).map(([k,v])=>({k:{female:"Women",male:"Men",user_specified:"Self-described"}[k]||k,v})).sort((a,c)=>c.v-a.v);
   const pct=(v)=>v.toFixed(1)+"%";
-  const topKey=SMA.range<=28?"d28":SMA.range<=90?"d90":"d365";const topN={d28:28,d90:90,d365:365}[topKey];
+  const topKey=days.length<=28?"d28":days.length<=90?"d90":"d365";const topN={d28:28,d90:90,d365:365}[topKey];
   const tv=((d.top_videos||{})[topKey]||[]).slice(0,10);
   const per=d.breakdowns_period?`${fmtDay(d.breakdowns_period[0])} to ${fmtDay(d.breakdowns_period[1])}`:"last 90 days";
-  return smaToolbar(days,hasPrev,"li-csv","li-print")+`
+  return smaToolbar(days,hasPrev,"li-csv","li-print",daily)+`
     <div class="eyebrow">YouTube · ${esc(ch.title||yt.channel_title||"")}${ch.handle?" · "+esc(ch.handle):""}</div>
     <div class="tiles">${T.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
     <div class="grid2r">
@@ -1504,10 +1509,10 @@ function smaReportMeta(b,plat){
   if(!daily||!Object.keys(daily).length)return `<div class="card"><p class="empty">${mt.syncing?"The first sync is running. The report appears when it finishes.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
   let days=rangeDays(daily,SMA.range);const lead=isFb?["views","reach"]:["reach","views"];
   const complete=k=>daily[k]&&lead.every(f=>daily[k][f]!=null||!Object.values(daily).some(r=>r[f]!=null));
-  while(days.length>7&&!complete(days[days.length-1])){days.pop();}
-  if(days.length<SMA.range){const last=days[days.length-1];days=[];for(let i=SMA.range-1;i>=0;i--)days.push(addDays(last,-i));}
-  while(days.length>7&&!complete(days[0]))days.shift();
-  const prevDays=days.map(x=>addDays(x,-SMA.range));const hasPrev=prevDays.some(k=>daily[k]);
+  if(SMA.range!=="custom")while(days.length>7&&!complete(days[days.length-1])){days.pop();}
+  if(SMA.range!=="custom"){if(days.length<SMA.range){const last=days[days.length-1];days=[];for(let i=SMA.range-1;i>=0;i--)days.push(addDays(last,-i));}
+  while(days.length>7&&!complete(days[0]))days.shift();}
+  const prevDays=days.map(x=>addDays(x,-days.length));const hasPrev=prevDays.some(k=>daily[k]);
   const F=isFb?["views","reach","engagements","follows","unfollows","page_views","video_views"]:["reach","views","interactions","likes","comments","shares","saves","profile_views","accounts_engaged","followers_gained"];
   const sum=(ds,f)=>ds.reduce((a,k)=>a+((daily[k]||{})[f]||0),0);const cur={},prv={};F.forEach(f=>{cur[f]=sum(days,f);prv[f]=sum(prevDays,f);});
   const has=f=>days.some(k=>daily[k]&&daily[k][f]!=null);
@@ -1530,7 +1535,7 @@ function smaReportMeta(b,plat){
   const demoBars=(k,title)=>{const rows=(demo[k]||[]).slice(0,8);const tot=(demo[k]||[]).reduce((a,r)=>a+r.count,0)||1;
     return `<div><div class="eyebrow" style="margin-bottom:8px">${title}</div>${rows.length?`<div class="bars">${rows.map(r=>`<div class="lbl" title="${esc(r.label)}">${esc(k==="gender"?({F:"Women",M:"Men",U:"Unspecified"}[r.label]||r.label):r.label)}</div><div class="track"><div style="width:${r.count/rows[0].count*100}%;background:var(--accent)"></div></div><div class="num">${(r.count/tot*100).toFixed(1)}%</div>`).join("")}</div>`:`<p class="hint" style="margin:0">Not available (Instagram needs at least 100 followers)</p>`}</div>`;};
   const notes=(d.notes||[]).filter(n=>isFb?/^Facebook/.test(n):/^Instagram|No Instagram/.test(n));
-  return smaToolbar(days,hasPrev,"li-csv","li-print")+`
+  return smaToolbar(days,hasPrev,"li-csv","li-print",daily)+`
     <div class="eyebrow">${isFb?"Facebook · "+esc(acct.name||mt.page_name||""):"Instagram · @"+esc(acct.username||mt.ig_username||"")}</div>
     <div class="tiles">${T.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
     <div class="grid2r">
@@ -1548,7 +1553,7 @@ function smaReportLI(b){
   const d=SMA.data[b.id]||{};const li=b.linkedin;
   if(!(li.connected&&li.org_urn))return `<div class="card"><p class="empty">Connect a LinkedIn page in <a href="#sma-${b.id}-settings">Settings</a> to see the report.</p></div>`;
   if(!d.daily||!Object.keys(d.daily).length)return `<div class="card"><p class="empty">${li.syncing?"The first sync is running. The report appears when it finishes, usually within a minute.":"No data yet. Click Sync now on the Source tab."}</p></div>`;
-  const days=liDays(d,SMA.range);const prevDays=days.map(x=>addDays(x,-SMA.range));
+  const days=liDays(d,SMA.range);const prevDays=days.map(x=>addDays(x,-days.length));
   const val=(ds,f)=>ds.reduce((a,k)=>a+((d.daily[k]||{})[f]||0),0);
   const cur={};const prv={};["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"].forEach(f=>{cur[f]=val(days,f);prv[f]=val(prevDays,f);});
   const eng=x=>x.clicks+x.reactions+x.comments+x.shares;const er=x=>x.impressions?eng(x)/x.impressions:null;
@@ -1564,8 +1569,7 @@ function smaReportLI(b){
   const demo=d.demographics||{};
   const demoBars=(kind,title)=>{const rows=(demo[kind]||[]).slice(0,8);const tot=(demo[kind]||[]).reduce((a,r)=>a+r.count,0)||1;
     return `<div><div class="eyebrow" style="margin-bottom:8px">${title}</div>${rows.length?`<div class="bars">${rows.map(r=>`<div class="lbl" title="${esc(liLabel(kind,r.urn))}">${esc(liLabel(kind,r.urn))}</div><div class="track"><div style="width:${r.count/rows[0].count*100}%;background:var(--accent)"></div></div><div class="num">${(r.count/tot*100).toFixed(1)}%</div>`).join("")}</div>`:`<p class="hint" style="margin:0">No data</p>`}</div>`;};
-  return `<div class="toolbar no-print"><select class="select" id="li-range" aria-label="Period">${[7,30,90,365].map(n=>`<option value="${n}" ${n===SMA.range?"selected":""}>Last ${n} days</option>`).join("")}</select>
-      <span class="hint">${fmtDay(days[0])}${days[0].slice(0,4)!==days[days.length-1].slice(0,4)?", "+days[0].slice(0,4):""} to ${fmtDay(days[days.length-1])}, ${days[days.length-1].slice(0,4)}${hasPrev?" · compared with the previous "+SMA.range+" days":""}</span><span class="spacer"></span>
+  return `<div class="toolbar no-print">${periodControl(days,hasPrev,d.daily)}<span class="spacer"></span>
       <button class="btn" type="button" id="li-csv">Copy daily data (CSV)</button><button class="btn" type="button" id="li-print">Print / save PDF</button></div>
     <textarea id="li-out" readonly hidden aria-label="Copied report data"></textarea>
     <div class="eyebrow">LinkedIn · ${esc(li.org_name||"")}</div>
@@ -1739,7 +1743,13 @@ function bindBrand(b,tab){
     if($("meta-page-save"))$("meta-page-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}/meta/page`,{method:"POST",body:JSON.stringify({page_id:$("meta-page").value})});delete SMA.meta[b.id];await smaRefresh();smaMsg("Page saved. Syncing its data now.");}catch(e){smaMsg(e.message,true);}};
   }
   if(tab==="report"&&$("li-range")){
-    $("li-range").onchange=e=>{SMA.range=+e.target.value;renderSMA();};
+    $("li-range").onchange=e=>{const v=e.target.value;
+      if(v==="custom"){SMA.custom=SMA.shown?{from:SMA.shown[0],to:SMA.shown[1]}:(SMA.custom||{from:addDays(new Date().toISOString().slice(0,10),-30),to:addDays(new Date().toISOString().slice(0,10),-1)});SMA.range="custom";}
+      else SMA.range=+v;renderSMA();};
+    if($("sma-apply"))$("sma-apply").onclick=()=>{const f=$("sma-from").value,to=$("sma-to").value;
+      if(!f||!to){smaMsg("Choose both dates.",true);return;}if(f>to){smaMsg("The start date must be before the end date.",true);return;}
+      const n=Math.round((new Date(to)-new Date(f))/864e5)+1;if(n>731){smaMsg("Choose a range of up to 2 years.",true);return;}
+      SMA.custom={from:f,to};renderSMA();};
     $("li-print").onclick=()=>window.print();
     $("li-csv").onclick=e=>{let daily,F;
       if(SMA.plat==="linkedin"){daily=(SMA.data[b.id]||{}).daily||{};F=["impressions","unique_impressions","clicks","reactions","comments","shares","followers_organic","followers_paid","page_views"];}
