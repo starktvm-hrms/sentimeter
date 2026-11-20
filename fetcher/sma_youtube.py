@@ -365,6 +365,7 @@ def _videos(bid, cid, ids):
             s, st = v.get("snippet") or {}, v.get("statistics") or {}
             out[v["id"]] = {"id": v["id"], "title": s.get("title", ""), "published": (s.get("publishedAt") or "")[:19] + "Z",
                             "url": f"https://www.youtube.com/watch?v={v['id']}", "duration": (v.get("contentDetails") or {}).get("duration", ""),
+                            "picture": ((s.get("thumbnails") or {}).get("medium") or (s.get("thumbnails") or {}).get("default") or {}).get("url", ""),
                             "total_views": _n(st.get("viewCount")), "total_likes": _n(st.get("likeCount")), "total_comments": _n(st.get("commentCount"))}
     return out
 
@@ -457,10 +458,16 @@ def sync(bid, full=False, cid=None):
         try:
             up = (d.get("channel") or {}).get("uploads")
             if up:
-                j = api(bid, f"{DATA_API}/playlistItems", {"part": "contentDetails", "playlistId": up, "maxResults": 25}, cid)
+                j = api(bid, f"{DATA_API}/playlistItems", {"part": "contentDetails", "playlistId": up, "maxResults": 50}, cid)
                 vids = [it["contentDetails"]["videoId"] for it in j.get("items", [])]
                 vinfo = _videos(bid, cid, vids) if vids else {}
-                d["uploads"] = [vinfo[v] for v in vids if v in vinfo]
+                ups = []
+                for v in vids:
+                    if v in vinfo:
+                        x = dict(vinfo[v])
+                        x["thumb"] = sma.cache_thumb(bid, "yt", v, x.pop("picture", "")) or None
+                        ups.append(x)
+                d["uploads"] = sma.merge_posts(d.get("uploads"), ups)
         except Exception as e:
             notes.append(f"Recent uploads unavailable ({str(e)[:140]})")
 

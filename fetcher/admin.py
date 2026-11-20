@@ -484,6 +484,35 @@ class H(BaseHTTPRequestHandler):
                     sma_youtube.disconnect(bid)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
                 return self.send(405, {"error": "Method not allowed"}) or True
+            lg = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(logo|thumb/([a-z]+_[0-9a-f]{16}\.img))", path)
+            if lg:
+                bid = lg.group(1)
+                if not sma.get_brand(bid):
+                    return self.send(404, {"error": "Brand not found"}) or True
+                if lg.group(2) == "logo" and m == "POST":
+                    sma.save_logo(bid, self.body().get("data_url"))
+                    return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
+                if lg.group(2) == "logo" and m == "DELETE":
+                    sma.delete_logo(bid)
+                    return self.send(200, {"ok": True}) or True
+                if m == "GET":
+                    if lg.group(2) == "logo":
+                        raw, ctype = sma.logo_bytes(bid)
+                    else:
+                        fp = sma.thumb_path(bid, lg.group(3))
+                        raw = open(fp, "rb").read() if fp and os.path.exists(fp) else None
+                        ctype = "image/jpeg" if raw and raw[:3] == b"\xff\xd8\xff" else "image/png" if raw and raw[:4] == b"\x89PNG" else "image/webp" if raw and raw[:4] == b"RIFF" else "application/octet-stream"
+                    if not raw:
+                        return self.send(404, {"error": "Not found"}) or True
+                    self.send_response(200)
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Cache-Control", "private, max-age=86400")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.send_header("Content-Length", str(len(raw)))
+                    self.end_headers()
+                    self.wfile.write(raw)
+                    return True
+                return self.send(405, {"error": "Method not allowed"}) or True
             mt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/meta(?:/(sync|page|disconnect))?", path)
             if mt:
                 bid, action = mt.group(1), mt.group(2)

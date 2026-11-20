@@ -219,7 +219,65 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 .steps code,.code{font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
 .kv{display:grid;grid-template-columns:minmax(120px,200px) minmax(0,1fr);gap:8px 16px;font-size:14px}
 .kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere}
-@media print{.side,.topbar,.no-print,.sma-tabs{display:none!important}.app{display:block;background:#fff}.content{padding:0}.card{break-inside:avoid}}
+/* Monthly report: fixed Stark template, the same for every brand and both themes */
+.mr{--g:#5cb044;--gd:#3d8a2b;--gl:#eef7ea;--ink:#16211a;--mut:#5d6b61;--ln:#e3e9e4;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:1060px;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.mr section{padding:28px 32px;border-top:1px solid var(--ln)}
+.mr-cover{position:relative;padding:30px 32px 28px!important;border-top:0!important;background:linear-gradient(135deg,#fff 55%,var(--gl))}
+.mr-cover:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--g)}
+.mr-logos{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:34px}
+.mr-stark{height:40px;width:auto;display:block}
+.mr-blogo{height:64px;max-width:200px;object-fit:contain;display:block}
+.mr-binit{height:60px;min-width:60px;padding:0 14px;border-radius:12px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;letter-spacing:.02em}
+.mr-eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gd)}
+.mr h1{margin:6px 0 2px;font-size:34px;line-height:1.15;letter-spacing:-.02em;color:var(--ink)}
+.mr-month{font-size:20px;font-weight:600;color:var(--ink)}
+.mr-meta{margin-top:14px;color:var(--mut);font-size:13px}
+.mr h2{display:flex;align-items:baseline;gap:10px;margin:0 0 18px;font-size:19px;color:var(--ink)}
+.mr h2 span{font-family:"JetBrains Mono",monospace;font-size:13px;color:#fff;background:var(--g);border-radius:6px;padding:2px 7px}
+.mr-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:22px}
+.mr-kpi{border:1px solid var(--ln);border-radius:10px;padding:12px 14px;min-width:0}
+.mr-kpi b{display:block;font-size:22px;margin-top:4px;color:var(--ink);overflow-wrap:anywhere}
+.mr-kpi span,.mr-hint{color:var(--mut);font-size:12.5px}
+.mr-kpi.hl{background:var(--gl);border-color:transparent}
+.mr-sub{font-size:13px;font-weight:700;color:var(--ink);margin:0 0 10px}
+.mr-bars{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+.mr-bar{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:10px;font-size:13.5px}
+.mr-bar .tr{height:12px;background:#f1f4f2;border-radius:6px;overflow:hidden}
+.mr-bar .tr i{display:block;height:100%;border-radius:6px}
+.mr-bar b{text-align:right}
+.mr-chip{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;border-radius:6px;color:#fff;font-size:11px;font-weight:800;margin-right:7px;vertical-align:middle;flex:none}
+.mr table{width:100%;border-collapse:collapse;font-size:13px}
+.mr th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700;padding:8px 8px;border-bottom:1px solid var(--ln);white-space:nowrap}
+.mr td{padding:9px 8px;border-bottom:1px solid var(--ln);color:var(--ink)}
+.mr .r{text-align:right}
+.mr-tw{overflow-x:auto}
+.mr-posts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.mr-post{border:1px solid var(--ln);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;min-width:0}
+.mr-thumb{aspect-ratio:16/9;background:#f1f4f2;position:relative;overflow:hidden}
+.mr-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.mr-thumb .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px}
+.mr-thumb .rank{position:absolute;left:10px;top:10px;background:rgba(22,33,26,.82);color:#fff;font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px}
+.mr-pb{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.mr-pd{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--mut)}
+.mr-cap{font-size:13.5px;line-height:1.45;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:0}
+.mr-post table td,.mr-post table th{padding:6px 6px}
+.mr-post tfoot td{font-weight:700;border-bottom:0}
+.mr a{color:var(--gd);text-decoration:none}
+.mr-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 32px;border-top:1px solid var(--ln);color:var(--mut);font-size:12px}
+.mr-foot img{height:20px}
+.mr-notes{font-size:12px;color:var(--mut);line-height:1.5;margin:16px 0 0;padding-left:18px}
+.mr .ps{display:none}
+.mr-empty{padding:26px;text-align:center;color:var(--mut);border:1px dashed var(--ln);border-radius:12px}
+.logo-prev{width:120px;height:56px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;flex:none}
+.logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
+.brand-logo{height:26px;max-width:90px;object-fit:contain;border-radius:4px;background:#fff;padding:2px}
+@media (max-width:760px){.mr section{padding:22px 18px}.mr-cover{padding:24px 18px 22px!important}.mr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-posts{grid-template-columns:1fr}.mr-bar{grid-template-columns:110px 1fr 40px}.mr h1{font-size:27px}.mr-stark{height:30px}.mr-blogo{height:48px;max-width:140px}.mr-foot{padding:14px 18px}}
+@page{size:A4;margin:12mm}
+@media print{.side,.topbar,.no-print,.sma-tabs{display:none!important}.app{display:block;background:#fff}.content{padding:0}.card{break-inside:avoid}
+  .mr-mode .page-head,.mr-mode .crumbs{display:none!important}.mr{border:0;border-radius:0;max-width:none}.mr section{padding:18px 4px}.mr-cover{padding:20px 14px!important}
+  .mr-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}.mr-posts{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.mr-posts-sec{break-before:page}.mr a{color:var(--ink)}
+  .mr-tw{overflow:visible}.mr table{font-size:10.5px}.mr th{font-size:9px;white-space:normal;padding:6px 4px}.mr td{padding:6px 4px}.mr-chip{min-width:18px;height:18px;font-size:9px;margin-right:4px}
+  .mr-thumb{aspect-ratio:4/3}.mr-pb{padding:8px 9px 10px;gap:6px}.mr-cap{font-size:11px;-webkit-line-clamp:3}.mr-pd{font-size:10.5px}.mr-post td,.mr-post th{padding:4px 3px}.mr-post .pn{display:none}.mr-post .ps{display:inline}html,body{background:#fff!important}}
 
 /* Public pages: homepage and login */
 .app.public{grid-template-columns:minmax(0,1fr);background:var(--bg)}
@@ -1504,7 +1562,7 @@ $("run-now").onclick=async()=>{
   try{await adm("/run",{method:"POST"});pollRun();}catch(e){$("bud-note").textContent=e.message;}};
 
 /* ---------- Social Media Analytics ---------- */
-const SMA={custom:null,brands:null,data:{},dataFor:{},meta:{},metaFor:{},yt:{},ytFor:{},plat:null,range:30,arm:null,poll:null};
+const SMA={ytAll:{},ytAllFor:{},month:null,mrSort:"date",mrLimit:0,custom:null,brands:null,data:{},dataFor:{},meta:{},metaFor:{},yt:{},ytFor:{},plat:null,range:30,arm:null,poll:null};
 const LI_FUNC={1:"Accounting",2:"Administrative",3:"Arts and Design",4:"Business Development",5:"Community and Social Services",6:"Consulting",7:"Education",8:"Engineering",9:"Entrepreneurship",10:"Finance",11:"Healthcare Services",12:"Human Resources",13:"Information Technology",14:"Legal",15:"Marketing",16:"Media and Communication",17:"Military and Protective Services",18:"Operations",19:"Product Management",20:"Program and Project Management",21:"Purchasing",22:"Quality Assurance",23:"Real Estate",24:"Research",25:"Sales",26:"Customer Success and Support"};
 const LI_SEN={1:"Unpaid",2:"Training",3:"Entry",4:"Senior",5:"Manager",6:"Director",7:"Vice President",8:"CXO",9:"Partner",10:"Owner"};
 const LI_SIZE={SIZE_1:"1",SIZE_2_TO_10:"2–10",SIZE_11_TO_50:"11–50",SIZE_51_TO_200:"51–200",SIZE_201_TO_500:"201–500",SIZE_501_TO_1000:"501–1,000",SIZE_1001_TO_5000:"1,001–5,000",SIZE_5001_TO_10000:"5,001–10,000",SIZE_10001_OR_MORE:"10,001+"};
@@ -1515,7 +1573,7 @@ async function smaApi(path,opts={}){
   if(r.status===401&&AUTH_MODE==="server"){AUTH=null;go("login");}
   if(!r.ok)throw new Error(j.error||("Server error "+r.status));return j;
 }
-function smaRoute(){const m=location.hash.slice(1).match(/^sma-(b[0-9a-f]{8})(?:-(platform|report|source|settings))?$/);return m?{bid:m[1],tab:m[2]||"platform"}:{bid:null};}
+function smaRoute(){const m=location.hash.slice(1).match(/^sma-(b[0-9a-f]{8})(?:-(platform|report|monthly|source|settings))?$/);return m?{bid:m[1],tab:m[2]||"platform"}:{bid:null};}
 const pctf=x=>x==null?"–":(x*100).toFixed(x<.1?2:1)+"%";
 function smaMsg(s,bad){const el=$("sma-msg");if(el){el.textContent=s||"";el.className="hint"+(bad?" neg-c":"");}}
 async function renderSMA(){
@@ -1527,6 +1585,7 @@ async function renderSMA(){
   const b=SMA.brands.find(x=>x.id===r.bid);if(!b){go("sma");return;}
   const stale=SMA.dataFor[b.id]!==(b.linkedin.last_sync||"");const mstale=SMA.metaFor[b.id]!==(b.meta.last_sync||"");const ystale=SMA.ytFor[b.id]!==((b.youtube.channel_id||"")+"|"+(b.youtube.last_sync||""));
   if((r.tab==="report"||r.tab==="source")&&(!SMA.data[b.id]||stale||!SMA.meta[b.id]||mstale||!SMA.yt[b.id]||ystale)){if(!SMA.data[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await Promise.all([smaLoadData(b),smaLoadMeta(b),smaLoadYT(b)]);}
+  if(r.tab==="monthly"&&(!SMA.data[b.id]||stale||!SMA.meta[b.id]||mstale||SMA.ytAllFor[b.id]!==ytAllKey(b))){if(!SMA.data[b.id]||!SMA.ytAll[b.id])root.innerHTML=`<p class="hint">Loading ${esc(b.name)}…</p>`;await Promise.all([smaLoadData(b),smaLoadMeta(b),smaLoadYTAll(b)]);}
   renderBrand(root,b,r.tab);
   clearTimeout(SMA.poll);SMA.poll=null;if(smaBusy(b))SMA.poll=setTimeout(smaRefresh,2000);
 }
@@ -1549,7 +1608,7 @@ function renderBrands(root){
   <div class="eyebrow">Brands</div>
   ${SMA.brands.length?`<div class="brand-grid">${SMA.brands.map(b=>{const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
     const ms=b.meta_summary||{};const fbOk=b.meta.page_connected,igOk=fbOk&&b.meta.ig_id;const ytOk=b.youtube.connected&&b.youtube.channel_id;const ys=b.youtube_summary||{};const n=[ok,fbOk,igOk,ytOk].filter(Boolean).length;
-    return `<a class="brand-card" href="#sma-${b.id}-platform"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="name">${esc(b.name)}</span><span class="pill ${n?"pos":"neu"}">${n?n+" platform"+(n>1?"s":"")+" connected":"Not connected"}</span></div>
+    return `<a class="brand-card" href="#sma-${b.id}-platform"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="display:flex;align-items:center;gap:10px;min-width:0">${b.logo?`<img class="brand-logo" src="${logoUrl(b)}" alt="">`:""}<span class="name">${esc(b.name)}</span></span><span class="pill ${n?"pos":"neu"}">${n?n+" platform"+(n>1?"s":"")+" connected":"Not connected"}</span></div>
       ${(()=>{const src=ok?["LinkedIn",s.followers,s.impressions,"Impressions",s.engagement_rate]:fbOk&&ms.facebook?["Facebook",ms.facebook.followers,ms.facebook.reach,"Reach",ms.facebook.engagement_rate]:igOk&&ms.instagram?["Instagram",ms.instagram.followers,ms.instagram.reach,"Reach",ms.instagram.engagement_rate]:ytOk&&ys.views!=null?["YouTube",ys.subscribers,ys.views,"Views",null,"Subscribers","Watch hours",compact(Math.round(ys.watch_hours||0))]:null;
         const others=[ok&&src&&src[0]!=="LinkedIn"?`LinkedIn ${compact(s.followers||0)} followers`:"",fbOk&&ms.facebook&&src&&src[0]!=="Facebook"?`Facebook ${compact(ms.facebook.followers||0)} followers`:"",igOk&&ms.instagram&&src&&src[0]!=="Instagram"?`Instagram ${compact(ms.instagram.followers||0)} followers`:"",ytOk&&ys.subscribers!=null&&src&&src[0]!=="YouTube"?`YouTube ${compact(ys.subscribers)} subscribers`:""].filter(Boolean);
         return `<div class="mini-kpis"><div><span class="hint">${src&&src[5]||"Followers"}</span><b>${src&&src[1]!=null?compact(src[1]):"–"}</b></div><div><span class="hint">${src?src[3]:"Impressions"}</span><b>${src?compact(src[2]||0):"–"}</b></div><div><span class="hint">${src&&src[6]||"Engagement"}</span><b>${src?(src[7]!=null?src[7]:pctf(src[4])):"–"}</b></div></div>
@@ -1560,13 +1619,14 @@ function renderBrands(root){
   $("sma-add").onclick=add;$("sma-new").onkeydown=e=>{if(e.key==="Enter")add();};
 }
 function brandHead(b,tab){
-  const T=[["platform","Platform"],["report","Report"],["source","Source"],["settings","Settings"]];
+  const T=[["platform","Platform"],["report","Report"],["monthly","Monthly report"],["source","Source"],["settings","Settings"]];
   return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
   <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):"",b.youtube.channel_id&&b.youtube.connected?"YouTube: "+esc(b.youtube.channel_title||""):""].filter(Boolean).join(" · ")||"No platform connected yet"}${smaBusy(b)?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
   <nav class="sma-tabs" aria-label="Brand sections">${T.map(([k,n])=>`<a href="#sma-${b.id}-${k}" aria-current="${k===tab?"page":"false"}">${n}</a>`).join("")}</nav>`;
 }
 function renderBrand(root,b,tab){
-  const body=tab==="platform"?smaPlatform(b):tab==="report"?smaReport(b):tab==="source"?smaSource(b):smaSettings(b);
+  const body=tab==="platform"?smaPlatform(b):tab==="report"?smaReport(b):tab==="monthly"?smaMonthly(b):tab==="source"?smaSource(b):smaSettings(b);
+  root.classList.toggle("mr-mode",tab==="monthly");
   root.innerHTML=brandHead(b,tab)+body;
   bindBrand(b,tab);
 }
@@ -1601,6 +1661,111 @@ function smaPlatform(b){
     ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned next.</p></div>`).join("")}
   </div>`;
 }
+/* ---------- Monthly report (standard Stark template) ---------- */
+const MRP={linkedin:{n:"LinkedIn",a:"in",c:"#0a66c2"},facebook:{n:"Facebook",a:"f",c:"#1877f2"},instagram:{n:"Instagram",a:"IG",c:"#d62976"},youtube:{n:"YouTube",a:"YT",c:"#e60000"}};
+const logoUrl=b=>`api/sma/brands/${b.id}/logo?v=${encodeURIComponent(b.logo||"")}`;
+const thumbUrl=(bid,n)=>`api/sma/brands/${bid}/thumb/${encodeURIComponent(n)}`;
+const mrChip=k=>`<span class="mr-chip" style="background:${MRP[k].c}">${MRP[k].a}</span>`;
+function ytAllKey(b){return (b.youtube.channels||[]).filter(c=>c.connected||c.last_sync).map(c=>c.id+":"+(c.last_sync||"")).join("|");}
+async function smaLoadYTAll(b){const out={};
+  await Promise.all((b.youtube.channels||[]).filter(c=>c.connected||c.last_sync).map(async c=>{try{out[c.id]=(await smaApi(`/brands/${b.id}/youtube?channel=${encodeURIComponent(c.id)}`)).data||{};}catch(e){}}));
+  SMA.ytAll[b.id]=out;SMA.ytAllFor[b.id]=ytAllKey(b);}
+function mrMonths(){const out=[],d=new Date();d.setDate(1);for(let i=0;i<13;i++){const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");out.push([k,d.toLocaleDateString("en-IN",{month:"long",year:"numeric"})+(i===0?" (to date)":"")]);d.setMonth(d.getMonth()-1);}return out;}
+function mrDefaultMonth(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
+const localMonth=s=>{const d=new Date(s);return isNaN(d)?"":d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+const localDay=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function mrTokens(t){t=String(t||"").toLowerCase().replace(/https?:\/\/\S+/g," ").replace(/[@#][\p{L}\p{N}_]+/gu," ");return (t.match(/[\p{L}\p{N}]+/gu)||[]).filter(w=>w.length>1);}
+function mrSim(a,b){if(a.length<3||b.length<3)return 0;const pre=Math.min(a.length,b.length,8);if(pre>=4&&a.slice(0,pre).join(" ")===b.slice(0,pre).join(" "))return 1;
+  const A=new Set(a),B=new Set(b);let i=0;A.forEach(w=>{if(B.has(w))i++;});const jac=i/(A.size+B.size-i),mn=Math.min(A.size,B.size);return Math.max(jac,mn>=5?.85*i/mn:0);}
+function mrGroup(posts){const groups=[];
+  [...posts].sort((x,y)=>x.published<y.published?-1:1).forEach(p=>{let best=null,bs=.55;const t=+new Date(p.published);
+    for(const g of groups){if(g.posts.some(q=>q.key===p.key))continue;if(Math.abs(g.t-t)>3*864e5)continue;const s=Math.max(...g.posts.map(q=>mrSim(p.toks,q.toks)));if(s>=bs){bs=s;best=g;}}
+    if(best)best.posts.push(p);else groups.push({t,posts:[p]});});
+  const ord=["instagram","facebook","linkedin","youtube"];
+  groups.forEach(g=>{g.posts.sort((x,y)=>ord.indexOf(x.plat)-ord.indexOf(y.plat));g.published=g.posts.map(p=>p.published).sort()[0];
+    g.reach=g.posts.reduce((s,p)=>s+(p.reach||0),0);g.eng=g.posts.reduce((s,p)=>s+(p.eng||0),0);g.hasReach=g.posts.some(p=>p.reach!=null);
+    g.text=g.posts.map(p=>p.text).sort((x,y)=>y.length-x.length)[0]||"";g.thumb=(g.posts.find(p=>p.thumb)||{}).thumb||null;});
+  return groups;}
+function mrCollect(b,month){
+  const sum=(a)=>a.reduce((s,v)=>s+(v||0),0),n=v=>v==null||v===""?null:+v;
+  const [Y,M]=month.split("-").map(Number);const days=[];for(let d=new Date(Y,M-1,1);d.getMonth()===M-1;d.setDate(d.getDate()+1))days.push(localDay(d));
+  const dsum=(daily,f)=>{let any=false,s=0;days.forEach(k=>{const v=((daily||{})[k]||{})[f];if(v!=null){any=true;s+=+v||0;}});return any?s:null;};
+  const inM=p=>p&&p.published&&localMonth(p.published)===month;
+  const accts=[],posts=[];
+  const add=(plat,account,followers,gained,list,map)=>{const ps=(list||[]).filter(inM).map(x=>{const m=map(x);return {plat,key:plat+"|"+account,account,id:x.id,text:String(m.text||""),published:x.published,url:x.url||"",thumb:x.thumb||null,reach:m.reach,eng:m.eng,toks:mrTokens(m.text)};});
+    posts.push(...ps);accts.push({plat,account,followers,gained,posts:ps.length,reach:ps.some(p=>p.reach!=null)?sum(ps.map(p=>p.reach)):null,eng:sum(ps.map(p=>p.eng))});};
+  const li=b.linkedin,ld=SMA.data[b.id]||{};
+  if(li.connected&&li.org_urn||(ld.posts||[]).length){const g=[dsum(ld.daily,"followers_organic"),dsum(ld.daily,"followers_paid")];
+    add("linkedin",li.org_name||"LinkedIn page",ld.followers_total??null,g[0]==null&&g[1]==null?null:(g[0]||0)+(g[1]||0),ld.posts,x=>({text:x.text,reach:n(x.unique_impressions)??n(x.impressions),eng:sum([x.clicks,x.reactions,x.comments,x.shares])}));}
+  const md=SMA.meta[b.id]||{};
+  if(b.meta.page_connected||(md.fb_posts||[]).length){const f=dsum(md.fb_daily,"follows"),u=dsum(md.fb_daily,"unfollows");
+    add("facebook",(md.page||{}).name||b.meta.page_name||"Facebook Page",(md.page||{}).followers??null,f==null?null:f-(u||0),md.fb_posts,x=>({text:x.text,reach:n(x.reach),eng:sum([x.reactions,x.comments,x.shares])}));}
+  if(b.meta.page_connected&&b.meta.ig_id||(md.ig_media||[]).length){
+    add("instagram","@"+((md.ig||{}).username||b.meta.ig_username||"instagram"),(md.ig||{}).followers??null,dsum(md.ig_daily,"followers_gained"),md.ig_media,x=>({text:x.text,reach:n(x.reach),eng:x.total_interactions!=null?+x.total_interactions:sum([x.likes,x.comments,x.saves,x.shares])}));}
+  Object.entries(SMA.ytAll[b.id]||{}).forEach(([cid,yd])=>{if(!yd.channel)return;const g=dsum(yd.daily,"subs_gained"),l=dsum(yd.daily,"subs_lost");
+    add("youtube",yd.channel.title||cid,yd.channel.subscribers??null,g==null?null:g-(l||0),yd.uploads,x=>({text:x.title,reach:n(x.total_views),eng:sum([x.total_likes,x.total_comments])}));});
+  const groups=mrGroup(posts);
+  return {days,accts,posts,groups,plats:[...new Set(accts.map(a=>a.plat))]};}
+function smaMonthly(b){
+  if(!SMA.month)SMA.month=mrDefaultMonth();
+  const R=mrCollect(b,SMA.month);const mName=(mrMonths().find(m=>m[0]===SMA.month)||[0,SMA.month])[1].replace(" (to date)","");
+  const today=localDay(new Date());const toDate=R.days[R.days.length-1]>=today;const lastDay=toDate?today:R.days[R.days.length-1];
+  const fd=k=>new Date(k+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+  const tot=k=>R.accts.reduce((s,a)=>s+(a[k]||0),0);const totReach=tot("reach"),totEng=tot("eng");
+  const perPlat=Object.keys(MRP).map(k=>[k,R.posts.filter(p=>p.plat===k).length,R.accts.some(a=>a.plat===k)]).filter(x=>x[2]);
+  const maxP=Math.max(1,...perPlat.map(x=>x[1]));
+  const rate=(e,r)=>r?pctf(e/r):"–";const num=v=>v==null?"–":fmtInt(v);
+  let groups=[...R.groups];
+  if(SMA.mrSort==="reach")groups.sort((x,y)=>y.reach-x.reach);else if(SMA.mrSort==="eng")groups.sort((x,y)=>y.eng-x.eng);else groups.sort((x,y)=>x.published<y.published?-1:1);
+  const rankBy=[...R.groups].sort((x,y)=>y.eng-x.eng);const shown=SMA.mrLimit?groups.slice(0,SMA.mrLimit):groups;
+  const multi=R.groups.filter(g=>g.posts.length>1).length;
+  const initials=b.name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+  const card=g=>{const rk=rankBy.indexOf(g)+1;const plats=[...new Set(g.posts.map(p=>p.plat))];
+    return `<article class="mr-post"><div class="mr-thumb">${g.thumb?`<img src="${thumbUrl(b.id,g.thumb)}" alt="" loading="lazy">`:`<div class="ph">${plats.map(mrChip).join("")}</div>`}${rk<=3&&R.groups.length>3?`<span class="rank">Top ${rk} by engagement</span>`:""}</div>
+      <div class="mr-pb"><div class="mr-pd"><span>${fd(localDay(new Date(g.published)))}</span><span>${plats.map(mrChip).join("")}</span></div>
+      <p class="mr-cap">${esc(g.text||"(No caption)")}</p>
+      <div class="mr-tw"><table><thead><tr><th><span class="pn">Platform</span></th><th class="r">Reach</th><th class="r"><span class="pn">Engagement</span><span class="ps">Eng.</span></th><th class="r">Rate</th></tr></thead><tbody>
+      ${g.posts.map(p=>`<tr><td style="white-space:nowrap">${mrChip(p.plat)}<span class="pn">${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${MRP[p.plat].n}</a>`:MRP[p.plat].n}</span></td><td class="r">${num(p.reach)}</td><td class="r">${num(p.eng)}</td><td class="r">${p.reach?rate(p.eng,p.reach):"–"}</td></tr>`).join("")}</tbody>
+      ${g.posts.length>1?`<tfoot><tr><td><span class="pn">All platforms</span><span class="ps">Total</span></td><td class="r">${g.hasReach?fmtInt(g.reach):"–"}</td><td class="r">${fmtInt(g.eng)}</td><td class="r">${g.reach?rate(g.eng,g.reach):"–"}</td></tr></tfoot>`:""}</table></div></div></article>`;};
+  const toolbar=`<div class="toolbar no-print" style="margin:4px 0 14px">
+    <select class="select" id="mr-month" aria-label="Report month">${mrMonths().map(([k,l])=>`<option value="${k}" ${k===SMA.month?"selected":""}>${l}</option>`).join("")}</select>
+    <select class="select" id="mr-sort" aria-label="Sort posts"><option value="date" ${SMA.mrSort==="date"?"selected":""}>Posts by date</option><option value="eng" ${SMA.mrSort==="eng"?"selected":""}>Posts by engagement</option><option value="reach" ${SMA.mrSort==="reach"?"selected":""}>Posts by reach</option></select>
+    <select class="select" id="mr-limit" aria-label="Posts shown">${[[0,"All posts"],[10,"Top 10"],[20,"Top 20"]].map(([v,l])=>`<option value="${v}" ${SMA.mrLimit===v?"selected":""}>${l}</option>`).join("")}</select>
+    <span class="spacer" style="flex:1"></span><button class="btn" type="button" id="mr-csv">Copy posts (CSV)</button><button class="btn primary" type="button" id="mr-print">Print / Save PDF</button></div>
+    <textarea id="mr-out" class="no-print" hidden rows="4" style="width:100%;margin-bottom:12px" aria-label="CSV output"></textarea>`;
+  if(!R.accts.length)return toolbar+`<div class="card"><p class="empty">No platform is connected for ${esc(b.name)} yet. Connect Facebook, Instagram, LinkedIn or YouTube in <a href="#sma-${b.id}-settings">Settings</a>, sync, and the monthly report fills in automatically.</p></div>`;
+  return toolbar+`<div class="mr" id="mr">
+    <section class="mr-cover"><div class="mr-logos"><img class="mr-stark" src="stark-logo.png" alt="Stark">${b.logo?`<img class="mr-blogo" src="${logoUrl(b)}" alt="${esc(b.name)}">`:`<div class="mr-binit" aria-hidden="true">${esc(initials)}</div>`}</div>
+      <div class="mr-eyebrow">Monthly social media report</div><h1>${esc(b.name)}</h1><div class="mr-month">${esc(mName)}</div>
+      <div class="mr-meta">Period: ${fd(R.days[0])} – ${fd(lastDay)}${toDate?" (month to date)":""} · Prepared by Stark · Generated ${fd(today)}</div></section>
+    <section><h2><span>01</span>Summary</h2>
+      <div class="mr-kpis"><div class="mr-kpi hl"><span>Platforms</span><b>${R.plats.length}</b><span>${R.plats.map(k=>MRP[k].n).join(", ")}</span></div>
+        <div class="mr-kpi hl"><span>Posts published</span><b>${fmtInt(R.posts.length)}</b><span>${R.groups.length} unique post${R.groups.length===1?"":"s"}${multi?`, ${multi} cross-posted`:""}</span></div>
+        <div class="mr-kpi"><span>Post reach</span><b>${R.accts.some(a=>a.reach!=null)?compact(totReach):"–"}</b><span>Sum across platforms</span></div>
+        <div class="mr-kpi"><span>Engagements</span><b>${compact(totEng)}</b><span>Reactions, comments, shares${R.plats.includes("instagram")?", saves":""}</span></div>
+        <div class="mr-kpi"><span>Engagement rate</span><b>${rate(totEng,totReach)}</b><span>Engagements / reach</span></div></div>
+      <div class="mr-sub">Posts per platform</div>
+      <div class="mr-bars">${perPlat.map(([k,c])=>`<div class="mr-bar"><span style="display:flex;align-items:center">${mrChip(k)}${MRP[k].n}</span><span class="tr"><i style="width:${Math.max(c?3:0,c/maxP*100)}%;background:${MRP[k].c}"></i></span><b>${c}</b></div>`).join("")}</div>
+      <div class="mr-sub">Platform overview</div>
+      <div class="mr-tw"><table><thead><tr><th>Platform</th><th>Account</th><th class="r">Posts</th><th class="r">Post reach</th><th class="r">Engagements</th><th class="r">Eng. rate</th><th class="r">Followers</th><th class="r">New followers</th></tr></thead><tbody>
+        ${R.accts.map(a=>`<tr><td style="white-space:nowrap">${mrChip(a.plat)}${MRP[a.plat].n}</td><td>${esc(a.account)}</td><td class="r">${a.posts}</td><td class="r">${num(a.reach)}</td><td class="r">${fmtInt(a.eng)}</td><td class="r">${rate(a.eng,a.reach)}</td><td class="r">${num(a.followers)}</td><td class="r">${a.gained==null?"–":(a.gained>0?"+":"")+fmtInt(a.gained)}</td></tr>`).join("")}</tbody>
+        <tfoot><tr><td colspan="2"><b>Total</b></td><td class="r"><b>${R.posts.length}</b></td><td class="r"><b>${R.accts.some(a=>a.reach!=null)?fmtInt(totReach):"–"}</b></td><td class="r"><b>${fmtInt(totEng)}</b></td><td class="r"><b>${rate(totEng,totReach)}</b></td><td class="r"></td><td class="r"></td></tr></tfoot></table></div></section>
+    <section class="mr-posts-sec"><h2><span>02</span>Post performance</h2>
+      <p class="mr-hint" style="margin:-8px 0 16px">${R.groups.length?`${shown.length<groups.length?`Showing ${shown.length} of ${groups.length} posts. `:""}The same post shared on several platforms is shown once, with its reach and engagement on each platform.`:""}</p>
+      ${shown.length?`<div class="mr-posts">${shown.map(card).join("")}</div>`:`<div class="mr-empty">No posts were published on the connected platforms in ${esc(mName)}.</div>`}
+      <ul class="mr-notes"><li>Reach: Facebook and Instagram post reach (unique accounts); LinkedIn unique impressions; YouTube video views (lifetime, at the last sync).</li>
+        <li>Engagement: Facebook reactions, comments and shares; Instagram total interactions (likes, comments, saves, shares); LinkedIn clicks, reactions, comments and shares; YouTube likes and comments.</li>
+        <li>Post statistics are as of the last sync${[b.meta.last_sync,b.linkedin.last_sync,b.youtube.last_sync].filter(Boolean).length?" ("+fd(localDay(new Date([b.meta.last_sync,b.linkedin.last_sync,b.youtube.last_sync].filter(Boolean).sort().pop())))+")":""}. Post history is kept from the first sync, so months before it may be incomplete.</li></ul></section>
+    <div class="mr-foot"><img src="stark-logo.png" alt="Stark"><span>${esc(b.name)} · ${esc(mName)} · Social media report</span></div></div>`;
+}
+async function logoDataUrl(file){const url=URL.createObjectURL(file);
+  try{const img=new Image();await new Promise((ok,bad)=>{img.onload=ok;img.onerror=()=>bad(new Error("Could not read that image. Use a PNG, JPG, WebP or SVG file."));img.src=url;});
+    const w=img.naturalWidth||480,h=img.naturalHeight||480;
+    for(const max of [480,360,260]){const s=Math.min(1,max/Math.max(w,h));const c=document.createElement("canvas");c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      for(const t of ["image/webp","image/png"]){const d=c.toDataURL(t,.9);if(d.startsWith("data:"+t)&&d.length<60000)return d;}}
+    throw new Error("That image is too detailed to store as a logo. Try a simpler PNG.");}
+  finally{URL.revokeObjectURL(url);}}
 function liDays(d,range){return rangeDays(d.daily,range);}
 function smaReport(b){
   const opts=[["linkedin","LinkedIn",b.linkedin.connected&&b.linkedin.org_urn],["facebook","Facebook",b.meta.page_connected],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id],["youtube","YouTube",b.youtube.connected&&!!b.youtube.channel_id]];
@@ -1812,7 +1977,10 @@ function smaSourceMeta(b){
 function smaSettings(b){
   const li=b.linkedin;const configured=li.client_id&&li.has_client_secret;
   return `<div class="card"><div class="card-head"><h2>Brand</h2></div><div class="card-body"><div class="form">
-      <label class="f" for="br-name">Brand name</label><div class="toolbar"><input type="text" id="br-name" value="${esc(b.name)}" style="flex:1;min-width:200px"><button class="btn" type="button" id="br-save">Save name</button></div></div>
+      <label class="f" for="br-name">Brand name</label><div class="toolbar"><input type="text" id="br-name" value="${esc(b.name)}" style="flex:1;min-width:200px"><button class="btn" type="button" id="br-save">Save name</button></div>
+      <label class="f" for="br-logo-pick">Brand logo</label><div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="toolbar"><div class="logo-prev">${b.logo?`<img src="${logoUrl(b)}" alt="${esc(b.name)} logo">`:`<span class="hint">No logo</span>`}</div>
+        <input type="file" id="br-logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden><button class="btn" type="button" id="br-logo-pick">${b.logo?"Replace logo":"Upload logo"}</button>${b.logo?`<button class="btn danger" type="button" id="br-logo-del">Remove</button>`:""}</div>
+        <span class="hint">PNG, JPG, WebP or SVG. A logo with a transparent background looks best. Shown on the monthly report cover, next to the Stark logo.</span></div></div>
       <div class="form-actions"><span class="spacer"></span><button class="btn danger" type="button" id="br-delete">Delete brand</button></div></div></div>
     <div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c8);margin-right:8px">in</span>LinkedIn API integration</h2><span class="pill ${li.connected&&li.org_urn?"pos":li.connected?"neu":configured?"neu":"neg"}">${li.connected&&li.org_urn?"Connected":li.connected?"Choose a page":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
       <ol class="steps">
@@ -1906,6 +2074,16 @@ function bindBrand(b,tab){
     $("yt-save").onclick=async()=>{const body={youtube:{client_id:$("yt-cid").value.trim()}};const s=$("yt-secret").value.trim();if(s)body.youtube.client_secret=s;
       try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("yt-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect YouTube.");}catch(e){smaMsg(e.message,true);}};
   }
+  if(tab==="monthly"){
+    $("mr-month").onchange=e=>{SMA.month=e.target.value;renderSMA();};
+    $("mr-sort").onchange=e=>{SMA.mrSort=e.target.value;renderSMA();};
+    $("mr-limit").onchange=e=>{SMA.mrLimit=+e.target.value;renderSMA();};
+    $("mr-print").onclick=()=>window.print();
+    $("mr-csv").onclick=e=>{const R=mrCollect(b,SMA.month);const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;
+      const rows=[["group","date","platform","account","reach","engagements","engagement_rate","url","caption"].join(",")];
+      R.groups.forEach((g,i)=>g.posts.forEach(p=>rows.push([i+1,p.published.slice(0,10),MRP[p.plat].n,q(p.account),p.reach??"",p.eng??"",p.reach&&p.eng!=null?(p.eng/p.reach).toFixed(4):"",q(p.url),q(p.text.slice(0,300))].join(","))));
+      copyOutTo(rows.join("\n"),e.currentTarget,"Copy posts (CSV)",$("mr-out"));};
+  }
   document.querySelectorAll("#sma-root [data-open-plat]").forEach(a=>a.addEventListener("click",()=>{SMA.plat=a.dataset.openPlat;}));
   document.querySelectorAll("#sma-root [data-plat]").forEach(x=>x.onclick=()=>{SMA.plat=x.dataset.plat;renderSMA();});
   if(tab==="source"&&$("meta-disconnect")){$("meta-disconnect").onclick=async e=>{if(SMA.arm!=="mdisc"){SMA.arm="mdisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
@@ -1936,6 +2114,12 @@ function bindBrand(b,tab){
   if(tab==="source"&&$("li-disconnect")){$("li-disconnect").onclick=async e=>{if(SMA.arm!=="disc"){SMA.arm="disc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
     try{await smaApi(`/brands/${b.id}/linkedin/disconnect`,{method:"POST"});await smaRefresh();smaMsg("LinkedIn disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
   if(tab==="settings"){
+    $("br-logo-pick").onclick=()=>$("br-logo-file").click();
+    $("br-logo-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+      if(f.size>8e6){smaMsg("That file is over 8 MB. Choose a smaller image.",true);return;}
+      try{smaMsg("Uploading logo…");const data_url=await logoDataUrl(f);await smaApi(`/brands/${b.id}/logo`,{method:"POST",body:JSON.stringify({data_url})});await smaRefresh();smaMsg("Logo saved.");}catch(err){smaMsg(err.message,true);}};
+    if($("br-logo-del"))$("br-logo-del").onclick=async e=>{if(SMA.arm!=="logo"){SMA.arm="logo";e.currentTarget.textContent="Click again to remove";return;}SMA.arm=null;
+      try{await smaApi(`/brands/${b.id}/logo`,{method:"DELETE"});await smaRefresh();smaMsg("Logo removed.");}catch(err){smaMsg(err.message,true);}};
     $("br-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify({name:$("br-name").value})});await smaRefresh();smaMsg("Saved.");}catch(e){smaMsg(e.message,true);}};
     $("br-delete").onclick=async e=>{if(SMA.arm!=="del"){SMA.arm="del";e.currentTarget.textContent="Click again to delete "+b.name;return;}SMA.arm=null;
       try{await smaApi(`/brands/${b.id}`,{method:"DELETE"});SMA.brands=null;delete SMA.data[b.id];go("sma");}catch(err){smaMsg(err.message,true);}};

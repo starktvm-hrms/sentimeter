@@ -118,6 +118,88 @@ def save_li_data(bid, data):
     _save(_p(bid, "linkedin.json"), data, 0o640)
 
 
+# ---------------- shared helpers: post history, thumbnails, logos ----------------
+
+def merge_posts(old, new, keep_days=400, key="id", date_field="published"):
+    """Keep every post seen in the last keep_days; newer statistics replace older ones."""
+    cut = iso(time.time() - keep_days * 86400)
+    by = {p[key]: p for p in (old or []) if p.get(key)}
+    for p in new or []:
+        if p.get(key):
+            prev = by.get(p[key], {})
+            by[p[key]] = {**prev, **{k: v for k, v in p.items() if v is not None}}
+    out = [p for p in by.values() if (p.get(date_field) or "") >= cut]
+    return sorted(out, key=lambda p: p.get(date_field) or "", reverse=True)
+
+
+def thumb_name(platform, pid):
+    return f"{platform}_{hashlib.sha1(str(pid).encode()).hexdigest()[:16]}.img"
+
+
+def thumb_path(bid, name):
+    if not re.fullmatch(r"[a-z]+_[0-9a-f]{16}\.img", name or ""):
+        return None
+    return _p(bid, "thumbs", name)
+
+
+def cache_thumb(bid, platform, pid, url):
+    """Download a post image once and keep it (platform image links expire). Returns the stored name."""
+    if not url or not str(url).startswith("http"):
+        return None
+    name = thumb_name(platform, pid)
+    path = _p(bid, "thumbs", name)
+    if os.path.exists(path):
+        return name
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Sentimeter/1.0"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            ctype = r.headers.get("Content-Type", "")
+            body = r.read(2_500_001)
+        if not ctype.startswith("image/") or len(body) > 2_500_000 or len(body) < 100:
+            return None
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(body)
+        return name
+    except Exception:
+        return None
+
+
+LOGO_MAGIC = {b"RIFF": "image/webp", b"\x89PNG": "image/png", b"\xff\xd8\xff": "image/jpeg"}
+
+
+def save_logo(bid, data_url):
+    import base64
+    m = re.fullmatch(r"data:image/(png|webp|jpeg);base64,([A-Za-z0-9+/=]+)", str(data_url or ""))
+    if not m:
+        raise ValueError("Upload a PNG, JPG, WebP or SVG image.")
+    raw = base64.b64decode(m.group(2))
+    if len(raw) > 300_000 or not any(raw.startswith(k) for k in LOGO_MAGIC):
+        raise ValueError("The logo image is too large or not a valid image.")
+    path = _p(bid, "logo.img")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(raw)
+    update_brand_record(bid, lambda r: r.update({"logo": iso()}))
+
+
+def logo_bytes(bid):
+    try:
+        raw = open(_p(bid, "logo.img"), "rb").read()
+    except FileNotFoundError:
+        return None, None
+    ctype = next((v for k, v in LOGO_MAGIC.items() if raw.startswith(k)), "application/octet-stream")
+    return raw, ctype
+
+
+def delete_logo(bid):
+    try:
+        os.remove(_p(bid, "logo.img"))
+    except FileNotFoundError:
+        pass
+    update_brand_record(bid, lambda r: r.update({"logo": None}))
+
+
 # ---------------- brands (public view never contains secrets) ----------------
 
 def public_brand(b, with_counts=True):
@@ -131,7 +213,7 @@ def public_brand(b, with_counts=True):
     li.setdefault("scopes", DEFAULT_SCOPES)
     li.setdefault("version", "")
     li["default_version"] = default_version()
-    out = {"id": b["id"], "name": b["name"], "created": b.get("created"), "linkedin": li}
+    out = {"id": b["id"], "name": b["name"], "created": b.get("created"), "logo": b.get("logo"), "linkedin": li}
     if with_counts and li["connected"]:
         d = li_data(b["id"])
         out["linkedin_summary"] = summary(d, 30)
@@ -501,7 +583,7 @@ def li_sync(bid, full=False):
                 p.update({"impressions": _n(s.get("impressionCount")), "unique_impressions": _n(s.get("uniqueImpressionsCount")),
                           "clicks": _n(s.get("clickCount")), "reactions": _n(s.get("likeCount")), "comments": _n(s.get("commentCount")),
                           "shares": _n(s.get("shareCount")), "engagement": _n(s.get("engagement"))})
-            data["posts"] = posts
+            data["posts"] = merge_posts(data.get("posts"), posts)
         except Exception as e:
             errors.append(f"Posts: {e}")
 

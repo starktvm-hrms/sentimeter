@@ -349,14 +349,26 @@ def sync(bid, full=False):
             if name:
                 d.setdefault("metric_names", {})[f"fb_{field}"] = name
         try:
-            j = graph(bid, f"{page_id}/posts", {"fields": "id,message,created_time,permalink_url,shares,reactions.summary(true).limit(0),comments.summary(true).limit(0)", "limit": 25})
-            posts = []
-            for x in j.get("data", []):
-                posts.append({"id": x["id"], "text": (x.get("message") or "")[:1200], "published": (x.get("created_time") or "")[:19] + "Z",
-                              "url": x.get("permalink_url", ""), "reactions": _num(((x.get("reactions") or {}).get("summary") or {}).get("total_count")),
-                              "comments": _num(((x.get("comments") or {}).get("summary") or {}).get("total_count")),
-                              "shares": _num((x.get("shares") or {}).get("count")), "views": None, "reach": None})
-            for x in posts[:25]:
+            cutoff = sma.iso(time.time() - (400 if fb_days > 35 else 45) * 86400)
+            posts, after, pages = [], None, 0
+            while pages < 12:
+                prm = {"fields": "id,message,created_time,permalink_url,full_picture,shares,reactions.summary(true).limit(0),comments.summary(true).limit(0)", "limit": 50}
+                if after:
+                    prm["after"] = after
+                j = graph(bid, f"{page_id}/posts", prm)
+                rows = j.get("data", [])
+                for x in rows:
+                    posts.append({"id": x["id"], "text": (x.get("message") or "")[:1200], "published": (x.get("created_time") or "")[:19] + "Z",
+                                  "url": x.get("permalink_url", ""), "picture": x.get("full_picture", ""),
+                                  "reactions": _num(((x.get("reactions") or {}).get("summary") or {}).get("total_count")),
+                                  "comments": _num(((x.get("comments") or {}).get("summary") or {}).get("total_count")),
+                                  "shares": _num((x.get("shares") or {}).get("count")), "views": None, "reach": None})
+                after = ((j.get("paging") or {}).get("cursors") or {}).get("after")
+                pages += 1
+                if not rows or not after or not (j.get("paging") or {}).get("next") or posts[-1]["published"] < cutoff:
+                    break
+            recent_cut = sma.iso(time.time() - 45 * 86400)
+            for x in [p for p in posts if p["published"] >= recent_cut][:80]:
                 for fld, names in (("views", ["post_media_view", "post_impressions"]), ("reach", ["post_total_media_view_unique", "post_impressions_unique"])):
                     for n in names:
                         try:
@@ -366,7 +378,9 @@ def sync(bid, full=False):
                             break
                         except Exception:
                             continue
-            d["fb_posts"] = posts
+            for x in posts:
+                x["thumb"] = sma.cache_thumb(bid, "fb", x["id"], x.pop("picture", "")) or None
+            d["fb_posts"] = sma.merge_posts(d.get("fb_posts"), posts)
         except Exception as e:
             errors.append(f"Facebook posts: {e}")
 
@@ -424,13 +438,27 @@ def sync(bid, full=False):
             if demo:
                 d["ig_demographics"] = demo
             try:
-                j = graph(bid, f"{ig_id}/media", {"fields": "id,caption,media_type,media_product_type,timestamp,permalink,like_count,comments_count", "limit": 25})
+                cutoff = sma.iso(time.time() - (400 if fb_days > 35 else 45) * 86400)
+                raw, after, pages = [], None, 0
+                while pages < 12:
+                    prm = {"fields": "id,caption,media_type,media_product_type,timestamp,permalink,like_count,comments_count,media_url,thumbnail_url", "limit": 50}
+                    if after:
+                        prm["after"] = after
+                    j = graph(bid, f"{ig_id}/media", prm)
+                    rows = j.get("data", [])
+                    raw += rows
+                    after = ((j.get("paging") or {}).get("cursors") or {}).get("after")
+                    pages += 1
+                    if not rows or not after or not (j.get("paging") or {}).get("next") or (rows[-1].get("timestamp") or "")[:19] + "Z" < cutoff:
+                        break
+                recent_cut = sma.iso(time.time() - 45 * 86400)
                 media = []
-                for x in j.get("data", []):
+                for x in raw:
                     it = {"id": x["id"], "text": (x.get("caption") or "")[:1200], "published": (x.get("timestamp") or "")[:19] + "Z",
                           "url": x.get("permalink", ""), "type": x.get("media_product_type") or x.get("media_type", ""),
-                          "likes": _num(x.get("like_count")), "comments": _num(x.get("comments_count")), "reach": None, "views": None, "saves": None, "shares": None}
-                    for mset in ("reach,views,saved,shares,total_interactions", "reach,saved"):
+                          "likes": _num(x.get("like_count")), "comments": _num(x.get("comments_count")), "reach": None, "views": None, "saves": None, "shares": None,
+                          "thumb": sma.cache_thumb(bid, "ig", x["id"], x.get("thumbnail_url") or (x.get("media_url") if x.get("media_type") != "VIDEO" else "")) or None}
+                    for mset in (() if it["published"] < recent_cut else ("reach,views,saved,shares,total_interactions", "reach,saved")):
                         try:
                             r = graph(bid, f"{x['id']}/insights", {"metric": mset})
                             for row in r.get("data", []):
@@ -440,7 +468,7 @@ def sync(bid, full=False):
                         except Exception:
                             continue
                     media.append(it)
-                d["ig_media"] = media
+                d["ig_media"] = sma.merge_posts(d.get("ig_media"), media)
             except Exception as e:
                 errors.append(f"Instagram posts: {e}")
         else:
