@@ -120,6 +120,14 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .delta{font:500 12px var(--f-mono);padding:2px 7px;border-radius:5px}
 .delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
+svg[data-tip]{cursor:crosshair;touch-action:pan-y}
+.chart-tip{position:fixed;z-index:1000;pointer-events:none;min-width:150px;max-width:280px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:0 8px 24px rgba(15,23,42,.18);font-size:12.5px;line-height:1.4;font-family:Inter,system-ui,sans-serif}
+.chart-tip .ct-h{font-weight:700;margin-bottom:4px;white-space:nowrap}
+.chart-tip .ct-row{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center}
+.chart-tip .ct-row i{width:10px;height:10px;border-radius:3px;display:block}
+.chart-tip .ct-row b{font-variant-numeric:tabular-nums;font-family:"JetBrains Mono",monospace;font-weight:500}
+.chart-tip .ct-tot{border-top:1px solid var(--line);margin-top:4px;padding-top:4px}
+@media print{.chart-tip{display:none!important}}
 .chart text{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
 .sent-top{display:flex;gap:22px;flex-wrap:wrap}
 .sent-top .v{font-family:var(--f-display);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -1166,6 +1174,31 @@ function splits(arr){const c={pos:0,neu:0,neg:0};arr.forEach(m=>c[labelOf(m)]++)
 
 /* ---------- Charts ---------- */
 function niceTicks(max){if(!(max>0))max=1;const raw=max/4;const p=Math.pow(10,Math.floor(Math.log10(raw)));const step=[1,2,2.5,5,10].map(x=>x*p).find(x=>x>=raw);return{step,top:Math.ceil(max/step)*step};}
+/* ---------- Chart hover tooltips (all line and bar charts) ---------- */
+const tipAttr=o=>` data-tip="${esc(JSON.stringify(o))}"`;
+const tipDay=d=>/^\d{4}-\d\d-\d\d$/.test(d)?new Date(d+"T00:00:00Z").toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}):String(d);
+const TIP={el:null,svg:null,i:-1};
+function tipFmt(v){if(v==null||isNaN(v))return "–";v=+v;return Number.isInteger(v)?v.toLocaleString("en-IN"):v.toLocaleString("en-IN",{maximumFractionDigits:2});}
+function tipName(svg,n){if(n)return n.charAt(0).toUpperCase()+n.slice(1);const h=svg.closest(".card,.sl-ch,.chart-box");const t=h&&h.querySelector("h2,h3,h4");return t?t.childNodes[0].textContent.replace(/\s+per (day|hour)$/i,"").trim():"Value";}
+function tipHide(){if(TIP.el)TIP.el.hidden=true;if(TIP.svg){const g=TIP.svg.querySelector(".tip-g");if(g)g.remove();}TIP.svg=null;TIP.i=-1;}
+function tipShow(e,svg){let d;try{d=svg._tip||(svg._tip=JSON.parse(svg.getAttribute("data-tip")));}catch(_){return;}
+  const ctm=svg.getScreenCTM();if(!ctm||!d.x.length)return;const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(ctm.inverse());
+  let i=0,best=Infinity;d.x.forEach((x,k)=>{const dd=Math.abs(x-p.x);if(dd<best){best=dd;i=k;}});
+  const half=d.bw?d.bw/2:(d.x.length>1?Math.abs(d.x[1]-d.x[0])/2:40);if(p.x<d.x[0]-half-4||p.x>d.x[d.x.length-1]+half+4){tipHide();return;}
+  if(TIP.svg&&TIP.svg!==svg)tipHide();
+  if(!TIP.el){TIP.el=document.createElement("div");TIP.el.className="chart-tip";TIP.el.setAttribute("role","status");document.body.appendChild(TIP.el);}
+  if(TIP.svg!==svg||TIP.i!==i){TIP.svg=svg;TIP.i=i;let g=svg.querySelector(".tip-g");if(!g){g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","tip-g");g.setAttribute("pointer-events","none");svg.appendChild(g);}
+    const sw=svg.viewBox.baseVal&&svg.viewBox.baseVal.width>1000?2.5:1.2;
+    g.innerHTML=d.t==="b"?`<rect x="${d.x[i]-d.bw/2}" y="${d.y0}" width="${d.bw}" height="${d.y1-d.y0}" fill="currentColor" opacity=".08"/>`
+      :`<line x1="${d.x[i]}" x2="${d.x[i]}" y1="${d.y0}" y2="${d.y1}" stroke="currentColor" stroke-opacity=".35" stroke-width="${sw}" stroke-dasharray="${sw*3} ${sw*3}"/>`+d.s.map(se=>se.y?`<circle cx="${d.x[i]}" cy="${se.y[i]}" r="${sw*3.6}" fill="${se.c}" stroke="#fff" stroke-width="${sw*1.6}"/>`:"").join("");
+    const rows=d.s.map(se=>`<div class="ct-row"><i style="background:${esc(se.c)}"></i><span>${esc(tipName(svg,se.n))}</span><b>${tipFmt(se.v[i])}</b></div>`).join("");
+    const tot=d.tot?`<div class="ct-row ct-tot"><i></i><span>Total</span><b>${tipFmt(d.s.reduce((a,se)=>a+(+se.v[i]||0),0))}</b></div>`:"";
+    TIP.el.innerHTML=`<div class="ct-h">${esc(d.lb[i])}</div>${rows}${tot}`;}
+  TIP.el.hidden=false;const r=TIP.el.getBoundingClientRect();let lx=e.clientX+14,ly=e.clientY+14;
+  if(lx+r.width>innerWidth-8)lx=e.clientX-r.width-14;if(ly+r.height>innerHeight-8)ly=e.clientY-r.height-14;TIP.el.style.left=Math.max(8,lx)+"px";TIP.el.style.top=Math.max(8,ly)+"px";}
+document.addEventListener("pointermove",e=>{const svg=e.target&&e.target.closest&&e.target.closest("svg[data-tip]");if(svg)tipShow(e,svg);else if(TIP.svg)tipHide();},{passive:true});
+document.addEventListener("pointerdown",e=>{const svg=e.target&&e.target.closest&&e.target.closest("svg[data-tip]");if(svg)tipShow(e,svg);else if(TIP.svg)tipHide();},{passive:true});
+window.addEventListener("scroll",()=>{if(TIP.svg)tipHide();},{passive:true,capture:true});
 function lineChart(days,series,{area=false,H=150}={}){
   const W=380,L=34,R=10,T=8,B=22;
   const max=Math.max(1,...series.flatMap(s=>s.values));const{step,top}=niceTicks(max);
@@ -1180,9 +1213,9 @@ function lineChart(days,series,{area=false,H=150}={}){
     const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
     if(area&&pts.length)s+=`<path d="${d}L${pts[pts.length-1][0]} ${y(0)}L${pts[0][0]} ${y(0)}Z" fill="${se.color}" fill-opacity=".16"/>`;
     s+=`<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    if(pts.length<=31)pts.forEach((p,i)=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?3.5:2.2}" fill="${se.color}"><title>${fmtDay(days[i])}: ${compact(se.values[i])} ${se.label}</title></circle>`;});
+    if(pts.length<=31)pts.forEach((p,i)=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?3.5:2.2}" fill="${se.color}"/>`;});
   });
-  return s+"</svg>";
+  return s.replace("<svg ",`<svg${tipAttr({t:"l",lb:days.map(tipDay),x:days.map((_,i)=>+x(i).toFixed(1)),y0:T,y1:H-B,s:series.map(se=>({n:se.label,c:se.color,v:se.values,y:se.values.map(v=>+y(v).toFixed(1))}))})} `)+"</svg>";
 }
 function donut(segs){
   const total=segs.reduce((a,b)=>a+b.value,0)||1;const r=52,C=2*Math.PI*r;let off=0;
@@ -1386,16 +1419,17 @@ function dlt(cur,prev,{pts=false,invert=false}={}){
   const good=invert?d<0:d>0,bad=invert?d>0:d<0;return `<span class="delta ${good?"up":bad?"down":"flat"}">${txt}</span>`;}
 function tbl(head,rows){if(!rows.length)return `<p class="empty" style="padding:6px 0">No mentions in this period.</p>`;return `<table class="tbl"><thead><tr>${head.map(h=>`<th class="${h[1]||""}">${h[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${head[i][1]||""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;}
 const netCell=n=>`<span class="${n>=5?"pos-c":n<=-5?"neg-c":""}">${signed(n)}</span>`;
-function barChart(labels,values,{stacks=null,H=200,every=1,W=760}={}){
+function barChart(labels,values,{stacks=null,H=200,every=1,W=760,name="",days=null}={}){
   const L=34,R=8,T=10,B=24;const tot=stacks?stacks.map(s=>s.pos+s.neu+s.neg):values;
   const{step,top}=niceTicks(Math.max(1,...tot));const n=labels.length;const bw=(W-L-R)/n;const gap=Math.min(6,bw*.25);
   const y=v=>T+(H-T-B)*(1-v/top);let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
   for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${compact(v)}</text>`;
   labels.forEach((lb,i)=>{const x=L+i*bw+gap/2,w=bw-gap;
-    if(stacks){let base=0;[["neg","var(--neg)"],["neu","var(--neu)"],["pos","var(--pos)"]].forEach(([k,c])=>{const v=stacks[i][k];if(v>0){s+=`<rect x="${x}" y="${y(base+v)}" width="${w}" height="${y(base)-y(base+v)}" fill="${c}"><title>${lb}: ${v} ${LABEL[k].toLowerCase()}</title></rect>`;}base+=v;});}
-    else if(values[i]>0)s+=`<rect x="${x}" y="${y(values[i])}" width="${w}" height="${y(0)-y(values[i])}" rx="2" fill="var(--accent)"><title>${lb}: ${values[i]}</title></rect>`;
+    if(stacks){let base=0;[["neg","var(--neg)"],["neu","var(--neu)"],["pos","var(--pos)"]].forEach(([k,c])=>{const v=stacks[i][k];if(v>0){s+=`<rect x="${x}" y="${y(base+v)}" width="${w}" height="${y(base)-y(base+v)}" fill="${c}"/>`;}base+=v;});}
+    else if(values[i]>0)s+=`<rect x="${x}" y="${y(values[i])}" width="${w}" height="${y(0)-y(values[i])}" rx="2" fill="var(--accent)"/>`;
     if(i%every===0)s+=`<text x="${x+w/2}" y="${H-7}" text-anchor="middle">${lb}</text>`;});
-  return s+"</svg>";
+  const ser=stacks?[["pos","var(--pos)"],["neu","var(--neu)"],["neg","var(--neg)"]].map(([k,c])=>({n:LABEL[k],c,v:stacks.map(o=>o[k])})):[{n:name,c:"var(--accent)",v:values}];
+  return s.replace("<svg ",`<svg${tipAttr({t:"b",lb:days?days.map(tipDay):labels,x:labels.map((_,i)=>+(L+i*bw+bw/2).toFixed(1)),bw:+bw.toFixed(1),y0:T,y1:H-B,tot:!!stacks,s:ser})} `)+"</svg>";
 }
 let REPORT={sum:"",csv:""};let rTab="mentions",rSrc="";
 function renderReports(){
@@ -1418,7 +1452,7 @@ function renderReports(){
     ["Peak day",peakN?fmtDay(peak.day):"None",peakN?`<span class="hint">${peakN} mentions</span>`:""]];
   $("r-tiles").innerHTML=tiles.map(([k,v,d])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${d}</div></div>`).join("");
   $("r-daily-leg").hidden=rTab!=="mentions";$("r-daily-h").textContent=rTab==="mentions"?"by sentiment":`total ${compact(A.reach)} · estimated audience of each mention`;
-  $("r-daily").innerHTML=rTab==="mentions"?barChart(days.map(fmtDay),null,{stacks:daily,every:Math.ceil(days.length/10)}):lineChart(days,[{label:"reach",color:"var(--accent)",values:daily.map(o=>o.reach)}],{area:true,H:200});
+  $("r-daily").innerHTML=rTab==="mentions"?barChart(days.map(fmtDay),null,{days,stacks:daily,every:Math.ceil(days.length/10)}):lineChart(days,[{label:"reach",color:"var(--accent)",values:daily.map(o=>o.reach)}],{area:true,H:200});
   const hours=new Array(24).fill(0),wk=new Array(7).fill(0);cur.forEach(m=>{const d=new Date(m.date);hours[d.getUTCHours()]++;wk[(d.getUTCDay()+6)%7]++;});
   $("r-hour").innerHTML=barChart(hours.map((_,i)=>String(i).padStart(2,"0")),hours,{every:3,W:520,H:180});
   $("r-week").innerHTML=barChart(["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],wk,{W:520,H:180});
@@ -1831,7 +1865,8 @@ function slChart(c,days,W,H){
   else c.series.forEach(se=>{const pts=se.values.map((v,i)=>[x(i),y(v)]);if(!pts.length)return;const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
     s+=`<path d="${d}L${pts[pts.length-1][0]} ${y(0)}L${pts[0][0]} ${y(0)}Z" fill="#${se.color}" fill-opacity=".18"/><path d="${d}" fill="none" stroke="#${se.color}" stroke-width="3" stroke-linejoin="round"/>`;
     if(pts.length<=31)pts.forEach(p=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.6" fill="#${se.color}"/>`;});});
-  return s+"</svg>";}
+  const bw=(W-L-Rr)/Math.max(1,n);
+  return s.replace("<svg ",`<svg${tipAttr({t:c.kind==="bar"?"b":"l",lb:days.map(tipDay),x:days.map((_,i)=>+x(i).toFixed(1)),bw:+bw.toFixed(1),y0:T,y1:H-B,s:c.series.map(se=>({n:se.name,c:"#"+se.color,v:se.values,y:se.values.map(v=>+y(v).toFixed(1))}))})} `)+"</svg>";}
 const slChip=k=>`<span class="sl-chip" style="background:${MRP[k].c}">${MRP[k].a}</span>`;
 const slHead=(eb,title,pg)=>`<div class="sl-eb">${eb}</div>${pg?`<div class="sl-pg">${pg}</div>`:""}<h3 class="sl-h">${esc(title)}</h3><div class="sl-hr"></div><div class="sl-ft"></div>`;
 function slPostCard(b,M,c,kind){const g=c.g;const plats=[...new Set(g.posts.map(p=>p.plat))];const num=v=>v==null?"–":fmtInt(v);const rate=(e,r)=>r?pctf(e/r):"–";
@@ -2197,7 +2232,7 @@ function smaReportYT(b){
     <div class="tiles">${T.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
     <div class="grid2r">
       <div class="card"><div class="card-head"><h2>Views per day</h2></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"views",color:"var(--accent)",values:days.map(k=>(daily[k]||{}).views||0)}],{area:true,H:200})}</div></div></div>
-      <div class="card"><div class="card-head"><h2>Watch hours per day</h2></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>Math.round(((daily[k]||{}).watch_minutes||0)/60)),{every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
+      <div class="card"><div class="card-head"><h2>Watch hours per day</h2></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>Math.round(((daily[k]||{}).watch_minutes||0)/60)),{days,every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
     </div>
     <div class="card"><div class="card-head"><h2>Subscribers gained and lost per day</h2></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"gained",color:"var(--pos)",values:days.map(k=>(daily[k]||{}).subs_gained||0)},{label:"lost",color:"var(--neg)",values:days.map(k=>(daily[k]||{}).subs_lost||0)}],{H:180})}</div></div></div>
     <div class="card"><div class="card-head"><h2>Top videos</h2><span class="hint">by views in the last ${topN} days</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["Video"],["Published"],["Views","r"],["Watch hours","r"],["Likes","r"],["Comments","r"],["Shares","r"],["Subs gained","r"]],tv.map(v=>[`<a class="name-link" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc((v.title||v.id).slice(0,80))}${(v.title||"").length>80?"…":""}</a>`,v.published?fmtStamp(v.published).split(",")[0]:"–",compact(v.views),compact(Math.round((v.watch_minutes||0)/60)),compact(v.likes),compact(v.comments),compact(v.shares),compact(v.subs_gained)]))}</div></div></div>
@@ -2253,10 +2288,10 @@ function smaReportMeta(b,plat){
     <div class="tiles">${T.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
     <div class="grid2r">
       <div class="card"><div class="card-head"><h2>${isFb?"Views and reach per day":"Reach and views per day"}</h2></div><div class="card-body"><div class="chart">${lineSeries.length?lineChart(days,lineSeries,{area:true,H:200}):`<p class="hint">Not available for this account.</p>`}</div></div></div>
-      <div class="card"><div class="card-head"><h2>${isFb?"Engagements per day":"Interactions per day"}</h2></div><div class="card-body"><div class="chart">${has(eng)?barChart(days.map(fmtDay),days.map(k=>(daily[k]||{})[eng]||0),{every:Math.ceil(days.length/8),W:520,H:200}):`<p class="hint">Not available for this account.</p>`}</div></div></div>
+      <div class="card"><div class="card-head"><h2>${isFb?"Engagements per day":"Interactions per day"}</h2></div><div class="card-body"><div class="chart">${has(eng)?barChart(days.map(fmtDay),days.map(k=>(daily[k]||{})[eng]||0),{days,every:Math.ceil(days.length/8),W:520,H:200}):`<p class="hint">Not available for this account.</p>`}</div></div></div>
     </div>
     ${isFb?(has("follows")?`<div class="card"><div class="card-head"><h2>Follows and unfollows per day</h2></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"follows",color:"var(--pos)",values:days.map(k=>(daily[k]||{}).follows||0)},{label:"unfollows",color:"var(--neg)",values:days.map(k=>(daily[k]||{}).unfollows||0)}],{H:180})}</div></div></div>`:"")
-      :(has("followers_gained")?`<div class="card"><div class="card-head"><h2>New followers per day</h2><span class="hint">Instagram keeps the last 30 days</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>(daily[k]||{}).followers_gained||0),{every:Math.ceil(days.length/8),W:760,H:180})}</div></div></div>`:"")}
+      :(has("followers_gained")?`<div class="card"><div class="card-head"><h2>New followers per day</h2><span class="hint">Instagram keeps the last 30 days</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>(daily[k]||{}).followers_gained||0),{days,every:Math.ceil(days.length/8),W:760,H:180})}</div></div></div>`:"")}
     <div class="card"><div class="card-head"><h2>Top ${isFb?"posts":"posts and Reels"}</h2><span class="hint">published in this period</span></div><div class="card-body"><div class="tbl-wrap">${ptable}</div></div></div>
     ${isFb?"":`<div class="card"><div class="card-head"><h2>Follower demographics</h2><span class="hint">as reported by Instagram</span></div><div class="card-body"><div class="grid2r">${demoBars("age","Age")}${demoBars("gender","Gender")}${demoBars("country","Country")}${demoBars("city","City")}</div></div></div>`}
     ${notes.length?`<p class="hint">Some statistics are not available from Meta for this account: ${esc(notes.join("; ")).slice(0,600)}</p>`:""}
@@ -2289,10 +2324,10 @@ function smaReportLI(b){
     <div class="tiles">${tiles.map(([k,v,dd])=>`<div class="tile"><div class="eyebrow">${k}</div><div class="big">${v}</div><div>${dd||""}</div></div>`).join("")}</div>
     <div class="grid2r">
       <div class="card"><div class="card-head"><h2>Impressions per day</h2><span class="hint">all and unique</span></div><div class="card-body"><div class="chart">${lineChart(days,[{label:"impressions",color:"var(--accent)",values:days.map(k=>(d.daily[k]||{}).impressions||0)},{label:"unique",color:"var(--c2)",values:days.map(k=>(d.daily[k]||{}).unique_impressions||0)}],{area:true,H:200})}</div></div></div>
-      <div class="card"><div class="card-head"><h2>New followers per day</h2><span class="hint">organic and paid</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>((d.daily[k]||{}).followers_organic||0)+((d.daily[k]||{}).followers_paid||0)),{every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
+      <div class="card"><div class="card-head"><h2>New followers per day</h2><span class="hint">organic and paid</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>((d.daily[k]||{}).followers_organic||0)+((d.daily[k]||{}).followers_paid||0)),{days,every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
     </div>
     <div class="grid2r">
-      <div class="card"><div class="card-head"><h2>Engagement per day</h2><span class="hint">clicks, reactions, comments, reposts</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>{const x=d.daily[k]||{};return(x.clicks||0)+(x.reactions||0)+(x.comments||0)+(x.shares||0);}),{every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
+      <div class="card"><div class="card-head"><h2>Engagement per day</h2><span class="hint">clicks, reactions, comments, reposts</span></div><div class="card-body"><div class="chart">${barChart(days.map(fmtDay),days.map(k=>{const x=d.daily[k]||{};return(x.clicks||0)+(x.reactions||0)+(x.comments||0)+(x.shares||0);}),{days,every:Math.ceil(days.length/8),W:520,H:200})}</div></div></div>
       <div class="card"><div class="card-head"><h2>Engagement mix</h2><span class="hint">share of all interactions</span></div><div class="card-body"><div class="donut-row">${donutBlock({Clicks:cur.clicks,Reactions:cur.reactions,Comments:cur.comments,Reposts:cur.shares},{Clicks:"var(--accent)",Reactions:"var(--c2)",Comments:"var(--c3)",Reposts:"var(--c4)"}).replace(/>mentions</,">interactions<")}</div></div></div>
     </div>
     <div class="card"><div class="card-head"><h2>Top posts</h2><span class="hint">published in this period, by impressions</span></div><div class="card-body"><div class="tbl-wrap">${tbl([["Post"],["Published"],["Impressions","r"],["Clicks","r"],["Reactions","r"],["Comments","r"],["Reposts","r"],["Engagement","r"]],posts.map(p=>[`<a class="name-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc((p.text||"(no text)").slice(0,90))}${(p.text||"").length>90?"…":""}</a>`,fmtStamp(p.published).split(",")[0],compact(p.impressions),compact(p.clicks),compact(p.reactions),compact(p.comments),compact(p.shares),pctf(p.engagement)]))}</div></div></div>
