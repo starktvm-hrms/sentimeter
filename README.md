@@ -218,6 +218,17 @@ Each brand's Settings has an **Apify integration** card: tick Facebook, Instagra
 
 Mentions are kept for 100 days (up to 20,000). The mentions file is served gzip-compressed with an ETag, so browsers only download it again when it has changed.
 
+## Competitor Analysis (tab)
+
+The **Competitors** tab (main menu) tracks each brand's competitors month by month:
+
+- Pick a brand and click **Edit competitors & handles**: the brand's own handles plus national and international competitors, each with Facebook, Instagram, X, LinkedIn and YouTube handles (handle or profile link). "Fill sample list" adds 7 Indian and 15 international tourism boards.
+- Follower counts are collected once a month after 9:00 (or with **Refresh followers now**), one lookup per handle: Facebook `apify~facebook-pages-scraper`, Instagram `apify~instagram-profile-scraper` (token for Facebook & Instagram), X `apidojo~twitter-user-scraper`, LinkedIn `harvestapi~linkedin-company` (token for X & LinkedIn), YouTube through the free YouTube Data API key when set, else `streamers~youtube-scraper`.
+- The **Followers** table shows each account's followers for the chosen month and growth against the previous collected month (number and %), with totals; the brand is pinned and highlighted. **Monthly history** shows the last 12 months per platform. **Correct numbers** lets you fix a count by hand; **Copy table (CSV)** exports it.
+- Report decks with the Competitor analysis section get comparison charts for every platform that has data.
+
+Data: `/var/lib/sentimeter/sma/<brand>/competitors.json` (one snapshot per month).
+
 ## Login
 
 The homepage (`#home`) is public. Everything else (dashboard, mentions, reports, Sources, and the data) needs a login.

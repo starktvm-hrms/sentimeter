@@ -107,13 +107,13 @@ def update(bid, body):
         for g in ("national", "international"):
             rows = rep["competitors"].get(g) or []
             if not isinstance(rows, list) or len(rows) > 40:
-                raise ValueError("Up to 40 competitors per group.")
+                raise ValueError("Up to 40 competitors per group.")  # one lookup per handle per month
             out = []
             for row in rows:
                 name = " ".join(str((row or {}).get("name") or "").split())[:80]
                 if not name:
                     continue
-                out.append({"name": name, "facebook": clean_handle(row.get("facebook"), "facebook"), "instagram": clean_handle(row.get("instagram"), "instagram")})
+                out.append({"name": name, **{f: clean_handle(row.get(f), f) for f in ("facebook", "instagram", "x", "linkedin", "youtube")}})
             comp[g] = out
         cur["competitors"] = comp
     sma.update_brand_record(bid, lambda r: r.update({"report": cur}))
@@ -370,16 +370,103 @@ def _key(h):
     return str(h or "").strip().lstrip("@").lower()
 
 
+COMP_PLATS = {"fb": "facebook", "ig": "instagram", "x": "x", "li": "linkedin", "yt": "youtube"}
+X_USER_ACTOR = "apidojo~twitter-user-scraper"
+LI_COMPANY_ACTOR = "harvestapi~linkedin-company"
+YT_CHANNEL_ACTOR = "streamers~youtube-scraper"
+
+
 def competitor_handles(b):
+    """{"fb": [...], "ig": [...], ...}: every competitor handle per platform, plus the brand's own handles."""
     cfg = config(b)
     rows = cfg["competitors"]["national"] + cfg["competitors"]["international"]
-    fb = {_key(r["facebook"]) for r in rows if r.get("facebook")}
-    ig = {_key(r["instagram"]) for r in rows if r.get("instagram")}
-    if cfg["handles"]["facebook"]:
-        fb.add(_key(cfg["handles"]["facebook"]))
-    if cfg["handles"]["instagram"]:
-        ig.add(_key(cfg["handles"]["instagram"]))
-    return sorted(fb), sorted(ig)
+    out = {}
+    for pk, field in COMP_PLATS.items():
+        k = (lambda h: str(h or "").strip().lstrip("@")) if pk == "yt" else _key  # YouTube channel IDs are case-sensitive
+        hs = {k(r.get(field)) for r in rows if r.get(field)}
+        if cfg["handles"].get(field):
+            hs.add(k(cfg["handles"][field]))
+        out[pk] = sorted({h for h in hs if h}, key=str.lower)
+        if pk == "yt":
+            seen, uniq = set(), []
+            for h in out[pk]:
+                if h.lower() not in seen:
+                    seen.add(h.lower())
+                    uniq.append(h)
+            out[pk] = uniq
+    return out
+
+
+def _norm(s):
+    return re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+
+def _yt_api(handles):
+    key = env().get("YOUTUBE_API_KEY") or os.environ.get("YOUTUBE_API_KEY")
+    if not key:
+        return None
+    import urllib.parse, urllib.request
+    base = os.environ.get("SENTIMETER_YT_KEY_BASE", "https://www.googleapis.com/youtube/v3")
+    got = {}
+    for h in handles:
+        q = {"part": "statistics,snippet", "key": key}
+        q.update({"id": h} if re.fullmatch(r"UC[A-Za-z0-9_\-]{22}", h) else {"forHandle": "@" + h})
+        try:
+            with urllib.request.urlopen(f"{base}/channels?" + urllib.parse.urlencode(q), timeout=20) as r:
+                it = (json.loads(r.read()).get("items") or [None])[0]
+            if it and not (it.get("statistics") or {}).get("hiddenSubscriberCount"):
+                got[h.lower()] = (_n((it.get("statistics") or {}).get("subscriberCount")), ((it.get("snippet") or {}).get("title") or "")[:80])
+        except Exception as e:
+            sma.log(f"youtube competitor {h}: {e}")
+    return got
+
+
+def _collect(pk, hs, tok):
+    """Follower counts for one platform: {handle: (count, account name)}."""
+    got = {}
+    if pk == "ig":
+        items, _ = fetch.apify_run_capped(IG_PROFILE_ACTOR, {"usernames": hs}, tok, len(hs) + 2)
+        for i in items:
+            k = _key(i.get("username"))
+            if k in hs and _n(i.get("followersCount")) is not None:
+                got[k] = (_n(i.get("followersCount")), str(i.get("fullName") or "")[:80])
+    elif pk == "fb":
+        items, _ = fetch.apify_run_capped(FB_PAGES_ACTOR, {"startUrls": [{"url": f"https://www.facebook.com/{h}"} for h in hs]}, tok, len(hs) + 2)
+        for i in items:
+            urls = " ".join(str(i.get(f) or "") for f in ("facebookUrl", "pageUrl", "url", "inputUrl")).lower()
+            k = next((h for h in hs if re.search(r"facebook\.com/" + re.escape(h) + r"(/|\b|$)", urls)), None) or (_key(i.get("pageName")) if _key(i.get("pageName")) in hs else None)
+            n = _n(i.get("followers")) if i.get("followers") is not None else _n(i.get("likes"))
+            if k and n is not None:
+                got[k] = (n, str(i.get("title") or i.get("pageName") or "")[:80])
+    elif pk == "x":
+        items, _ = fetch.apify_run_capped(X_USER_ACTOR, {"twitterHandles": hs, "maxItems": len(hs), "getFollowers": False, "getFollowing": False}, tok, len(hs) + 2)
+        by = {_norm(h): h for h in hs}
+        for i in items:
+            k = by.get(_norm(_first(i, "userName", "username", "screen_name", "author.userName")))
+            n = _n(_first(i, "followers", "followersCount", "followers_count", "author.followers"))
+            if k and n is not None:
+                got[k] = (n, str(_first(i, "name", "author.name") or "")[:80])
+    elif pk == "li":
+        items, _ = fetch.apify_run_capped(LI_COMPANY_ACTOR, {"companies": [f"https://www.linkedin.com/company/{h}/" for h in hs]}, tok, len(hs) + 2)
+        by = {_norm(h): h for h in hs}
+        for i in items:
+            ident = _first(i, "universalName", "publicIdentifier", "linkedinUrl", "url", "companyUrl") or ""
+            k = by.get(_norm(str(ident).rstrip("/").split("/")[-1])) or by.get(_norm(i.get("name")))
+            n = _n(_first(i, "followerCount", "followersCount", "followers", "follower_count"))
+            if k and n is not None:
+                got[k] = (n, str(i.get("name") or "")[:80])
+    elif pk == "yt":
+        api = _yt_api(hs)
+        if api is not None:
+            got.update({h: v for h, v in api.items() if v[0] is not None})
+            hs = [h for h in hs if h.lower() not in got]
+        for h in hs:  # no API key, or not found through the API: one Apify lookup per channel
+            url = f"https://www.youtube.com/channel/{h}" if re.fullmatch(r"UC[A-Za-z0-9_\-]{22}", h) else f"https://www.youtube.com/@{h}"
+            items, _ = fetch.apify_run_capped(YT_CHANNEL_ACTOR, {"startUrls": [{"url": url}], "maxResults": 1, "maxResultsShorts": 0, "maxResultStreams": 0}, tok, 2)
+            i = next((x for x in items if _n(x.get("numberOfSubscribers")) is not None), None)
+            if i:
+                got[h.lower()] = (_n(i.get("numberOfSubscribers")), str(i.get("channelName") or "")[:80])
+    return got
 
 
 def sync_competitors(bid):
@@ -387,43 +474,38 @@ def sync_competitors(bid):
     d = load(bid, "competitors.json")
     month = datetime.now(timezone.utc).strftime("%Y-%m")
     try:
-        fb, ig = competitor_handles(b)
-        if not fb and not ig:
-            raise ValueError("Add competitor Facebook or Instagram handles in Settings > Report first.")
-        tok = token("meta")
-        if not tok:
-            raise ValueError("No Apify token for Facebook/Instagram. Add APIFY_TOKEN_META (or APIFY_TOKEN) in Settings > API keys.")
-        snap = (d.get("months") or {}).get(month) or {"fb": {}, "ig": {}, "names": {}}
+        hs = competitor_handles(b)
+        if not any(hs.values()):
+            raise ValueError("Add competitor handles in the Competitors tab first.")
+        snap = (d.get("months") or {}).get(month) or {}
+        for pk in COMP_PLATS:
+            snap.setdefault(pk, {})
         snap.setdefault("names", {})
-        errors = []
-        if ig:
+        errors, missing, found = [], [], 0
+        for pk, lst in hs.items():
+            if not lst:
+                continue
+            group = {"fb": "meta", "ig": "meta", "x": "x_linkedin", "li": "x_linkedin", "yt": "other"}[pk]
+            tok = token(group)
+            if not tok and not (pk == "yt" and (env().get("YOUTUBE_API_KEY") or os.environ.get("YOUTUBE_API_KEY"))):
+                errors.append(f"{COMP_PLATS[pk].title()}: no Apify token")
+                continue
             try:
-                items, _ = fetch.apify_run_capped(IG_PROFILE_ACTOR, {"usernames": ig}, tok, len(ig) + 2)
-                for i in items:
-                    k = _key(i.get("username"))
-                    if k in ig and _n(i.get("followersCount")) is not None:
-                        snap["ig"][k] = _n(i.get("followersCount"))
-                        snap["names"]["ig:" + k] = str(i.get("fullName") or "")[:80]
+                got = _collect(pk, lst, tok)
             except Exception as e:
-                errors.append(f"Instagram: {e}")
-        if fb:
-            try:
-                items, _ = fetch.apify_run_capped(FB_PAGES_ACTOR, {"startUrls": [{"url": f"https://www.facebook.com/{h}"} for h in fb]}, tok, len(fb) + 2)
-                for i in items:
-                    urls = " ".join(str(i.get(f) or "") for f in ("facebookUrl", "pageUrl", "url", "inputUrl")).lower()
-                    k = next((h for h in fb if re.search(r"facebook\.com/" + re.escape(h) + r"(/|\b|$)", urls)), None) or (_key(i.get("pageName")) if _key(i.get("pageName")) in fb else None)
-                    n = _n(i.get("followers")) if i.get("followers") is not None else _n(i.get("likes"))
-                    if k and n is not None:
-                        snap["fb"][k] = n
-                        snap["names"]["fb:" + k] = str(i.get("title") or i.get("pageName") or "")[:80]
-            except Exception as e:
-                errors.append(f"Facebook: {e}")
+                errors.append(f"{COMP_PLATS[pk].title()}: {e}")
+                continue
+            for h, (n, name) in got.items():
+                snap[pk][h] = n
+                if name:
+                    snap["names"][f"{pk}:{h}"] = name
+            found += len(got)
+            missing += [f"{COMP_PLATS[pk].title()} {h}" for h in lst if h.lower() not in snap[pk]]
         snap["at"] = sma.iso()
         d.setdefault("months", {})[month] = snap
-        missing = [f"Facebook {h}" for h in fb if h not in snap["fb"]] + [f"Instagram {h}" for h in ig if h not in snap["ig"]]
         d["last_sync"] = sma.iso()
-        msg = "; ".join(errors) or (f"Not found: {', '.join(missing[:8])}{'…' if len(missing) > 8 else ''}" if missing else "OK")
-        _log(d, not errors, msg, {"found": len(snap["fb"]) + len(snap["ig"]), "missing": len(missing)})
+        msg = "; ".join(errors + ([f"Not found: {', '.join(missing[:8])}{'…' if len(missing) > 8 else ''}"] if missing else [])) or "OK"
+        _log(d, not errors, msg, {"found": found, "missing": len(missing)})
         if missing and not errors:
             d["last_error"] = msg
     except Exception as e:
@@ -434,10 +516,10 @@ def sync_competitors(bid):
 
 
 def set_manual(bid, month, platform, handle, value):
-    if not re.fullmatch(r"20\d\d-\d\d", str(month)) or platform not in ("fb", "ig"):
+    if not re.fullmatch(r"20\d\d-\d\d", str(month)) or platform not in COMP_PLATS:
         raise ValueError("Unknown month or platform.")
     d = load(bid, "competitors.json")
-    snap = d.setdefault("months", {}).setdefault(month, {"fb": {}, "ig": {}, "names": {}})
+    snap = d.setdefault("months", {}).setdefault(month, {"names": {}})
     k = _key(handle)
     if value in (None, ""):
         snap.setdefault("manual", {}).pop(platform + ":" + k, None)
@@ -481,7 +563,7 @@ def daily_due(today):
                 if cfg["apify"][k] and cfg["handles"].get(k) and load(bid, fname(k)).get("last_sync_date") != today and (bid, k) not in BUSY:
                     run_async(bid, k)
             c = load(bid, "competitors.json")
-            if cfg["sections"]["competitors"] and c.get("last_attempt_month") != month and (bid, "competitors") not in BUSY and any(competitor_handles(b)):
+            if c.get("last_attempt_month") != month and (bid, "competitors") not in BUSY and any(competitor_handles(b).values()):
                 run_async(bid, "competitors")
         except Exception as e:
             sma.log(f"extra daily {bid}: {e}")

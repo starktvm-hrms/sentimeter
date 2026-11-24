@@ -120,6 +120,8 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .delta{font:500 12px var(--f-mono);padding:2px 7px;border-radius:5px}
 .delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
+.cmp-tbl td,.cmp-tbl th{vertical-align:top}
+.cmp-self td{background:color-mix(in srgb,var(--pos) 9%,transparent)}
 .range-custom{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
 .range-custom input[type=date]{height:38px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;color-scheme:light dark}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;padding:0}
@@ -443,6 +445,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <a href="#mentions" data-view="mentions"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h12v8H8l-3 3v-3H3z" stroke-linejoin="round"/></svg>Mentions</a>
       <a href="#reports" data-view="reports"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2" width="13" height="14" rx="2"/><path d="M6 12V9M9 12V6M12 12v-2" stroke-linecap="round"/></svg>Reports</a>
       <a href="#sma" data-view="sma"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 15.5h13" stroke-linecap="round"/><rect x="3.5" y="9" width="2.6" height="4.5" rx=".8"/><rect x="7.7" y="5.5" width="2.6" height="8" rx=".8"/><rect x="11.9" y="2.5" width="2.6" height="11" rx=".8"/></svg>Social Media Analytics</a>
+      <a href="#competitors" data-view="competitors"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6.5" r="2.4"/><circle cx="12.5" cy="6.5" r="2.4"/><path d="M1.8 15c.6-2.4 2.2-3.8 4.2-3.8s3.6 1.4 4.2 3.8M9.6 12c.8-.6 1.8-.9 2.9-.9 2 0 3.6 1.4 4.2 3.8" stroke-linecap="round"/></svg>Competitors</a>
       <a href="#sources" data-view="sources"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="5" r="2.2"/><circle cx="13" cy="5" r="2.2"/><circle cx="9" cy="13.5" r="2.2"/><path d="M6.5 6.7 8 11.5M11.5 6.7 10 11.5M7.2 5h3.6" stroke-linecap="round"/></svg>Sources</a>
       <a href="#analyze" data-view="analyze"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 6-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 5h4v4" stroke-linecap="round"/></svg>Analyze text</a>
     </nav>
@@ -672,6 +675,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 
     <!-- SOCIAL MEDIA ANALYTICS -->
     <section class="content" id="v-sma" hidden><div id="sma-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
+    <section class="content" id="v-competitors" hidden><div id="cmp-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
 
     <!-- SOURCES -->
     <section class="content" id="v-sources" hidden>
@@ -1672,6 +1676,98 @@ async function smaApi(path,opts={}){
 function smaRoute(){const m=location.hash.slice(1).match(/^sma-(b[0-9a-f]{8})(?:-(platform|report|monthly|source|settings))?$/);return m?{bid:m[1],tab:m[2]||"platform"}:{bid:null};}
 const pctf=x=>x==null?"–":(x*100).toFixed(x<.1?2:1)+"%";
 function smaMsg(s,bad){const el=$("sma-msg");if(el){el.textContent=s||"";el.className="hint"+(bad?" neg-c":"");}}
+/* ---------- Competitor Analysis (separate tab): monthly follower counts and growth ---------- */
+const CPK=[["fb","facebook","Facebook"],["ig","instagram","Instagram"],["x","x","X"],["li","linkedin","LinkedIn"],["yt","youtube","YouTube"]];
+const CMP={bid:null,month:null,hist:"fb",edit:false,draft:null,fix:false};
+const cmpMonthName=k=>new Date(k+"-01T00:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+function cmpRows(b){const c=((b.extra||{}).config)||{},comp=c.competitors||{},h=c.handles||{};
+  const self={name:b.name,group:"brand",self:true};CPK.forEach(([,f])=>self[f]=h[f]||"");
+  return [self].concat(["national","international"].flatMap(g=>(comp[g]||[]).map(r=>({...r,group:g}))));}
+function cmpVal(snap,pk,handle){if(!snap||!handle)return null;const k=String(handle).trim().replace(/^@/,"").toLowerCase();const man=(snap.manual||{})[pk+":"+k];return man!=null?man:((snap[pk]||{})[k]??null);}
+function cmpPrevKey(months,mk){return Object.keys(months).filter(k=>k<mk).sort().pop()||null;}
+const cmpGrowth=(cur,prev)=>cur==null||prev==null?null:{n:cur-prev,p:prev?(cur-prev)/prev:null};
+const cmpG=g=>g?`<span class="${g.n>0?"pos-c":g.n<0?"neg-c":"hint"}" style="font-size:12.5px;white-space:nowrap">${g.n>0?"+":""}${fmtInt(g.n)}${g.p!=null?` (${g.p>0?"+":""}${(g.p*100).toFixed(1)}%)`:""}</span>`:`<span class="hint" style="font-size:12.5px">–</span>`;
+async function renderCompetitors(){
+  const root=$("cmp-root");
+  if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Competitor Analysis</h1><p class="sub">This section needs the Sentimeter server and a login.</p></div></div>`;return;}
+  if(!SMA.brands){root.innerHTML=`<p class="hint">Loading brands…</p>`;try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){root.innerHTML=`<p class="neg-c">${esc(e.message)}</p>`;return;}}
+  if(!SMA.brands.length){root.innerHTML=`<div class="page-head"><div><h1>Competitor Analysis</h1><p class="sub">Add a brand in Social Media Analytics first, then list its competitors here.</p></div></div><a class="btn primary" href="#sma">Go to Social Media Analytics</a>`;return;}
+  if(!CMP.bid||!SMA.brands.find(b=>b.id===CMP.bid))CMP.bid=SMA.brands[0].id;
+  const b=SMA.brands.find(x=>x.id===CMP.bid);
+  if(!SMA.extra[b.id]||SMA.extraFor[b.id]!==extraKey(b))await smaLoadExtra(b);
+  const months=(((SMA.extra[b.id]||{}).competitors||{}).months)||{};const mks=Object.keys(months).sort().reverse();
+  if(!CMP.month||!months[CMP.month])CMP.month=mks[0]||null;
+  const st=(b.extra||{}).competitors||{},tk=(b.extra||{}).has_token||{};
+  const rows=cmpRows(b),snap=CMP.month?months[CMP.month]:null,pk0=CMP.month?cmpPrevKey(months,CMP.month):null,prev=pk0?months[pk0]:null;
+  const used=CPK.filter(([,f])=>rows.some(r=>r[f]));
+  const comp=rows.map(r=>{const o={r,c:{}};let tot=0,ptot=0,any=false,pany=true;
+    used.forEach(([pk,f])=>{const v=cmpVal(snap,pk,r[f]),pv=cmpVal(prev,pk,r[f]);o.c[pk]={v,g:cmpGrowth(v,pv)};if(v!=null){tot+=v;any=true;}if(v!=null&&pv!=null)ptot+=pv;else if(v!=null)pany=false;});
+    o.tot=any?tot:null;o.tg=any&&prev&&pany?cmpGrowth(tot,ptot):null;return o;});
+  comp.sort((x,y)=>(y.r.self?1:0)-(x.r.self?1:0)||(y.tot??-1)-(x.tot??-1));
+  const grp={brand:"Your brand",national:"National",international:"International"};
+  const cell=(o,pk,f)=>{const c=o.c[pk];if(!o.r[f])return `<td class="r"><span class="hint">no handle</span></td>`;
+    return `<td class="r">${CMP.fix?`<input type="text" inputmode="numeric" data-cfix="${pk}" data-h="${esc(o.r[f])}" value="${c.v==null?"":fmtInt(c.v)}" placeholder="not found" style="width:110px;text-align:right" aria-label="${esc(o.r.name)} followers">`:`<b>${c.v==null?"–":fmtInt(c.v)}</b>`}<div>${cmpG(c.g)}</div></td>`;};
+  const histPk=CPK.find(p=>p[0]===CMP.hist&&used.includes(p))?CMP.hist:(used[0]||CPK[0])[0];const histF=CPK.find(p=>p[0]===histPk)[1];
+  const hm=Object.keys(months).sort().slice(-12);
+  root.innerHTML=`<div class="page-head"><div><h1>Competitor Analysis</h1><p class="sub">Monthly follower counts and growth on Facebook, Instagram, X, LinkedIn and YouTube, collected with Apify once a month.</p></div><span id="cmp-msg" class="hint" role="status"></span></div>
+  <div class="toolbar">
+    <select class="select" id="cmp-brand" aria-label="Brand">${SMA.brands.map(x=>`<option value="${x.id}" ${x.id===b.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+    <select class="select" id="cmp-month" aria-label="Month" ${mks.length?"":"disabled"}>${mks.length?mks.map(k=>`<option value="${k}" ${k===CMP.month?"selected":""}>${cmpMonthName(k)}</option>`).join(""):`<option>No data yet</option>`}</select>
+    <span class="spacer" style="flex:1"></span>
+    <button class="btn" type="button" id="cmp-edit">${CMP.edit?"Close editor":"Edit competitors & handles"}</button>
+    <button class="btn" type="button" id="cmp-csv" ${snap?"":"disabled"}>Copy table (CSV)</button>
+    <button class="btn primary" type="button" id="cmp-sync" ${st.syncing?"disabled":""}>${st.syncing?"Collecting…":"Refresh followers now"}</button></div>
+  <textarea id="cmp-out" hidden rows="4" style="width:100%" aria-label="CSV output"></textarea>
+  <p class="hint" style="margin:-6px 0 0">${st.last_sync?`Last collected ${relAgo(st.last_sync)}`:"Not collected yet"}${st.last_error?` · <span class="neg-c">${esc(st.last_error)}</span>`:""} · Runs automatically once a month after 9:00 (one lookup per handle). ${!tk.meta||!tk.x?`<span class="neg-c">Missing Apify token${!tk.meta&&!tk.x?"s":""} for ${[!tk.meta?"Facebook & Instagram":"",!tk.x?"X & LinkedIn":""].filter(Boolean).join(" and ")} (Sources page).</span>`:""}</p>
+  ${CMP.edit?cmpEditorHTML(b):""}
+  <div class="card"><div class="card-head"><h2>Followers${CMP.month?" · "+cmpMonthName(CMP.month):""}</h2><span class="hint">${prev?"growth vs "+cmpMonthName(pk0):snap?"growth appears from the second month":""}</span>${snap?`<label class="hint" style="display:inline-flex;gap:6px;align-items:center;margin-left:12px"><input type="checkbox" id="cmp-fix" ${CMP.fix?"checked":""}> Correct numbers</label>`:""}</div>
+    <div class="card-body">${rows.length<2&&!used.length?`<p class="empty">No competitors yet. Click <b>Edit competitors & handles</b> to add them with their social media handles.</p>`
+    :!snap?`<p class="empty">No follower counts yet. Click <b>Refresh followers now</b> to collect this month's numbers.</p>`
+    :`<div class="tbl-wrap"><table class="tbl cmp-tbl"><thead><tr><th>Competitor</th>${used.map(([,f,n])=>`<th class="r"><span class="src" style="background:${MRP[f].c};margin-right:4px">${MRPX[f]}</span>${n}</th>`).join("")}<th class="r">Total</th></tr></thead><tbody>
+      ${comp.map(o=>`<tr${o.r.self?` class="cmp-self"`:""}><td><b>${esc(o.r.name)}</b><div class="hint" style="font-size:12px">${grp[o.r.group]}</div></td>${used.map(([pk,f])=>cell(o,pk,f)).join("")}<td class="r"><b>${o.tot==null?"–":fmtInt(o.tot)}</b><div>${cmpG(o.tg)}</div></td></tr>`).join("")}</tbody></table></div>
+      ${CMP.fix?`<p class="hint" style="margin:8px 0 0">Type a number and press Enter to correct it for ${cmpMonthName(CMP.month)}; clear it to go back to the collected value.</p>`:""}`}</div></div>
+  ${hm.length?`<div class="card"><div class="card-head"><h2>Monthly history</h2><div class="chips" role="group" aria-label="Platform">${used.map(([pk,,n])=>`<button class="chip" type="button" data-chist="${pk}" aria-pressed="${pk===histPk}">${n}</button>`).join("")}</div></div><div class="card-body"><div class="tbl-wrap"><table class="tbl cmp-tbl"><thead><tr><th>Competitor</th>${hm.map(k=>`<th class="r">${new Date(k+"-01T00:00:00").toLocaleDateString("en-IN",{month:"short",year:"numeric"})}</th>`).join("")}</tr></thead><tbody>
+    ${rows.filter(r=>r[histF]).map(r=>`<tr${r.self?` class="cmp-self"`:""}><td><b>${esc(r.name)}</b><div class="hint" style="font-size:12px">@${esc(r[histF])}</div></td>${hm.map((k,i)=>{const v=cmpVal(months[k],histPk,r[histF]);const g=i?cmpGrowth(v,cmpVal(months[hm[i-1]],histPk,r[histF])):null;return `<td class="r">${v==null?"–":fmtInt(v)}${i?`<div>${cmpG(g)}</div>`:""}</td>`;}).join("")}</tr>`).join("")||`<tr><td colspan="${hm.length+1}" class="hint">No ${CPK.find(p=>p[0]===histPk)[2]} handles.</td></tr>`}</tbody></table></div></div></div>`:""}`;
+  bindCompetitors(b,{rows,comp,used,snap,months});
+  clearTimeout(SMA.cpoll);if(st.syncing)SMA.cpoll=setTimeout(async()=>{try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){}if(current()==="competitors")renderCompetitors();},2500);
+}
+function cmpEditorHTML(b){
+  if(!CMP.draft||CMP.draft.bid!==b.id){const c=((b.extra||{}).config)||{},comp=c.competitors||{};
+    CMP.draft={bid:b.id,handles:{...(c.handles||{})},national:(comp.national||[]).map(r=>({...r})),international:(comp.international||[]).map(r=>({...r}))};}
+  const D=CMP.draft;const inp=(g,i,f,v,ph,w)=>`<input type="text" data-eg="${g}" data-ei="${i}" data-ef="${f}" value="${esc(v||"")}" placeholder="${ph}" aria-label="${f}" style="min-width:${w||120}px" spellcheck="false">`;
+  const hp={facebook:"page",instagram:"username",x:"handle",linkedin:"company page",youtube:"@handle or channel ID"};
+  return `<div class="card"><div class="card-head"><h2>Competitors & handles</h2><button class="btn" type="button" id="cmp-sample">Fill sample list (7 Indian + 15 international)</button></div><div class="card-body">
+    <p class="hint" style="margin:0">Use the handle or paste the profile link. After the next collection, the name each account reports is shown in the table so you can check it is the right one.</p>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th>${CPK.map(([,f,n])=>`<th><span class="src" style="background:${MRP[f].c};margin-right:4px">${MRPX[f]}</span>${n}</th>`).join("")}<th></th></tr></thead><tbody>
+      <tr class="cmp-self"><td><b>${esc(b.name)}</b><div class="hint" style="font-size:12px">Your brand</div></td>${CPK.map(([,f])=>`<td>${inp("brand",0,f,D.handles[f],hp[f])}</td>`).join("")}<td></td></tr>
+      ${["national","international"].map(g=>`<tr><td colspan="${CPK.length+2}" class="eyebrow" style="padding-top:14px">${g==="national"?"National competitors":"International competitors"} (${D[g].length})</td></tr>
+        ${D[g].map((r,i)=>`<tr><td>${inp(g,i,"name",r.name,"Name",150)}</td>${CPK.map(([,f])=>`<td>${inp(g,i,f,r[f],hp[f])}</td>`).join("")}<td class="r"><button class="btn danger" type="button" data-erm="${g}:${i}" style="padding:4px 10px;font-size:12.5px">Remove</button></td></tr>`).join("")}
+        <tr><td colspan="${CPK.length+2}"><button class="btn" type="button" data-eadd="${g}">Add ${g} competitor</button></td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="form-actions"><span class="hint">Up to 40 per group. Each handle costs one Apify lookup a month.</span><span class="spacer"></span><button class="btn primary" type="button" id="cmp-save">Save competitors</button></div></div></div>`;}
+function bindCompetitors(b,ctx){
+  $("cmp-brand").onchange=e=>{CMP.bid=e.target.value;CMP.month=null;CMP.draft=null;renderCompetitors();};
+  if($("cmp-month"))$("cmp-month").onchange=e=>{CMP.month=e.target.value;renderCompetitors();};
+  $("cmp-edit").onclick=()=>{CMP.edit=!CMP.edit;renderCompetitors();};
+  if($("cmp-fix"))$("cmp-fix").onchange=e=>{CMP.fix=e.target.checked;renderCompetitors();};
+  document.querySelectorAll("#cmp-root [data-chist]").forEach(x=>x.onclick=()=>{CMP.hist=x.dataset.chist;renderCompetitors();});
+  $("cmp-sync").onclick=async()=>{try{await smaApi(`/brands/${b.id}/competitors/sync`,{method:"POST",body:"{}"});$("cmp-msg").textContent="Collecting follower counts…";SMA.brands=(await smaApi("/brands")).brands;renderCompetitors();}catch(e){$("cmp-msg").textContent=e.message;$("cmp-msg").className="hint neg-c";}};
+  $("cmp-csv").onclick=e=>{const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;const head=["competitor","group"].concat(ctx.used.flatMap(([,,n])=>[n+" followers",n+" growth"])).concat(["total followers","total growth"]);
+    copyOutTo([head.join(",")].concat(ctx.comp.map(o=>[q(o.r.name),o.r.self?"brand":o.r.group].concat(ctx.used.flatMap(([pk])=>[o.c[pk].v??"",o.c[pk].g?o.c[pk].g.n:""])).concat([o.tot??"",o.tg?o.tg.n:""]).join(","))).join("\n"),e.currentTarget,"Copy table (CSV)",$("cmp-out"));};
+  document.querySelectorAll("#cmp-root [data-cfix]").forEach(inp=>inp.onkeydown=async ev=>{if(ev.key!=="Enter")return;ev.preventDefault();
+    try{await smaApi(`/brands/${b.id}/competitors/manual`,{method:"POST",body:JSON.stringify({month:CMP.month,platform:inp.dataset.cfix,handle:inp.dataset.h,value:inp.value.replace(/[^0-9]/g,"")})});await smaLoadExtra(b);renderCompetitors();}catch(e){$("cmp-msg").textContent=e.message;}});
+  if(!CMP.edit)return;
+  const D=CMP.draft;
+  $("cmp-root").oninput=(ev=>{const i=ev.target;if(!i.dataset||!i.dataset.eg)return;if(i.dataset.eg==="brand")D.handles[i.dataset.ef]=i.value;else{const r=D[i.dataset.eg][+i.dataset.ei];if(r)r[i.dataset.ef]=i.value;}});
+  document.querySelectorAll("#cmp-root [data-eadd]").forEach(x=>x.onclick=()=>{D[x.dataset.eadd].push({name:""});renderCompetitors().then(()=>{const l=document.querySelectorAll(`#cmp-root [data-eg="${x.dataset.eadd}"][data-ef="name"]`);if(l.length)l[l.length-1].focus();});});
+  document.querySelectorAll("#cmp-root [data-erm]").forEach(x=>x.onclick=()=>{const[g,i]=x.dataset.erm.split(":");D[g].splice(+i,1);renderCompetitors();});
+  $("cmp-sample").onclick=()=>{["national","international"].forEach(g=>SAMPLE_COMP[g].forEach(n=>{if(!D[g].some(r=>(r.name||"").toLowerCase()===n.toLowerCase()))D[g].push({name:n});}));renderCompetitors();};
+  $("cmp-save").onclick=async()=>{const clean=g=>D[g].filter(r=>(r.name||"").trim()).map(r=>{const o={name:r.name.trim()};CPK.forEach(([,f])=>o[f]=(r[f]||"").trim());return o;});
+    try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify({report:{handles:D.handles,competitors:{national:clean("national"),international:clean("international")}}})});
+      SMA.brands=(await smaApi("/brands")).brands;CMP.draft=null;CMP.edit=false;renderCompetitors();setTimeout(()=>{if($("cmp-msg"))$("cmp-msg").textContent="Saved. Click Refresh followers now to collect this month's numbers.";},0);}
+    catch(e){$("cmp-msg").textContent=e.message;$("cmp-msg").className="hint neg-c";}};
+}
+
 async function renderSMA(){
   const root=$("sma-root");
   if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Social Media Analytics</h1><p class="sub">This section needs the Sentimeter server and a login.</p></div></div>`;return;}
@@ -1910,7 +2006,7 @@ function mrModel(b){
   if(rc.sections.listening){L=mrListening(b,P,days);
     if(L){slides.push({type:"ugc",L,cards:L.top},{type:"sent",L});if(L.secs)slides.push({type:"secs",L});const kn=Math.ceil(L.kw.length/48);for(let i=0;i<kn;i++)slides.push({type:"kw",L,items:L.kw.slice(i*48,i*48+48),page:i+1,pages:kn});
       slides.push({type:"trend",L},{type:"geo",L},{type:"tags",L},{type:"neg",L,cards:L.neg});}}
-  if(rc.sections.competitors){Cm=mrCompetitors(b,P);if(Cm.groups.length){slides.push({type:"complist",C:Cm});Cm.groups.forEach(G=>["fb","ig"].forEach(pl=>slides.push({type:"compchart",C:Cm,G,pl})));}}
+  if(rc.sections.competitors){Cm=mrCompetitors(b,P);if(Cm.groups.length){slides.push({type:"complist",C:Cm});Cm.groups.forEach(G=>["fb","ig","x","li","yt"].filter(pl=>G.rows.some(r=>r[pl]!=null)).forEach(pl=>slides.push({type:"compchart",C:Cm,G,pl})));}}
   slides.push({type:"thanks"});
   return {P,R,b,mName,period,toDate,days,plats,slides,L,Cm,file:`${b.name} - Social Media ${P.kind==="week"?"Weekly Report":P.kind==="quarter"?"Quarterly Report":"Report"} - ${mName}`.replace(/[–—]/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim()};
 }
@@ -1990,17 +2086,18 @@ function mrCompetitors(b,P){
   const ex=b.extra||{},cfg=ex.config||{};const months=((SMA.extra[b.id]||{}).competitors||{}).months||{};
   const keys=Object.keys(months).sort();const mk=keys.filter(k=>k<=P.month).pop()||keys[keys.length-1];const snap=mk?months[mk]:null;
   const val=(pl,h)=>{if(!snap||!h)return null;const k=String(h).toLowerCase();const man=(snap.manual||{})[pl+":"+k];return man!=null?man:(snap[pl]||{})[k]??null;};
-  const self={name:b.name,facebook:cfg.handles&&cfg.handles.facebook,instagram:cfg.handles&&cfg.handles.instagram,self:true};
+  const self={name:b.name,self:true};["facebook","instagram","x","linkedin","youtube"].forEach(f=>self[f]=cfg.handles&&cfg.handles[f]);
   const groups=[["national","Destination Tourism Department"],["international","International Destination Tourism Department"]].map(([g,label])=>{
     const rows=((cfg.competitors||{})[g]||[]).map(r=>({...r}));
     if(rows.length&&!rows.some(r=>r.name.toLowerCase()===b.name.toLowerCase()||(self.facebook&&String(r.facebook).toLowerCase()===String(self.facebook).toLowerCase())))rows.push({...self});
-    rows.forEach(r=>{if(r.name.toLowerCase()===b.name.toLowerCase())r.self=true;r.fb=val("fb",r.facebook);r.ig=val("ig",r.instagram);});
+    rows.forEach(r=>{if(r.name.toLowerCase()===b.name.toLowerCase())r.self=true;r.fb=val("fb",r.facebook);r.ig=val("ig",r.instagram);r.x=val("x",r.x);r.li=val("li",r.linkedin);r.yt=val("yt",r.youtube);});
     return {g,label,rows};}).filter(x=>x.rows.length);
   const mName=mk?new Date(mk+"-01T00:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"}):"";
   return {groups,month:mk,mName,at:snap&&snap.at};}
 
 /* ----- Extra slide HTML ----- */
 const MPLAT={Facebook:["f","#1877f2"],Instagram:["IG","#d62976"],X:["X","#111111"],LinkedIn:["in","#0a66c2"],YouTube:["YT","#e60000"],TikTok:["TT","#111111"],Snapchat:["SC","#e5c600"],Reddit:["R","#ff4500"],Bluesky:["B","#0085ff"],News:["N","#475569"],Blogs:["W","#475569"],Web:["W","#475569"]};
+const CPLN={fb:"Facebook",ig:"Instagram",x:"X",li:"LinkedIn",yt:"YouTube"};
 const MRPX={facebook:"f",instagram:"IG",x:"X",linkedin:"in",youtube:"YT",tiktok:"TT"};
 function slMention(c,kind){const m=c.m;const lab=labelOf(m);
   return `<div class="sl-pc"><div class="sl-im"><div class="ph"><span class="sl-chip" style="background:${MPLAT[m.platform]?MPLAT[m.platform][1]:"#64748b"};font-size:1cqw;min-width:2.4cqw;height:2.4cqw">${esc(MPLAT[m.platform]?MPLAT[m.platform][0]:m.platform.slice(0,1).toUpperCase())}</span></div>${c.yt?`<img src="https://i.ytimg.com/vi/${esc(c.yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer">`:""}</div>
@@ -2046,7 +2143,7 @@ function slExtraHTML(b,M,s){
     <div class="sl-note">Top performing hashtags within the tracked posts (size = number of mentions). Source: Sentimeter listening alert "${esc(L.al.name)}".</div></section>`;}
   if(s.type==="complist"){const C=s.C;return `<section class="sl">${slHead("05 / Competitors","Competitor's List")}<div class="sl-body" style="display:grid;grid-template-columns:repeat(${C.groups.length},1fr);gap:3cqw;padding:0 6cqw;align-items:start">
     ${C.groups.map(G=>`<table class="sl-tb" style="margin:0;font-size:1cqw;border-spacing:0"><thead><tr><th style="padding:.8cqw">${G.g==="national"?"National Tourism Depts":"International Tourism Depts"}</th></tr></thead><tbody>${G.rows.map(r=>`<tr><td style="padding:.42cqw;border:1px solid #cfd6cf;background:${r.self?"#dcfce7":"#fff"};${r.self?"font-weight:700":""}">${esc(r.name)}</td></tr>`).join("")}</tbody></table>`).join("")}</div></section>`;}
-  if(s.type==="compchart"){const C=s.C,G=s.G;return `<section class="sl">${slHead(`05 / Monthly competitor's analysis${C.mName?" · "+C.mName:""}`,`${s.pl==="fb"?"Facebook":"Instagram"} Followers Comparison`)}<div class="sl-body"><div class="sl-ch" style="height:100%;border:0;padding:0"><h4 style="justify-content:center">${String(G.rows.length).padStart(2,"0")} ${G.label}s · Growth Chart</h4>${slCompChart(G.rows,s.pl,1830,700)}</div></div>
+  if(s.type==="compchart"){const C=s.C,G=s.G;return `<section class="sl">${slHead(`05 / Monthly competitor's analysis${C.mName?" · "+C.mName:""}`,`${CPLN[s.pl]} ${s.pl==="yt"?"Subscribers":"Followers"} Comparison`)}<div class="sl-body"><div class="sl-ch" style="height:100%;border:0;padding:0"><h4 style="justify-content:center">${String(G.rows.length).padStart(2,"0")} ${G.label}s · Growth Chart</h4>${slCompChart(G.rows,s.pl,1830,700)}</div></div>
     <div class="sl-note">Followers collected ${C.at?new Date(C.at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):""} from public profiles. ${esc(b.name)} highlighted in green.</div></section>`;}
   return "";}
 
@@ -2107,7 +2204,7 @@ async function mrPPTExtra(pptx,s,sd,M,head,chip,imgs){
     G.forEach((g,i)=>{const rows=[[{text:g.g==="national"?"National Tourism Depts":"International Tourism Depts",options:{bold:true,color:"FFFFFF",fill:{color:"141414"},fontSize:8,align:"center"}}],
       ...g.rows.map(r=>[{text:r.name,options:{fontSize:7.5,bold:!!r.self,fill:{color:r.self?"DCFCE7":"FFFFFF"},color:C.ink,border:{type:"solid",pt:.5,color:"CFD6CF"}}}])];
       s.addTable(rows,{x:x0+i*(w+.4),y:1.1,w,colW:[w],rowH:Math.min(.25,4/(rows.length)),fontFace:F,margin:.04});});return true;}
-  if(sd.type==="compchart"){const G=sd.G,C2=sd.C;head(s,`05 / Monthly competitor's analysis${C2.mName?" · "+C2.mName:""}`,`${sd.pl==="fb"?"Facebook":"Instagram"} Followers Comparison`);
+  if(sd.type==="compchart"){const G=sd.G,C2=sd.C;head(s,`05 / Monthly competitor's analysis${C2.mName?" · "+C2.mName:""}`,`${CPLN[sd.pl]} ${sd.pl==="yt"?"Subscribers":"Followers"} Comparison`);
     const rs=G.rows.filter(r=>r[sd.pl]!=null).sort((x,y)=>y[sd.pl]-x[sd.pl]);
     if(rs.length){s.addText(`${String(G.rows.length).padStart(2,"0")} ${G.label}s · Growth Chart`,{x:.43,y:1.0,w:9.14,h:.2,fontFace:F,fontSize:8,bold:true,color:C.ink,align:"center",margin:0});
       s.addChart(pptx.charts.BAR,[{name:"Competitors",labels:rs.map(r=>r.name),values:rs.map(r=>r.self?0:r[sd.pl])},{name:b.name,labels:rs.map(r=>r.name),values:rs.map(r=>r.self?r[sd.pl]:0)}],
@@ -2525,9 +2622,7 @@ function smaSettingsReport(b){const e=b.extra||{},c=e.config||{sections:{},handl
       <label class="f" for="rep-alert">Listening alert</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><select class="select" id="rep-alert"><option value="">Choose an alert</option>${bAl?`<option value="__brand__" ${c.alert_id==="__brand__"?"selected":""}>All ${esc(b.name)} sections (${bAl.children.length} alerts)</option>`:""}${al.map(a=>`<option value="${esc(a.id)}" ${a.id===c.alert_id?"selected":""}>${esc(a.brand?a.brand+": ":"")}${esc(a.name)}</option>`).join("")}</select><span class="hint">${bAl?"":`Tip: give alerts the brand "${esc(b.name)}" in their settings (Domestic, International, Themes…) to report on all of them together.`}</span></div>
       ${APK.map(k=>`<label class="f" for="rep-h-${k}">${MRP[k].n} handle</label><input type="text" id="rep-h-${k}" value="${esc(c.handles[k]?(k==="linkedin"?c.handles[k]:"@"+c.handles[k]):"")}" placeholder="${k==="linkedin"?"company page, e.g. karnataka-tourism":"@handle or profile link"}" spellcheck="false">`).join("")}
     </div>
-    <div><div class="eyebrow" style="margin-bottom:4px">Competitors</div><div class="toolbar"><button class="btn" type="button" id="rep-sample">Fill sample list (7 Indian + 15 international tourism boards)</button></div>
-      <p class="hint" style="margin:6px 0 0">Add each competitor's Facebook page handle and Instagram username. After a refresh, the name each account reports is shown under its handle so you can check it is the right one. ${esc(b.name)} is added to the charts automatically using its handles above.</p>
-      <div id="rep-comp">${compRowsHTML(b)}</div></div>
+    <div><div class="eyebrow" style="margin-bottom:4px">Competitors</div><p class="hint" style="margin:0">Competitors, their handles and monthly follower counts are managed in the <a href="#competitors" data-cmp-brand="${b.id}">Competitors tab</a>. ${esc(b.name)} is added to the report's comparison charts automatically.</p></div>
     <div class="form-actions"><span class="spacer"></span><button class="btn primary" type="button" id="rep-save">Save report settings</button></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Apify collection</th><th>Last run</th><th>Status</th><th class="r"></th></tr></thead><tbody>
       <tr><td>Competitor followers</td><td>${cp.syncing?"Running…":cp.last_sync?relAgo(cp.last_sync):"Never"}</td><td>${cp.last_error?`<span class="neg-c">${esc(cp.last_error)}</span>`:cp.last_sync?`<span class="pos-c">OK</span>`:"–"}</td>
@@ -2544,8 +2639,9 @@ function bindReport(b){
       const months=(((SMA.extra[b.id]||{}).competitors||{}).months)||{};const mk=Object.keys(months).sort().pop();
       try{await smaApi(`/brands/${b.id}/competitors/manual`,{method:"POST",body:JSON.stringify({month:mk,platform:inp.dataset.man,handle:inp.dataset.h,value:inp.value.replace(/[^0-9]/g,"")})});await smaLoadExtra(b);redraw();smaMsg("Follower count saved.");}catch(err){smaMsg(err.message,true);}});};
   bindComp();
-  document.getElementById("rep-comp").addEventListener("input",ev=>{const i=ev.target;if(i.dataset&&i.dataset.cg){const r=compDraft(b)[i.dataset.cg][+i.dataset.ci];if(r)r[i.dataset.cf]=i.value;}});
-  $("rep-sample").onclick=()=>{const D=collect();["national","international"].forEach(g=>SAMPLE_COMP[g].forEach(n=>{if(!D[g].some(r=>r.name.toLowerCase()===n.toLowerCase()))D[g].push({name:n,facebook:"",instagram:""});}));$("rep-comp").innerHTML=compRowsHTML(b);bindComp();smaMsg("Sample list added. Fill in the handles, then save.");};
+  if(document.getElementById("rep-comp"))document.getElementById("rep-comp").addEventListener("input",ev=>{const i=ev.target;if(i.dataset&&i.dataset.cg){const r=compDraft(b)[i.dataset.cg][+i.dataset.ci];if(r)r[i.dataset.cf]=i.value;}});
+  document.querySelectorAll("#sma-root [data-cmp-brand]").forEach(a=>a.onclick=()=>{CMP.bid=a.dataset.cmpBrand;});
+  if($("rep-sample"))$("rep-sample").onclick=()=>{const D=collect();["national","international"].forEach(g=>SAMPLE_COMP[g].forEach(n=>{if(!D[g].some(r=>r.name.toLowerCase()===n.toLowerCase()))D[g].push({name:n,facebook:"",instagram:""});}));$("rep-comp").innerHTML=compRowsHTML(b);bindComp();smaMsg("Sample list added. Fill in the handles, then save.");};
   $("rep-save").onclick=async()=>{const D=collect();const sections={};document.querySelectorAll("#sma-root [data-rsec]").forEach(i=>sections[i.dataset.rsec]=i.checked);
     const handles={};APK.forEach(k=>handles[k]=$("rep-h-"+k).value.trim());delete sections.x;
     const body={report:{sections,handles,alert_id:$("rep-alert").value,competitors:{national:D.national.filter(r=>r.name.trim()),international:D.international.filter(r=>r.name.trim())}}};
@@ -2758,18 +2854,18 @@ function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIO
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["dashboard","mentions","reports","sma","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
+const VIEWS=["dashboard","mentions","reports","sma","competitors","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
 function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";if(h==="sma"||h.startsWith("sma-"))return"sma";return VIEWS.includes(h)?h:"dashboard";}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
   const v=current();
-  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma");
+  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors");
   VIEWS.concat(PUBLIC_VIEWS).forEach(x=>$("v-"+x).hidden=x!==v);
   if(pub){renderPublic(v);return;}
   $("user-chip").hidden=!AUTH;if(AUTH)$("user-email").textContent=AUTH.email;
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.view===v?"page":"false"));
   renderChrome();
-  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
 }
 function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
 let lastView=null;window.addEventListener("hashchange",()=>{SMA.arm=null;const v=current();if(v!==lastView||window.innerWidth<=1050)window.scrollTo(0,0);lastView=v;arm=null;render();});
