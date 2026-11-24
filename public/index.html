@@ -1731,6 +1731,36 @@ async function renderCompetitors(){
   bindCompetitors(b,{rows,comp,used,snap,months});
   clearTimeout(SMA.cpoll);if(st.syncing)SMA.cpoll=setTimeout(async()=>{try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){}if(current()==="competitors")renderCompetitors();},2500);
 }
+const KT_DOMESTIC=`Facebook
+Gujarat Tourism	https://www.facebook.com/gujtourism
+Madhya Pradesh Tourism	https://www.facebook.com/MPTourism/
+Karnataka Tourism	https://www.facebook.com/KarnatakaWorld/
+Incredible India Tourism	https://www.facebook.com/incredibleindia
+Uttarakhand Tourism	https://www.facebook.com/UttarakhandTourismOfficialPage
+Maharashtra Tourism	https://www.facebook.com/MaharashtraTourismOfficial/
+Goa Tourism	https://www.facebook.com/officialgoatourism
+Rajasthan Tourism	https://www.facebook.com/rajasthantourism
+Instagram
+Karnataka Tourism	https://www.instagram.com/karnatakaworld/
+Incredible India Tourism	https://www.instagram.com/incredibleindia/
+Maharashtra Tourism	https://www.instagram.com/maharashtratourismofficial/
+Gujarat Tourism	https://www.instagram.com/gujarattourism/
+Madhya Pradesh Tourism	https://www.instagram.com/mptourism/
+Rajasthan Tourism	https://www.instagram.com/rajasthan_tourism/
+Uttarakhand Tourism	https://www.instagram.com/uttarakhand_tourismofficial/
+Uttar Pradesh Tourism	https://www.instagram.com/uttarpradeshtourism`;
+function cmpPlatOf(url){const u=url.toLowerCase();return /facebook\.com|fb\.com/.test(u)?"facebook":/instagram\.com/.test(u)?"instagram":/(^|\/\/|\.)(x|twitter)\.com/.test(u)?"x":/linkedin\.com/.test(u)?"linkedin":/youtube\.com|youtu\.be/.test(u)?"youtube":null;}
+function cmpHandleOf(url,f){let v=url.trim().replace(/^https?:\/\/(www\.|m\.|mobile\.)?/i,"").replace(/[?#].*$/,"").replace(/\/+$/,"");
+  v=v.replace(/^(facebook\.com|fb\.com|instagram\.com|x\.com|twitter\.com|linkedin\.com\/company|linkedin\.com\/in|youtube\.com\/channel|youtube\.com\/c|youtube\.com)\//i,"");return v.replace(/^@/,"");}
+/* "Name<TAB or spaces>link" lines (headings like "Facebook" are skipped); rows are merged by name */
+function cmpImport(D,brandName,text,group){let added=0,updated=0,skipped=[];
+  text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).forEach(line=>{const m=line.match(/^(.*?)[\s,;|]+((?:https?:\/\/)?(?:www\.)?[a-z0-9.-]*(?:facebook|fb|instagram|x|twitter|linkedin|youtube)\.com\/\S+)$/i);
+    if(!m){if(!/^(facebook|instagram|x|twitter|linkedin|youtube)$/i.test(line))skipped.push(line);return;}
+    const name=m[1].replace(/\s+/g," ").trim(),f=cmpPlatOf(m[2]);if(!name||!f){skipped.push(line);return;}const h=cmpHandleOf(m[2],f);
+    if(name.toLowerCase()===String(brandName).toLowerCase()){D.handles[f]=h;updated++;return;}
+    let r=["national","international"].flatMap(g=>D[g]).find(x=>(x.name||"").toLowerCase()===name.toLowerCase());
+    if(r){if(r[f]!==h){r[f]=h;updated++;}}else{D[group].push({name,[f]:h});added++;}});
+  return {added,updated,skipped};}
 function cmpEditorHTML(b){
   if(!CMP.draft||CMP.draft.bid!==b.id){const c=((b.extra||{}).config)||{},comp=c.competitors||{};
     CMP.draft={bid:b.id,handles:{...(c.handles||{})},national:(comp.national||[]).map(r=>({...r})),international:(comp.international||[]).map(r=>({...r}))};}
@@ -1738,6 +1768,10 @@ function cmpEditorHTML(b){
   const hp={facebook:"page",instagram:"username",x:"handle",linkedin:"company page",youtube:"@handle or channel ID"};
   return `<div class="card"><div class="card-head"><h2>Competitors & handles</h2><button class="btn" type="button" id="cmp-sample">Fill sample list (7 Indian + 15 international)</button></div><div class="card-body">
     <p class="hint" style="margin:0">Use the handle or paste the profile link. After the next collection, the name each account reports is shown in the table so you can check it is the right one.</p>
+    <details class="cmp-import"${/karnataka/i.test(b.name)?" open":""}><summary><b>Paste a list</b> <span class="hint">one "Name ⇥ profile link" per line; the platform is detected from the link and rows are merged by name</span></summary>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><textarea id="cmp-paste" rows="6" placeholder="Gujarat Tourism	https://www.facebook.com/gujtourism&#10;Gujarat Tourism	https://www.instagram.com/gujarattourism/" style="width:100%;font:inherit;font-size:13px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)"></textarea>
+      <div class="toolbar"><select class="select" id="cmp-paste-group" aria-label="Add new names to"><option value="national">Add new names as national competitors</option><option value="international">Add new names as international competitors</option></select><button class="btn" type="button" id="cmp-paste-go">Add from list</button>
+      ${/karnataka/i.test(b.name)?`<button class="btn primary" type="button" id="cmp-kt">Add Karnataka domestic competitors (8, Facebook + Instagram)</button>`:""}<span class="hint" id="cmp-paste-msg"></span></div></div></details>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th>${CPK.map(([,f,n])=>`<th><span class="src" style="background:${MRP[f].c};margin-right:4px">${MRPX[f]}</span>${n}</th>`).join("")}<th></th></tr></thead><tbody>
       <tr class="cmp-self"><td><b>${esc(b.name)}</b><div class="hint" style="font-size:12px">Your brand</div></td>${CPK.map(([,f])=>`<td>${inp("brand",0,f,D.handles[f],hp[f])}</td>`).join("")}<td></td></tr>
       ${["national","international"].map(g=>`<tr><td colspan="${CPK.length+2}" class="eyebrow" style="padding-top:14px">${g==="national"?"National competitors":"International competitors"} (${D[g].length})</td></tr>
@@ -1761,6 +1795,9 @@ function bindCompetitors(b,ctx){
   $("cmp-root").oninput=(ev=>{const i=ev.target;if(!i.dataset||!i.dataset.eg)return;if(i.dataset.eg==="brand")D.handles[i.dataset.ef]=i.value;else{const r=D[i.dataset.eg][+i.dataset.ei];if(r)r[i.dataset.ef]=i.value;}});
   document.querySelectorAll("#cmp-root [data-eadd]").forEach(x=>x.onclick=()=>{D[x.dataset.eadd].push({name:""});renderCompetitors().then(()=>{const l=document.querySelectorAll(`#cmp-root [data-eg="${x.dataset.eadd}"][data-ef="name"]`);if(l.length)l[l.length-1].focus();});});
   document.querySelectorAll("#cmp-root [data-erm]").forEach(x=>x.onclick=()=>{const[g,i]=x.dataset.erm.split(":");D[g].splice(+i,1);renderCompetitors();});
+  const imp=(text,group)=>{const r=cmpImport(D,b.name,text,group);renderCompetitors().then(()=>{const m=$("cmp-paste-msg");if(m)m.textContent=`${r.added} added, ${r.updated} updated${r.skipped.length?`, ${r.skipped.length} line${r.skipped.length>1?"s":""} not understood: ${r.skipped.slice(0,3).join(" · ")}`:""}. Review, then Save competitors.`;});};
+  $("cmp-paste-go").onclick=()=>{const v=$("cmp-paste").value;if(!v.trim()){$("cmp-paste-msg").textContent="Paste the list first.";return;}imp(v,$("cmp-paste-group").value);};
+  if($("cmp-kt"))$("cmp-kt").onclick=()=>imp(KT_DOMESTIC,"national");
   $("cmp-sample").onclick=()=>{["national","international"].forEach(g=>SAMPLE_COMP[g].forEach(n=>{if(!D[g].some(r=>(r.name||"").toLowerCase()===n.toLowerCase()))D[g].push({name:n});}));renderCompetitors();};
   $("cmp-save").onclick=async()=>{const clean=g=>D[g].filter(r=>(r.name||"").trim()).map(r=>{const o={name:r.name.trim()};CPK.forEach(([,f])=>o[f]=(r[f]||"").trim());return o;});
     try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify({report:{handles:D.handles,competitors:{national:clean("national"),international:clean("international")}}})});
