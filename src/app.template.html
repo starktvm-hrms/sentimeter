@@ -111,6 +111,9 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .delta{font:500 12px var(--f-mono);padding:2px 7px;border-radius:5px}
 .delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;padding:0}
+.icon-btn:hover{color:var(--accent);border-color:var(--accent)}
+.icon-btn.done{color:var(--pos);border-color:var(--pos)}
 .alert-group{margin-bottom:6px}
 .alert-row.sub .alert-link{padding-left:16px}
 .alert-group .alert-link span:first-child{white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.3}
@@ -754,7 +757,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
           <div><input type="text" id="set-section" list="set-section-list" maxlength="60" placeholder="Name a section, or leave empty" autocomplete="off"><datalist id="set-section-list"></datalist><div class="hint" style="margin-top:4px">Your own name for the group this alert belongs to under the brand. Alerts with the same section name are shown together.</div></div>
           <label class="f">Keywords</label>
           <div><div class="chipbox" id="set-kw"></div><div class="hint" style="margin-top:4px">Press Enter or comma to add. Phrases match as written; hashtags match the tag.</div></div>
-          <label class="f">Excluded keywords</label>
+          <span class="f" style="display:flex;align-items:center;gap:6px">Excluded keywords<button type="button" class="icon-btn" id="copy-ex" title="Copy excluded keywords" aria-label="Copy excluded keywords"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1.5 1.5 0 0 0-1.5-1.5H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg></button></span>
           <div class="chipbox ex" id="set-ex"></div>
           <label class="f">Languages</label>
           <div><div class="checks" id="set-lang"></div><div class="hint" style="margin-top:4px">Leave all unchecked to include every language.</div></div>
@@ -2528,11 +2531,14 @@ function renderAnalyze(){
 
 /* ---------- Render: settings ---------- */
 let draft=null,delArm=false;
+const COPY_SVG='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1.5 1.5 0 0 0-1.5-1.5H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
   const draw=()=>{el.innerHTML=arr.map((k,i)=>`<span class="kw">${esc(k)}<button data-i="${i}" aria-label="Remove ${esc(k)}">×</button></span>`).join("")+`<input type="text" placeholder="${placeholder}" aria-label="${placeholder}">`;
     const inp=el.querySelector("input");
     inp.onkeydown=e=>{if((e.key==="Enter"||e.key===",")&&inp.value.trim()){e.preventDefault();inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.some(a=>a.toLowerCase()===v.toLowerCase()))arr.push(v);});draw();el.querySelector("input").focus();ch();}
       else if(e.key==="Backspace"&&!inp.value&&arr.length){arr.pop();draw();el.querySelector("input").focus();ch();}};
+    inp.onpaste=e=>{const s=(e.clipboardData||window.clipboardData).getData("text");if(!/[,\n]/.test(s))return;e.preventDefault();
+      s.split(/[,\n]/).map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.some(a=>a.toLowerCase()===v.toLowerCase()))arr.push(v);});draw();el.querySelector("input").focus();ch();};
     inp.onblur=()=>setTimeout(()=>{if(!el.isConnected||!inp.isConnected)return;if(inp.value.trim()){inp.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!arr.includes(v))arr.push(v);});draw();ch();}});};
   el.onclick=e=>{const b=e.target.closest("button[data-i]");if(b){arr.splice(+b.dataset.i,1);draw();ch();}else if(e.target===el)el.querySelector("input").focus();};
   draw();
@@ -2661,6 +2667,13 @@ $("r-src-sel").onchange=e=>{rSrc=e.target.value;renderReports();};
 $("r-copy-sum").onclick=e=>copyOut(REPORT.sum,e.currentTarget,"Copy summary");
 $("r-copy-csv").onclick=e=>copyOut(REPORT.csv,e.currentTarget,"Copy daily data (CSV)");
 $("v-reports").addEventListener("click",e=>{const a=e.target.closest("[data-rtag]");if(!a)return;e.preventDefault();toTerm(null,a.dataset.rtag);});
+$("copy-ex").onclick=e=>{const btn=e.currentTarget;const text=(draft&&draft.excluded||[]).join(", ");
+  const done=ok=>{btn.classList.toggle("done",ok);btn.title=ok?(text?`Copied ${draft.excluded.length} keyword${draft.excluded.length>1?"s":""}`:"Nothing to copy"):"Copy failed: select and copy instead";
+    btn.innerHTML=ok?'<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg>':btn.innerHTML;
+    if(!text){btn.classList.remove("done");}setTimeout(()=>{btn.classList.remove("done");btn.title="Copy excluded keywords";btn.innerHTML=COPY_SVG;},1600);};
+  if(!text){done(false);btn.title="No excluded keywords to copy";return;}
+  const fallback=()=>{const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand("copy");}catch(_){}ta.remove();done(ok);};
+  try{navigator.clipboard.writeText(text).then(()=>done(true),fallback);}catch(_){fallback();}};
 $("set-name").oninput=()=>{$("set-name-h").textContent=$("set-name").value||"Untitled alert";};
 $("set-unknown").onchange=preview;$("set-tracked").onchange=preview;$("set-lang").onchange=preview;$("set-src").onchange=preview;
 $("save-set").onclick=()=>{readDraft();const i=S.alerts.findIndex(a=>a.id===draft.id);S.alerts[i]=draft;save();go("dashboard");};
