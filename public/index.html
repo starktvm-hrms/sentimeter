@@ -122,6 +122,9 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
 .cmp-tbl td,.cmp-tbl th{vertical-align:top}
 .cmp-charts{display:flex;flex-direction:column;gap:18px}
+.cmp-tabs{border:1px solid var(--line);border-radius:12px;overflow:hidden;max-width:560px;background:var(--surface)}
+.cmp-tabs button .count{margin-left:6px}
+#cmp-root .src{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)}
 .cmp-chart{margin:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;padding-bottom:10px}
 .cmp-chart figcaption{background:#000;color:#fff;text-align:center;padding:10px 12px 8px;display:flex;flex-direction:column;gap:2px}
 .cmp-chart figcaption b{font-family:Jost,Arial,sans-serif;font-size:22px;font-weight:700;letter-spacing:.01em}
@@ -1686,7 +1689,7 @@ const pctf=x=>x==null?"–":(x*100).toFixed(x<.1?2:1)+"%";
 function smaMsg(s,bad){const el=$("sma-msg");if(el){el.textContent=s||"";el.className="hint"+(bad?" neg-c":"");}}
 /* ---------- Competitor Analysis (separate tab): monthly follower counts and growth ---------- */
 const CPK=[["fb","facebook","Facebook"],["ig","instagram","Instagram"],["x","x","X"],["li","linkedin","LinkedIn"],["yt","youtube","YouTube"]];
-const CMP={bid:null,month:null,hist:"fb",edit:false,draft:null,fix:false};
+const CMP={bid:null,month:null,hist:"fb",edit:false,draft:null,fix:false,group:"national"};
 const cmpMonthName=k=>new Date(k+"-01T00:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"});
 function cmpRows(b){const c=((b.extra||{}).config)||{},comp=c.competitors||{},h=c.handles||{};
   const self={name:b.name,group:"brand",self:true};CPK.forEach(([,f])=>self[f]=h[f]||"");
@@ -1706,13 +1709,15 @@ async function renderCompetitors(){
   const months=(((SMA.extra[b.id]||{}).competitors||{}).months)||{};const mks=Object.keys(months).sort().reverse();
   if(!CMP.month||!months[CMP.month])CMP.month=mks[0]||null;
   const st=(b.extra||{}).competitors||{},tk=(b.extra||{}).has_token||{};
-  const rows=cmpRows(b),snap=CMP.month?months[CMP.month]:null,pk0=CMP.month?cmpPrevKey(months,CMP.month):null,prev=pk0?months[pk0]:null;
+  const allRows=cmpRows(b),nG={national:allRows.filter(r=>r.group==="national").length,international:allRows.filter(r=>r.group==="international").length};
+  if(!nG[CMP.group]&&nG[CMP.group==="national"?"international":"national"])CMP.group=CMP.group==="national"?"international":"national";
+  const rows=allRows.filter(r=>r.self||r.group===CMP.group),snap=CMP.month?months[CMP.month]:null,pk0=CMP.month?cmpPrevKey(months,CMP.month):null,prev=pk0?months[pk0]:null;
   const used=CPK.filter(([,f])=>rows.some(r=>r[f]));
   const comp=rows.map(r=>{const o={r,c:{}};let tot=0,ptot=0,any=false,pany=true;
     used.forEach(([pk,f])=>{const v=cmpVal(snap,pk,r[f]),pv=cmpVal(prev,pk,r[f]);o.c[pk]={v,g:cmpGrowth(v,pv)};if(v!=null){tot+=v;any=true;}if(v!=null&&pv!=null)ptot+=pv;else if(v!=null)pany=false;});
     o.tot=any?tot:null;o.tg=any&&prev&&pany?cmpGrowth(tot,ptot):null;return o;});
   comp.sort((x,y)=>(y.r.self?1:0)-(x.r.self?1:0)||(y.tot??-1)-(x.tot??-1));
-  const grp={brand:"Your brand",national:"National",international:"International"};
+  const grp={brand:"Your brand",national:"Domestic",international:"International"};
   const cell=(o,pk,f)=>{const c=o.c[pk];if(!o.r[f])return `<td class="r"><span class="hint">no handle</span></td>`;
     return `<td class="r">${CMP.fix?`<input type="text" inputmode="numeric" data-cfix="${pk}" data-h="${esc(o.r[f])}" value="${c.v==null?"":fmtInt(c.v)}" placeholder="not found" style="width:110px;text-align:right" aria-label="${esc(o.r.name)} followers">`:`<b>${c.v==null?"–":fmtInt(c.v)}</b>`}<div>${cmpG(c.g)}</div></td>`;};
   const histPk=CPK.find(p=>p[0]===CMP.hist&&used.includes(p))?CMP.hist:(used[0]||CPK[0])[0];const histF=CPK.find(p=>p[0]===histPk)[1];
@@ -1728,13 +1733,14 @@ async function renderCompetitors(){
   <textarea id="cmp-out" hidden rows="4" style="width:100%" aria-label="CSV output"></textarea>
   <p class="hint" style="margin:-6px 0 0">${st.last_sync?`Last collected ${relAgo(st.last_sync)}`:"Not collected yet"}${st.last_error?` · <span class="neg-c">${esc(st.last_error)}</span>`:""} · Runs automatically once a month after 9:00 (one lookup per handle). ${!tk.meta||!tk.x?`<span class="neg-c">Missing Apify token${!tk.meta&&!tk.x?"s":""} for ${[!tk.meta?"Facebook & Instagram":"",!tk.x?"X & LinkedIn":""].filter(Boolean).join(" and ")} (Sources page).</span>`:""}</p>
   ${CMP.edit?cmpEditorHTML(b):""}
+  <div class="tabs cmp-tabs" role="tablist" aria-label="Competitor group">${[["national","Domestic competitors"],["international","International competitors"]].map(([g,l])=>`<button role="tab" type="button" data-cgroup="${g}" aria-selected="${CMP.group===g}">${l} <span class="count">${nG[g]}</span></button>`).join("")}</div>
   <div class="card"><div class="card-head"><h2>Followers${CMP.month?" · "+cmpMonthName(CMP.month):""}</h2><span class="hint">${prev?"growth vs "+cmpMonthName(pk0):snap?"growth appears from the second month":""}</span>${snap?`<label class="hint" style="display:inline-flex;gap:6px;align-items:center;margin-left:12px"><input type="checkbox" id="cmp-fix" ${CMP.fix?"checked":""}> Correct numbers</label>`:""}</div>
-    <div class="card-body">${rows.length<2&&!used.length?`<p class="empty">No competitors yet. Click <b>Edit competitors & handles</b> to add them with their social media handles.</p>`
+    <div class="card-body">${rows.length<2?`<p class="empty">No ${CMP.group==="national"?"domestic":"international"} competitors yet. Click <b>Edit competitors & handles</b> to add them with their social media handles.</p>`
     :!snap?`<p class="empty">No follower counts yet. Click <b>Refresh followers now</b> to collect this month's numbers.</p>`
     :`<div class="tbl-wrap"><table class="tbl cmp-tbl"><thead><tr><th>Competitor</th>${used.map(([,f,n])=>`<th class="r"><span class="src" style="background:${MRP[f].c};margin-right:4px">${MRPX[f]}</span>${n}</th>`).join("")}<th class="r">Total</th></tr></thead><tbody>
       ${comp.map(o=>`<tr${o.r.self?` class="cmp-self"`:""}><td><b>${esc(o.r.name)}</b><div class="hint" style="font-size:12px">${grp[o.r.group]}</div></td>${used.map(([pk,f])=>cell(o,pk,f)).join("")}<td class="r"><b>${o.tot==null?"–":fmtInt(o.tot)}</b><div>${cmpG(o.tg)}</div></td></tr>`).join("")}</tbody></table></div>
       ${CMP.fix?`<p class="hint" style="margin:8px 0 0">Type a number and press Enter to correct it for ${cmpMonthName(CMP.month)}; clear it to go back to the collected value.</p>`:""}`}</div></div>
-  ${snap?(()=>{const groups=[["national","Destination Tourism Department"],["international","International Destination Tourism Department"]];
+  ${snap?(()=>{const groups=[["national","Destination Tourism Department"],["international","International Destination Tourism Department"]].filter(([g])=>g===CMP.group);
     const charts=[];used.forEach(([pk,f,n])=>groups.forEach(([g,label])=>{const rs=rows.filter(r=>r.self||r.group===g).filter(r=>r[f]).map(r=>({name:r.name,self:!!r.self,v:cmpVal(snap,pk,r[f])}));
       const comps=rs.filter(r=>!r.self);if(!comps.some(r=>r.v!=null))return;
       charts.push({id:`cc-${pk}-${g}`,title:`${n} ${pk==="yt"?"Subscribers":"Followers"} Comparison - ${String(comps.length).padStart(2,"0")} ${label}${comps.length===1?"":"s"}`,svg:slCompChart(rs,"v",1400,620)});}));
@@ -1799,6 +1805,7 @@ function bindCompetitors(b,ctx){
   if($("cmp-month"))$("cmp-month").onchange=e=>{CMP.month=e.target.value;renderCompetitors();};
   $("cmp-edit").onclick=()=>{CMP.edit=!CMP.edit;renderCompetitors();};
   if($("cmp-fix"))$("cmp-fix").onchange=e=>{CMP.fix=e.target.checked;renderCompetitors();};
+  document.querySelectorAll("#cmp-root [data-cgroup]").forEach(x=>x.onclick=()=>{CMP.group=x.dataset.cgroup;renderCompetitors();});
   document.querySelectorAll("#cmp-root [data-chist]").forEach(x=>x.onclick=()=>{CMP.hist=x.dataset.chist;renderCompetitors();});
   $("cmp-sync").onclick=async()=>{try{await smaApi(`/brands/${b.id}/competitors/sync`,{method:"POST",body:"{}"});$("cmp-msg").textContent="Collecting follower counts…";SMA.brands=(await smaApi("/brands")).brands;renderCompetitors();}catch(e){$("cmp-msg").textContent=e.message;$("cmp-msg").className="hint neg-c";}};
   $("cmp-csv").onclick=e=>{const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;const head=["competitor","group"].concat(ctx.used.flatMap(([,,n])=>[n+" followers",n+" growth"])).concat(["total followers","total growth"]);
