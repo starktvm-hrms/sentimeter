@@ -587,6 +587,28 @@ SEEDS = {
             {"name": "Uttar Pradesh Tourism", "instagram": "uttarpradeshtourism"},
         ],
     },
+    # Karnataka Tourism: international competitors (Facebook + Instagram)
+    "kt-international-2026-11": {
+        "brand": "Karnataka Tourism",
+        "handles": {"facebook": "KarnatakaWorld", "instagram": "karnatakaworld"},
+        "international": [
+            {"name": "Australia", "facebook": "SeeAustralia", "instagram": "australia"},
+            {"name": "Dubai", "facebook": "visitdubai", "instagram": "visit.dubai"},
+            {"name": "USA", "facebook": "VisitTheUSA", "instagram": "visittheusa"},
+            {"name": "Singapore", "facebook": "VisitSingaporeOfficial", "instagram": "visit_singapore"},
+            {"name": "Thailand", "facebook": "AmazingThailand", "instagram": "tourismthailand"},
+            {"name": "Spain", "facebook": "spain.info", "instagram": "spain"},
+            {"name": "Scotland", "facebook": "visitscotland", "instagram": "visitscotland"},
+            {"name": "Malaysia", "facebook": "malaysia.travel.my", "instagram": "malaysia.truly.asia"},
+            {"name": "Abu Dhabi", "facebook": "visitabudhabi", "instagram": "visitabudhabi"},
+            {"name": "Vietnam", "facebook": "VietnamTourismBoard", "instagram": "vietnamtourismboard"},
+            {"name": "South Korea", "facebook": "koreatourism", "instagram": "visitkorea_travel"},
+            {"name": "Japan", "facebook": "visitjapan", "instagram": "visitjapan.us"},
+            {"name": "Indonesia", "facebook": "WonderfulIndonesia", "instagram": "wonderfulindonesia"},
+            {"name": "South Africa", "facebook": "SouthAfricanTourism", "instagram": "visitsouthafrica"},
+            {"name": "Italy", "facebook": "italiait.EN", "instagram": "italiait"},
+        ],
+    },
 }
 
 
