@@ -516,7 +516,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       </div>
       <div class="grid">
         <div class="card">
-          <div class="tabs" role="tablist"><button role="tab" data-mtab="mentions" aria-selected="true">Mentions</button><button role="tab" data-mtab="reach" aria-selected="false">Reach</button></div>
+          <div class="card-head"><h2>Mentions</h2><span class="hint">per day</span></div>
           <div class="card-body">
             <div class="kpi"><span class="big" id="m-total">0</span><span class="delta flat" id="m-delta">0%</span><span class="hint" id="m-vs"></span></div>
             <div class="chart" id="m-chart"></div>
@@ -534,11 +534,10 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><h2>Net sentiment</h2><span class="hint">% positive − % negative</span></div>
+          <div class="card-head"><h2>Reach</h2><span class="hint">per day</span></div>
           <div class="card-body">
-            <div class="kpi"><span class="big" id="net">0</span><span class="delta flat" id="net-delta">0</span><span class="hint">points vs previous period</span></div>
-            <div class="eyebrow">Emotion signals</div>
-            <div class="emo" id="emo"></div>
+            <div class="kpi"><span class="big" id="r-total">0</span><span class="delta flat" id="r-delta">0%</span><span class="hint" id="r-vs"></span></div>
+            <div class="chart" id="r-chart"></div>
           </div>
         </div>
 
@@ -1272,29 +1271,23 @@ function renderChrome(){
 }
 
 /* ---------- Render: dashboard ---------- */
-let mTab="mentions",tTab="mentions";
+let tTab="mentions";
 function renderDashboard(){
   const al=activeAlert();const{p,cur,prev}=pools(al);const days=dayList(p);
   $("dash-title").textContent=al.name;
   $("dash-sub").textContent=`${fmtDay(p.start)} to ${fmtDay(p.end)}${p.end?", "+p.end.slice(0,4):""} · ${cur.length} mentions · ${al.keywords.length} keywords`;
   // mentions / reach
   const byDay=f=>days.map(d=>cur.filter(m=>m.day===d).reduce((a,m)=>a+f(m),0));
-  const isR=mTab==="reach";const val=isR?cur.reduce((a,m)=>a+m.reach,0):cur.length;const pv=isR?prev.reduce((a,m)=>a+m.reach,0):prev.length;
-  $("m-total").textContent=isR?compact(val):val;
-  const dl=$("m-delta");
-  if(p.pStart&&pv){const ch=Math.round((val-pv)/pv*100);dl.textContent=(ch>0?"+":"")+ch+"%";dl.className="delta "+(ch>0?"up":ch<0?"down":"flat");$("m-vs").textContent="vs previous "+S.range+" days";}
-  else{dl.textContent="n/a";dl.className="delta flat";$("m-vs").textContent=p.pStart?"no earlier data":"";}
-  $("m-chart").innerHTML=lineChart(days,[{label:isR?"reach":"mentions",color:"var(--accent)",values:byDay(isR?m=>m.reach:()=>1)}],{area:true});
+  const kpi=(id,val,pv,fmt,vals,label)=>{$(id+"-total").textContent=fmt(val);const dl=$(id+"-delta");
+    if(p.pStart&&pv){const ch=Math.round((val-pv)/pv*100);dl.textContent=(ch>0?"+":"")+ch+"%";dl.className="delta "+(ch>0?"up":ch<0?"down":"flat");$(id+"-vs").textContent="vs previous "+S.range+" days";}
+    else{dl.textContent="n/a";dl.className="delta flat";$(id+"-vs").textContent=p.pStart?"no earlier data":"";}
+    $(id+"-chart").innerHTML=lineChart(days,[{label,color:"var(--accent)",values:vals}],{area:true});};
+  kpi("m",cur.length,prev.length,v=>v,byDay(()=>1),"mentions");
+  kpi("r",cur.reduce((a,m)=>a+m.reach,0),prev.reduce((a,m)=>a+m.reach,0),compact,byDay(m=>m.reach),"reach");
   // sentiment
   const sp=splits(cur);
   $("s-pos").textContent=Math.round(sp.p*100)+"%";$("s-neg").textContent=Math.round(sp.n*100)+"%";$("s-neu").textContent=Math.round(sp.u*100)+"%";
   $("s-chart").innerHTML=lineChart(days,[{label:"positive",color:"var(--pos)",values:byDay(m=>labelOf(m)==="pos"?1:0)},{label:"negative",color:"var(--neg)",values:byDay(m=>labelOf(m)==="neg"?1:0)}]);
-  // net
-  $("net").textContent=signed(sp.net);$("net").className="big "+(sp.net>=5?"pos-c":sp.net<=-5?"neg-c":"");
-  const nd=$("net-delta");if(prev.length){const d=sp.net-splits(prev).net;nd.textContent=signed(d);nd.className="delta "+(d>0?"up":d<0?"down":"flat");}else{nd.textContent="n/a";nd.className="delta flat";}
-  const ec={};Object.keys(EMOTIONS).forEach(k=>ec[k]=0);cur.forEach(m=>Object.keys(m.a.emo).forEach(k=>ec[k]++));
-  const em=Math.max(1,...Object.values(ec));
-  $("emo").innerHTML=Object.entries(ec).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div>${k}</div><div class="bar"><div style="width:${v/em*100}%"></div></div><div class="num" style="text-align:right">${v}</div>`).join("");
   // top list
   if(tTab==="mentions"){
     const top=cur.slice().sort((a,b)=>b.reach-a.reach).slice(0,12);
@@ -2805,7 +2798,6 @@ $("alert-list").onclick=e=>{const ad=e.target.closest("[data-addsec]");if(ad){co
 $("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
 $("range").onchange=e=>{S.range=+e.target.value;save();render();};
-document.querySelectorAll("[data-mtab]").forEach(b=>b.onclick=()=>{mTab=b.dataset.mtab;document.querySelectorAll("[data-mtab]").forEach(x=>x.setAttribute("aria-selected",x===b));renderDashboard();});
 document.querySelectorAll("[data-ttab]").forEach(b=>b.onclick=()=>{tTab=b.dataset.ttab;document.querySelectorAll("[data-ttab]").forEach(x=>x.setAttribute("aria-selected",x===b));renderDashboard();});
 function toTerm(t,txt){F=Object.assign(F,{s:"all",q:"",term:t||null,termText:txt||null,limit:40});$("search").value="";[...$("sent-filter").children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.f==="all"));go("mentions");}
 $("drv-pos").onclick=$("drv-neg").onclick=e=>{const b=e.target.closest("[data-term]");if(b)toTerm(b.dataset.term);};
