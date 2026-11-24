@@ -111,6 +111,8 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .delta{font:500 12px var(--f-mono);padding:2px 7px;border-radius:5px}
 .delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
+.range-custom{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.range-custom input[type=date]{height:38px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;color-scheme:light dark}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;padding:0}
 .icon-btn:hover{color:var(--accent);border-color:var(--accent)}
 .icon-btn.done{color:var(--pos);border-color:var(--pos)}
@@ -441,8 +443,9 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <span class="spacer"></span>
       <span class="badge" id="data-badge"></span>
       <select class="select" id="range" aria-label="Date range">
-        <option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option><option value="0">All time</option>
+        <option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="0">All time</option><option value="custom">Custom range…</option>
       </select>
+      <span class="range-custom" id="range-custom" hidden><input type="date" id="range-from" aria-label="From date"><span class="hint">to</span><input type="date" id="range-to" aria-label="To date"><button class="btn primary" type="button" id="range-apply">Apply</button></span>
       <label class="btn">Import data<input type="file" id="file-top" accept=".csv,.tsv,.txt,.json"></label>
       <button class="btn theme-btn" id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch light / dark mode">
         <svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
@@ -1008,9 +1011,11 @@ function matches(m,al){
 }
 function maxDay(){return MENTIONS.reduce((a,m)=>m.day>a?m.day:a,"0000");}
 function periods(){
+  if(S.range==="custom"&&S.rfrom&&S.rto&&S.rfrom<=S.rto){const n=Math.round((new Date(S.rto)-new Date(S.rfrom))/864e5)+1;
+    return{start:S.rfrom,end:S.rto,pStart:addDays(S.rfrom,-n),pEnd:addDays(S.rfrom,-1),n};}
   const end=maxDay();const r=+S.range;
   if(!r||!MENTIONS.length){const min=MENTIONS.reduce((a,m)=>m.day<a?m.day:a,"9999");return{start:min,end,pStart:null,pEnd:null};}
-  const start=addDays(end,-(r-1));return{start,end,pStart:addDays(start,-r),pEnd:addDays(start,-1)};
+  const start=addDays(end,-(r-1));return{start,end,pStart:addDays(start,-r),pEnd:addDays(start,-1),n:r};
 }
 function pools(al){
   al=al||activeAlert();const p=periods();
@@ -1094,6 +1099,9 @@ function renderChrome(){
     +(loose.length?(brands.length?`<div class="alert-sep">Other alerts</div>`:"")+loose.map(a=>row(a,false)).join(""):"");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
+  const rc=$("range-custom");rc.hidden=S.range!=="custom";
+  if(S.range==="custom"){const lo=MENTIONS.reduce((a,m)=>m.day<a?m.day:a,"9999"),hi=maxDay();["range-from","range-to"].forEach(id=>{const el=$(id);if(lo!=="9999")el.min=lo;if(hi)el.max=hi;});
+    if(document.activeElement!==$("range-from"))$("range-from").value=S.rfrom||"";if(document.activeElement!==$("range-to"))$("range-to").value=S.rto||"";}
   const mode=dataMode();const nx=(S.extra||[]).length;const lbl=SHARED?(mode==="sample"?"Sample data: fictional posts":(hasLive()?"Live data · updated "+relAgo(LIVE.updated):"Imported: "+SIMPORT.name)+(hasLive()&&SIMPORT&&!S.forceSample?" + "+SIMPORT.name:"")):(mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts")+(nx?` + ${nx} from Apify`:"");
   $("data-badge").textContent=lbl;$("data-badge2").textContent=lbl;
   const sf=$("side-foot");sf.textContent=(sf.dataset.note?sf.dataset.note+" · ":"")+`${MENTIONS.length} mentions loaded · ${p.start?fmtDay(p.start):""} to ${p.end?fmtDay(p.end):""}`+(SHARED?" · shared with everyone":"");
@@ -1108,7 +1116,7 @@ function renderDashboard(){
   // mentions / reach
   const byDay=f=>days.map(d=>cur.filter(m=>m.day===d).reduce((a,m)=>a+f(m),0));
   const kpi=(id,val,pv,fmt,vals,label)=>{$(id+"-total").textContent=fmt(val);const dl=$(id+"-delta");
-    if(p.pStart&&pv){const ch=Math.round((val-pv)/pv*100);dl.textContent=(ch>0?"+":"")+ch+"%";dl.className="delta "+(ch>0?"up":ch<0?"down":"flat");$(id+"-vs").textContent="vs previous "+S.range+" days";}
+    if(p.pStart&&pv){const ch=Math.round((val-pv)/pv*100);dl.textContent=(ch>0?"+":"")+ch+"%";dl.className="delta "+(ch>0?"up":ch<0?"down":"flat");$(id+"-vs").textContent="vs previous "+p.n+" day"+(p.n===1?"":"s");}
     else{dl.textContent="n/a";dl.className="delta flat";$(id+"-vs").textContent=p.pStart?"no earlier data":"";}
     $(id+"-chart").innerHTML=lineChart(days,[{label,color:"var(--accent)",values:vals}],{area:true});};
   kpi("m",cur.length,prev.length,v=>v,byDay(()=>1),"mentions");
@@ -2629,7 +2637,14 @@ $("alert-list").onclick=e=>{const ad=e.target.closest("[data-addsec]");if(ad){co
   const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
 $("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
-$("range").onchange=e=>{S.range=+e.target.value;save();render();};
+$("range").onchange=e=>{const v=e.target.value;
+  if(v==="custom"){const p=periods();S.rfrom=S.rfrom||p.start;S.rto=S.rto||p.end;if(!S.rfrom||S.rfrom==="9999"){S.rto=maxDay();S.rfrom=addDays(S.rto,-6);}S.range="custom";save();render();setTimeout(()=>$("range-from").focus(),30);return;}
+  S.range=+v;save();render();};
+$("range-apply").onclick=()=>{const f=$("range-from").value,t=$("range-to").value;
+  if(!f||!t){$("range-from").reportValidity();alert("Choose both dates.");return;}
+  if(f>t){alert("The start date must be on or before the end date.");return;}
+  S.rfrom=f;S.rto=t;S.range="custom";save();render();};
+["range-from","range-to"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter")$("range-apply").click();}));
 document.querySelectorAll("[data-ttab]").forEach(b=>b.onclick=()=>{tTab=b.dataset.ttab;document.querySelectorAll("[data-ttab]").forEach(x=>x.setAttribute("aria-selected",x===b));renderDashboard();});
 function toTerm(t,txt){F=Object.assign(F,{s:"all",q:"",term:t||null,termText:txt||null,limit:40});$("search").value="";[...$("sent-filter").children].forEach(c=>c.setAttribute("aria-pressed",c.dataset.f==="all"));go("mentions");}
 $("drv-pos").onclick=$("drv-neg").onclick=e=>{const b=e.target.closest("[data-term]");if(b)toTerm(b.dataset.term);};
