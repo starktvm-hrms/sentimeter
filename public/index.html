@@ -121,6 +121,14 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
 .cmp-tbl td,.cmp-tbl th{vertical-align:top}
+.cmp-charts{display:flex;flex-direction:column;gap:18px}
+.cmp-chart{margin:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;padding-bottom:10px}
+.cmp-chart figcaption{background:#000;color:#fff;text-align:center;padding:10px 12px 8px;display:flex;flex-direction:column;gap:2px}
+.cmp-chart figcaption b{font-family:Jost,Arial,sans-serif;font-size:22px;font-weight:700;letter-spacing:.01em}
+.cmp-chart figcaption span{font-size:14px;color:#e5e7eb}
+.cmp-chart .cmp-svg{padding:8px 12px 0}
+.cmp-chart .cmp-svg svg{width:100%;height:auto;display:block}
+.cmp-chart .btn{margin-right:12px;background:#fff;color:#1b1f1c;border-color:#d4d8d4}
 .cmp-self td{background:color-mix(in srgb,var(--pos) 9%,transparent)}
 .range-custom{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
 .range-custom input[type=date]{height:38px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;color-scheme:light dark}
@@ -1726,6 +1734,12 @@ async function renderCompetitors(){
     :`<div class="tbl-wrap"><table class="tbl cmp-tbl"><thead><tr><th>Competitor</th>${used.map(([,f,n])=>`<th class="r"><span class="src" style="background:${MRP[f].c};margin-right:4px">${MRPX[f]}</span>${n}</th>`).join("")}<th class="r">Total</th></tr></thead><tbody>
       ${comp.map(o=>`<tr${o.r.self?` class="cmp-self"`:""}><td><b>${esc(o.r.name)}</b><div class="hint" style="font-size:12px">${grp[o.r.group]}</div></td>${used.map(([pk,f])=>cell(o,pk,f)).join("")}<td class="r"><b>${o.tot==null?"–":fmtInt(o.tot)}</b><div>${cmpG(o.tg)}</div></td></tr>`).join("")}</tbody></table></div>
       ${CMP.fix?`<p class="hint" style="margin:8px 0 0">Type a number and press Enter to correct it for ${cmpMonthName(CMP.month)}; clear it to go back to the collected value.</p>`:""}`}</div></div>
+  ${snap?(()=>{const groups=[["national","Destination Tourism Department"],["international","International Destination Tourism Department"]];
+    const charts=[];used.forEach(([pk,f,n])=>groups.forEach(([g,label])=>{const rs=rows.filter(r=>r.self||r.group===g).filter(r=>r[f]).map(r=>({name:r.name,self:!!r.self,v:cmpVal(snap,pk,r[f])}));
+      const comps=rs.filter(r=>!r.self);if(!comps.some(r=>r.v!=null))return;
+      charts.push({id:`cc-${pk}-${g}`,title:`${n} ${pk==="yt"?"Subscribers":"Followers"} Comparison - ${String(comps.length).padStart(2,"0")} ${label}${comps.length===1?"":"s"}`,svg:slCompChart(rs,"v",1400,620)});}));
+    return charts.length?`<div class="card"><div class="card-head"><h2>Growth charts · ${cmpMonthName(CMP.month)}</h2><span class="hint">${esc(b.name)} in green</span></div><div class="card-body cmp-charts">
+      ${charts.map(c=>`<figure class="cmp-chart" id="${c.id}"><figcaption><b>Monthly Competitor's Analysis</b><span>${esc(c.title)}</span></figcaption><div class="cmp-svg">${c.svg}</div><button class="btn" type="button" data-cpng="${c.id}" style="align-self:flex-end;padding:4px 10px;font-size:12.5px">Download PNG</button></figure>`).join("")}</div></div>`:"";})():""}
   ${hm.length?`<div class="card"><div class="card-head"><h2>Monthly history</h2><div class="chips" role="group" aria-label="Platform">${used.map(([pk,,n])=>`<button class="chip" type="button" data-chist="${pk}" aria-pressed="${pk===histPk}">${n}</button>`).join("")}</div></div><div class="card-body"><div class="tbl-wrap"><table class="tbl cmp-tbl"><thead><tr><th>Competitor</th>${hm.map(k=>`<th class="r">${new Date(k+"-01T00:00:00").toLocaleDateString("en-IN",{month:"short",year:"numeric"})}</th>`).join("")}</tr></thead><tbody>
     ${rows.filter(r=>r[histF]).map(r=>`<tr${r.self?` class="cmp-self"`:""}><td><b>${esc(r.name)}</b><div class="hint" style="font-size:12px">@${esc(r[histF])}</div></td>${hm.map((k,i)=>{const v=cmpVal(months[k],histPk,r[histF]);const g=i?cmpGrowth(v,cmpVal(months[hm[i-1]],histPk,r[histF])):null;return `<td class="r">${v==null?"–":fmtInt(v)}${i?`<div>${cmpG(g)}</div>`:""}</td>`;}).join("")}</tr>`).join("")||`<tr><td colspan="${hm.length+1}" class="hint">No ${CPK.find(p=>p[0]===histPk)[2]} handles.</td></tr>`}</tbody></table></div></div></div>`:""}`;
   bindCompetitors(b,{rows,comp,used,snap,months});
@@ -1788,6 +1802,12 @@ function bindCompetitors(b,ctx){
   $("cmp-sync").onclick=async()=>{try{await smaApi(`/brands/${b.id}/competitors/sync`,{method:"POST",body:"{}"});$("cmp-msg").textContent="Collecting follower counts…";SMA.brands=(await smaApi("/brands")).brands;renderCompetitors();}catch(e){$("cmp-msg").textContent=e.message;$("cmp-msg").className="hint neg-c";}};
   $("cmp-csv").onclick=e=>{const q=s=>`"${String(s==null?"":s).replace(/"/g,'""')}"`;const head=["competitor","group"].concat(ctx.used.flatMap(([,,n])=>[n+" followers",n+" growth"])).concat(["total followers","total growth"]);
     copyOutTo([head.join(",")].concat(ctx.comp.map(o=>[q(o.r.name),o.r.self?"brand":o.r.group].concat(ctx.used.flatMap(([pk])=>[o.c[pk].v??"",o.c[pk].g?o.c[pk].g.n:""])).concat([o.tot??"",o.tg?o.tg.n:""]).join(","))).join("\n"),e.currentTarget,"Copy table (CSV)",$("cmp-out"));};
+  document.querySelectorAll("#cmp-root [data-cpng]").forEach(btn=>btn.onclick=()=>{const fig=$(btn.dataset.cpng);const svg=fig.querySelector("svg");const cap=fig.querySelector("figcaption span").textContent;
+    const W=1400,H=620,head=110,img=new Image();img.onload=()=>{const c=document.createElement("canvas");c.width=W;c.height=H+head;const x=c.getContext("2d");
+      x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.fillStyle="#000";x.fillRect(0,0,W,head);x.fillStyle="#fff";x.textAlign="center";
+      x.font="bold 40px Jost, Arial, sans-serif";x.fillText("Monthly Competitor\u2019s Analysis",W/2,52);x.font="24px Arial, sans-serif";x.fillText(cap,W/2,90);
+      x.drawImage(img,0,head,W,H);const a=document.createElement("a");a.download=`${b.name} - ${cap} - ${cmpMonthName(CMP.month)}.png`.replace(/[\\/:*?"<>|]+/g," ");a.href=c.toDataURL("image/png");a.click();};
+    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(new XMLSerializer().serializeToString(svg));});
   document.querySelectorAll("#cmp-root [data-cfix]").forEach(inp=>inp.onkeydown=async ev=>{if(ev.key!=="Enter")return;ev.preventDefault();
     try{await smaApi(`/brands/${b.id}/competitors/manual`,{method:"POST",body:JSON.stringify({month:CMP.month,platform:inp.dataset.cfix,handle:inp.dataset.h,value:inp.value.replace(/[^0-9]/g,"")})});await smaLoadExtra(b);renderCompetitors();}catch(e){$("cmp-msg").textContent=e.message;}});
   if(!CMP.edit)return;
@@ -2142,10 +2162,14 @@ function slMention(c,kind){const m=c.m;const lab=labelOf(m);
     ${m.title?`<p class="sl-cap t">${esc(m.title)}</p>`:""}<p class="sl-cap">${esc(m.text||"")}</p>
     <div class="sl-pd" style="margin-top:auto"><span>${m.url?`<a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--gr)">${esc(m.url.replace(/^https?:\/\/(www\.)?/,"").slice(0,48))}</a>`:""}</span><span><b style="color:var(--ink);font-size:1.3cqw">${compact(m.reach)}</b> reach · <span style="color:${lab==="pos"?"#16a34a":lab==="neg"?"#dc2626":"#64748b"}">${LABEL[lab]}</span></span></div></div></div>`;}
 function slCompChart(rows,key,W,H){const rs=rows.filter(r=>r[key]!=null).sort((x,y)=>y[key]-x[key]);if(!rs.length)return `<div class="sl-empty">No follower counts yet. Run "Refresh competitor followers" in Settings.</div>`;
-  const L=70,R=10,T=26,B=96;const{step,top}=niceTicks(Math.max(...rs.map(r=>r[key])));const bw=(W-L-R)/rs.length,w=Math.min(70,bw*.62);const y=v=>T+(H-T-B)*(1-v/top);
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e8e4"/><text x="${L-8}" y="${y(v)+6}" text-anchor="end" font-size="17">${compact(v)}</text>`;
-  rs.forEach((r,i)=>{const x=L+i*bw+bw/2;s+=`<rect x="${x-w/2}" y="${y(r[key])}" width="${w}" height="${y(0)-y(r[key])}" fill="${r.self?"#22c55e":"#2563eb"}" rx="2"/><text x="${x}" y="${y(r[key])-7}" text-anchor="middle" font-size="${rs.length>10?13:16}" font-weight="700" fill="#1b1f1c">${fmtInt(r[key])}</text>
-    <text transform="translate(${x+5},${H-B+12}) rotate(-40)" text-anchor="end" font-size="${rs.length>10?14:16}" ${r.self?'font-weight="700" fill="#1b1f1c"':""}>${esc(r.name.length>22?r.name.slice(0,21)+"…":r.name)}</text>`;});
+  const many=rs.length>10,fs=many?14:16,R=12,T=30,B=many?170:66;const L=Math.max(80,fmtInt(Math.max(...rs.map(r=>r[key]))*1.25).length*10+24);const{step,top}=niceTicks(Math.max(...rs.map(r=>r[key])));const bw=(W-L-R)/rs.length,w=Math.min(76,bw*.62);const y=v=>T+(H-T-B)*(1-v/top);
+  const lines=n=>{const ws=String(n).split(/\s+/);if(ws.length<2)return [n];let best=[n],bd=1e9;for(let i=1;i<ws.length;i++){const a=ws.slice(0,i).join(" "),b=ws.slice(i).join(" "),d=Math.max(a.length,b.length);if(d<bd){bd=d;best=[a,b];}}return best;};
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" font-family="Arial, Helvetica, sans-serif" fill="#6b726d">`;
+  for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e8e4"/><text x="${L-10}" y="${y(v)+6}" text-anchor="end" font-size="17">${fmtInt(v)}</text>`;
+  rs.forEach((r,i)=>{const x=L+i*bw+bw/2;const st=r.self?' font-weight="700" fill="#1b1f1c"':' fill="#374151"';
+    s+=`<rect x="${x-w/2}" y="${y(r[key])}" width="${w}" height="${y(0)-y(r[key])}" fill="${r.self?"#22c55e":"#2563eb"}" rx="2"/><text x="${x}" y="${y(r[key])-8}" text-anchor="middle" font-size="${many?13:16}" font-weight="700" fill="${r.self?"#15803d":"#1b1f1c"}">${fmtInt(r[key])}</text>`;
+    s+=many?`<text transform="translate(${x+4},${H-B+16}) rotate(-45)" text-anchor="end" font-size="${fs}"${st}>${esc(r.name)}</text>`
+      :lines(r.name).map((ln,k)=>`<text x="${x}" y="${H-B+24+k*20}" text-anchor="middle" font-size="${fs}"${st}>${esc(ln)}</text>`).join("");});
   return s+"</svg>";}
 function slExtraHTML(b,M,s){
   const cfg=(b.extra||{}).config||{};

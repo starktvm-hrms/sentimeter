@@ -619,6 +619,7 @@ def apply_seeds():
         done = set(json.load(open(path)))
     except Exception:
         done = set()
+    collect = set()
     for sid, s in SEEDS.items():
         if sid in done:
             continue
@@ -642,8 +643,10 @@ def apply_seeds():
             os.makedirs(os.path.dirname(path), exist_ok=True)
             json.dump(sorted(done), open(path, "w"))
             sma.log(f"seed {sid}: applied to {b['name']} ({b['id']})")
-            if (token("meta") or "") and (b["id"], "competitors") not in BUSY:
-                run_async(b["id"], "competitors")
+            collect.add(b["id"])
         except Exception as e:
             sma.log(f"seed {sid} failed: {e}")
+    for bid in collect:  # one collection per brand, after every seed is in place
+        if token("meta") and (bid, "competitors") not in BUSY:
+            run_async(bid, "competitors")
 
