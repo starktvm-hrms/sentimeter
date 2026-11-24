@@ -126,7 +126,13 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .icon-btn:hover{color:var(--accent);border-color:var(--accent)}
 .icon-btn.done{color:var(--pos);border-color:var(--pos)}
 .alert-group{margin-bottom:6px}
-.alert-row.sub .alert-link{padding-left:16px}
+.alert-row.sub .alert-link{padding-left:30px;font-size:12px}
+.alert-row.sub .count{font-size:11px}
+.grp-toggle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:30px;margin-left:2px;border:0;background:none;color:var(--side-ink);cursor:pointer;border-radius:6px;flex:none;padding:0}
+.grp-toggle:hover{color:var(--side-strong);background:var(--side-hover)}
+.grp-toggle svg{transition:transform .15s}
+.grp-toggle[aria-expanded="true"] svg{transform:rotate(90deg)}
+.alert-group>.alert-row:first-child .alert-link{padding-left:2px}
 .alert-group .alert-link span:first-child{white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.3}
 .tbl .btn{font-family:Inter,system-ui,sans-serif}
 .alert-row.sub .alert-link span:first-child{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
@@ -1269,7 +1275,11 @@ function renderChrome(){
   const gear=a=>`<button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${a.id===al.id&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button>`;
   const row=(a,sub)=>{const n=inP.filter(m=>matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}${sub?" sub":""}"><button class="alert-link" data-id="${esc(a.id)}" aria-current="${on}"><span>${sub&&secLabel(a.section)?`<em class="sec-tag">${esc(secLabel(a.section))}</em>`:""}${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button>${a.virtual?`<button class="gear" data-addsec="${esc(a.brand)}" title="Add a section to ${esc(a.brand)}" aria-label="Add a section to ${esc(a.brand)}">+</button>`:gear(a)}</div>`;};
   const order=a=>secLabel(a.section)?0:1;
-  $("alert-list").innerHTML=brands.map(bn=>{const v=brandAlert(bn);return `<div class="alert-group">${row(v,false).replace('<span>'+esc(v.name),'<span><b>'+esc(bn)+'</b>')}${v.children.slice().sort((x,y)=>order(x)-order(y)||secLabel(x.section).localeCompare(secLabel(y.section))||x.name.localeCompare(y.name)).map(a=>row(a,true)).join("")}</div>`;}).join("")
+  const coll=S.collapsed||{};
+  $("alert-list").innerHTML=brands.map(bn=>{const v=brandAlert(bn);const shut=!!coll[bn];
+    const head=row(v,false).replace('<span>'+esc(v.name),'<span><b>'+esc(bn)+'</b>').replace('<button class="alert-link"',`<button class="grp-toggle" type="button" data-collapse="${esc(bn)}" aria-expanded="${!shut}" aria-label="${shut?"Expand":"Collapse"} ${esc(bn)}" title="${shut?"Show":"Hide"} sections"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5L7.5 6 4 9.5"/></svg></button><button class="alert-link"`);
+    const kids=v.children.slice().sort((x,y)=>order(x)-order(y)||secLabel(x.section).localeCompare(secLabel(y.section))||x.name.localeCompare(y.name));
+    return `<div class="alert-group${shut?" shut":""}">${head}${kids.filter(a=>!shut||a.id===al.id).map(a=>row(a,true)).join("")}</div>`;}).join("")
     +(loose.length?(brands.length?`<div class="alert-sep">Other alerts</div>`:"")+loose.map(a=>row(a,false)).join(""):"");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
@@ -2807,7 +2817,8 @@ $("clear-data").onclick=async()=>{if(SHARED){try{await fetch("api/import",{metho
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
-$("alert-list").onclick=e=>{const ad=e.target.closest("[data-addsec]");if(ad){const id="a"+Date.now();S.alerts.push({id,name:"New alert",brand:ad.dataset.addsec,section:"",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice(),srcV3:true,tracked:true});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);return;}
+$("alert-list").onclick=e=>{const tg=e.target.closest("[data-collapse]");if(tg){const k=tg.dataset.collapse;S.collapsed=Object.assign({},S.collapsed);if(S.collapsed[k])delete S.collapsed[k];else S.collapsed[k]=true;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(_){}renderChrome();return;}
+  const ad=e.target.closest("[data-addsec]");if(ad){const id="a"+Date.now();S.alerts.push({id,name:"New alert",brand:ad.dataset.addsec,section:"",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice(),srcV3:true,tracked:true});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);return;}
   const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
 $("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
