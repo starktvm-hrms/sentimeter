@@ -185,10 +185,26 @@ In a brand's **Settings > Report** you can switch on extra parts of the report d
 - **Weekly report**: adds a Monday-to-Sunday report next to the monthly one (the tab becomes "Weekly & monthly report"). Changes are compared with the previous week.
 - **Channel handles**: a "Management of SM Channels" slide with the brand's Facebook, Instagram, X, LinkedIn and YouTube handles.
 - **X (Twitter) analytics**: the brand's public X posts (views, likes, reposts, replies, quotes, bookmarks) and follower count, collected once a day after 9:00 with the Apify actor `apidojo~tweet-scraper` (token `APIFY_TOKEN_X_LINKEDIN`, else `APIFY_TOKEN`; about 40 posts a run). Adds an X platform slide and X post-wise slides.
-- **Listening & sentiment**: uses one of your listening alerts: top UGC (highest-reach posts by other accounts), sentiment split and net score, tracked keywords with mention counts, mentions and reach per day, top countries, top hashtags, and negative posts. Listening data is kept for 45 days.
+- **Listening & sentiment**: uses one of your listening alerts: top UGC (highest-reach posts by other accounts), sentiment split and net score, tracked keywords with mention counts, mentions and reach per day, top countries, top hashtags, and negative posts. Listening data is kept for 100 days (up to 20,000 mentions).
 - **Competitor analysis**: a competitor list (national and international groups; "Fill sample list" adds the 7 Indian and 15 international tourism boards from the Karnataka Tourism report) and Facebook/Instagram follower comparison charts with the brand highlighted. Follower counts are collected once a month with `apify~facebook-pages-scraper` and `apify~instagram-profile-scraper` (token `APIFY_TOKEN_META`, else `APIFY_TOKEN`), one lookup per handle. Settings shows the name each account reports so you can check the handle, and any count can be corrected by hand.
 
 Data is stored in `/var/lib/sentimeter/sma/<brand>/x.json` and `competitors.json`.
+
+### Weekly, monthly and quarterly reports
+
+Every brand's **Report deck** tab makes weekly (Monday–Sunday), monthly and quarterly (calendar quarters) decks in the Stark template, each compared with the previous period. Quarterly decks show the top 20 posts per platform by default (change it with the "Posts shown" picker). Instagram's daily statistics only go back 30 days from the first sync, so the first quarters fill in as history builds up.
+
+### Brand sections in Mentions
+
+In an alert's settings, set **Brand** (for example "Karnataka Tourism") and **Section**: Domestic region, International, Specific keywords, Themes, Competitors or Other. Alerts with the same brand are grouped under it in the sidebar, with an "all sections" view on top and a **+** button to add a section. In the brand's Settings > Report, choose "All <brand> sections" as the listening alert to get a **Mentions by section** slide (mentions, change, reach, positive/negative share and net sentiment per section). The fetcher collects every alert's keywords, so new sections are collected automatically.
+
+### Apify integration (shared by all brands)
+
+Each brand's Settings has an **Apify integration** card: tick Facebook, Instagram, X, LinkedIn, YouTube or TikTok to collect the brand's public posts (likes, comments, shares, views where shown) and follower count once a day after 9:00, using the brand handles from Settings > Report. It uses the Apify tokens on the Sources page (API keys), which every brand shares; the Brands page shows which tokens are set and this month's results. The official LinkedIn, Facebook/Instagram and YouTube integrations are unchanged: a report uses the official API when it is connected and Apify only otherwise (Apify slides are labelled "public data"). Each run collects up to 30 new posts per platform (60 on the first run). Actors: `apify~facebook-posts-scraper`, `apify~instagram-post-scraper` (plus the page/profile scrapers for follower counts), `apidojo~tweet-scraper`, `harvestapi~linkedin-profile-posts`, `streamers~youtube-scraper`, `clockworks~tiktok-scraper`.
+
+### Scale
+
+Mentions are kept for 100 days (up to 20,000). The mentions file is served gzip-compressed with an ETag, so browsers only download it again when it has changed.
 
 ## Login
 

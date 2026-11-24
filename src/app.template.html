@@ -111,6 +111,14 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .delta{font:500 12px var(--f-mono);padding:2px 7px;border-radius:5px}
 .delta.up{background:var(--pos-soft);color:var(--pos)} .delta.down{background:var(--neg-soft);color:var(--neg)} .delta.flat{background:var(--neu-soft);color:var(--muted)}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
+.alert-group{margin-bottom:6px}
+.alert-row.sub .alert-link{padding-left:16px}
+.alert-group .alert-link span:first-child{white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.3}
+.tbl .btn{font-family:Inter,system-ui,sans-serif}
+.alert-row.sub .alert-link span:first-child{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
+.sec-tag{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.alert-sep{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px 10px}
+[data-addsec]{font-size:17px;font-weight:600;line-height:1}
 svg[data-tip]{cursor:crosshair;touch-action:pan-y}
 .chart-tip{position:fixed;z-index:1000;pointer-events:none;min-width:150px;max-width:280px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;box-shadow:0 8px 24px rgba(15,23,42,.18);font-size:12.5px;line-height:1.4;font-family:Inter,system-ui,sans-serif}
 .chart-tip .ct-h{font-weight:700;margin-bottom:4px;white-space:nowrap}
@@ -740,6 +748,10 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <div class="form">
           <label class="f" for="set-name">Alert name</label>
           <input type="text" id="set-name">
+          <label class="f" for="set-brand">Brand</label>
+          <div><input type="text" id="set-brand" list="set-brand-list" placeholder="No brand (a stand-alone alert)" autocomplete="off"><datalist id="set-brand-list"></datalist><div class="hint" style="margin-top:4px">Alerts with the same brand are grouped under it in the sidebar, with an "all sections" view, and can feed that brand's report.</div></div>
+          <label class="f" for="set-section">Section</label>
+          <select class="select" id="set-section"></select>
           <label class="f">Keywords</label>
           <div><div class="chipbox" id="set-kw"></div><div class="hint" style="margin-top:4px">Press Enter or comma to add. Phrases match as written; hashtags match the tag.</div></div>
           <label class="f">Excluded keywords</label>
@@ -970,12 +982,19 @@ const getMeta=id=>{const m=S.meta[id];return m?Object.assign({star:false,done:fa
 const M=id=>{const m=S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});if(!Array.isArray(m.tags))m.tags=[];return m;};
 const isHidden=m=>!!(S.meta[m.id]&&S.meta[m.id].del)||S.blocked.includes(m.author);
 const labelOf=m=>S.overrides[m.id]||m.a.label;
-const activeAlert=()=>S.alerts.find(a=>a.id===S.active)||S.alerts[0];
+const ASECTIONS=[["domestic","Domestic region"],["international","International"],["keywords","Specific keywords"],["themes","Themes"],["competitors","Competitors"],["other","Other"]];
+const secLabel=k=>(ASECTIONS.find(s=>s[0]===k)||[0,"Other"])[1];
+const alertBrands=()=>[...new Set(S.alerts.map(a=>(a.brand||"").trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y));
+function brandAlert(name){const kids=S.alerts.filter(a=>(a.brand||"").trim().toLowerCase()===String(name).trim().toLowerCase());if(!kids.length)return null;
+  return {id:"brand:"+name,name:name+" · all sections",brand:name,virtual:true,children:kids,keywords:[...new Set(kids.flatMap(a=>a.keywords))],excluded:[],langs:[],locations:[],unknown:true,
+    sources:[...new Set(kids.flatMap(a=>a.sources))],tracked:kids.some(a=>a.tracked!==false)};}
+const activeAlert=()=>{if(String(S.active).startsWith("brand:")){const v=brandAlert(S.active.slice(6));if(v)return v;}return S.alerts.find(a=>a.id===S.active)||S.alerts[0];};
 
 /* ---------- Matching ---------- */
 const reCache=new Map();
 function kwRe(k){if(reCache.has(k))return reCache.get(k);const e=k.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");const r=new RegExp("(?<![\\p{L}\\p{N}_])"+e+"(?![\\p{L}\\p{N}_])","iu");reCache.set(k,r);return r;}
 function matches(m,al){
+  if(al.children)return al.children.some(c=>matches(m,c));
   const own=m.tracked&&al.tracked!==false;
   if(!own&&(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text))))return false;
   if(al.excluded.some(k=>kwRe(k).test(m.text)))return false;
@@ -1061,9 +1080,15 @@ const signed=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
 /* ---------- Render: chrome ---------- */
 function renderChrome(){
   const al=activeAlert();
-  $("alert-select").innerHTML=S.alerts.map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(a.name)}</option>`).join("");
-  const p=periods();
-  $("alert-list").innerHTML=S.alerts.map(a=>{const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}"><button class="alert-link" data-id="${a.id}" aria-current="${on}"><span>${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button><button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${on&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button></div>`;}).join("");
+  const brands=alertBrands(),loose=S.alerts.filter(a=>!(a.brand||"").trim());
+  $("alert-select").innerHTML=brands.map(bn=>`<optgroup label="${esc(bn)}"><option value="brand:${esc(bn)}" ${al.id==="brand:"+bn?"selected":""}>${esc(bn)}: all sections</option>${S.alerts.filter(a=>(a.brand||"").trim()===bn).map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(bn)}: ${esc(a.name)}</option>`).join("")}</optgroup>`).join("")
+    +(loose.length?`<optgroup label="Other alerts">${loose.map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(a.name)}</option>`).join("")}</optgroup>`:"");
+  const p=periods();const inP=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end);
+  const gear=a=>`<button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${a.id===al.id&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button>`;
+  const row=(a,sub)=>{const n=inP.filter(m=>matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}${sub?" sub":""}"><button class="alert-link" data-id="${esc(a.id)}" aria-current="${on}"><span>${sub&&a.section?`<em class="sec-tag">${esc(secLabel(a.section))}</em>`:""}${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button>${a.virtual?`<button class="gear" data-addsec="${esc(a.brand)}" title="Add a section to ${esc(a.brand)}" aria-label="Add a section to ${esc(a.brand)}">+</button>`:gear(a)}</div>`;};
+  const order=a=>{const i=ASECTIONS.findIndex(s=>s[0]===a.section);return i<0?99:i;};
+  $("alert-list").innerHTML=brands.map(bn=>{const v=brandAlert(bn);return `<div class="alert-group">${row(v,false).replace('<span>'+esc(v.name),'<span><b>'+esc(bn)+'</b>')}${v.children.slice().sort((x,y)=>order(x)-order(y)||x.name.localeCompare(y.name)).map(a=>row(a,true)).join("")}</div>`;}).join("")
+    +(loose.length?(brands.length?`<div class="alert-sep">Other alerts</div>`:"")+loose.map(a=>row(a,false)).join(""):"");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
   const mode=dataMode();const nx=(S.extra||[]).length;const lbl=SHARED?(mode==="sample"?"Sample data: fictional posts":(hasLive()?"Live data · updated "+relAgo(LIVE.updated):"Imported: "+SIMPORT.name)+(hasLive()&&SIMPORT&&!S.forceSample?" + "+SIMPORT.name:"")):(mode==="import"?S.dataLabel:mode==="live"?"Live data · updated "+relAgo(LIVE.updated):"Sample data: fictional posts")+(nx?` + ${nx} from Apify`:"");
@@ -1466,7 +1491,7 @@ async function renderSMA(){
   renderBrand(root,b,r.tab);
   clearTimeout(SMA.poll);SMA.poll=null;if(smaBusy(b))SMA.poll=setTimeout(smaRefresh,2000);
 }
-function smaBusy(b){const e=b.extra||{};return b.linkedin.syncing||b.meta.syncing||b.youtube.syncing||(e.x||{}).syncing||(e.competitors||{}).syncing;}
+function smaBusy(b){const e=b.extra||{};return b.linkedin.syncing||b.meta.syncing||b.youtube.syncing||Object.values(e.apify||{}).some(s=>s.syncing)||(e.competitors||{}).syncing;}
 async function smaLoadYT(b){try{SMA.yt[b.id]=(await smaApi(`/brands/${b.id}/youtube?channel=${encodeURIComponent(b.youtube.channel_id||"")}`)).data||{};SMA.ytFor[b.id]=(b.youtube.channel_id||"")+"|"+(b.youtube.last_sync||"");}catch(e){SMA.yt[b.id]=SMA.yt[b.id]||{};}}
 function ytChannelPicker(b,label){const chs=b.youtube.channels||[];if(chs.length<2)return "";
   return `<div class="toolbar no-print"><span class="eyebrow">${label||"Channel"}</span><div class="chips" role="group" aria-label="YouTube channel">${chs.map(c=>`<button class="chip" type="button" data-yt-select="${esc(c.id)}" aria-pressed="${c.id===b.youtube.channel_id}">${esc(c.title||c.id)}${c.connected?"":" (reconnect)"}</button>`).join("")}</div></div>`;}
@@ -1490,13 +1515,19 @@ function renderBrands(root){
         const others=[ok&&src&&src[0]!=="LinkedIn"?`LinkedIn ${compact(s.followers||0)} followers`:"",fbOk&&ms.facebook&&src&&src[0]!=="Facebook"?`Facebook ${compact(ms.facebook.followers||0)} followers`:"",igOk&&ms.instagram&&src&&src[0]!=="Instagram"?`Instagram ${compact(ms.instagram.followers||0)} followers`:"",ytOk&&ys.subscribers!=null&&src&&src[0]!=="YouTube"?`YouTube ${compact(ys.subscribers)} subscribers`:""].filter(Boolean);
         return `<div class="mini-kpis"><div><span class="hint">${src&&src[5]||"Followers"}</span><b>${src&&src[1]!=null?compact(src[1]):"–"}</b></div><div><span class="hint">${src?src[3]:"Impressions"}</span><b>${src?compact(src[2]||0):"–"}</b></div><div><span class="hint">${src&&src[6]||"Engagement"}</span><b>${src?(src[7]!=null?src[7]:pctf(src[4])):"–"}</b></div></div>
         <div class="hint" style="margin-top:-6px">${src?src[0]+", last 30 days":"Connect a platform in Settings"}${others.length?" · "+others.join(" · "):""}</div>`;})()}<div class="plats"><span class="src" style="background:${ok?"var(--c8)":"var(--neu)"}">in</span><span class="src" style="background:${fbOk?"var(--c1)":"var(--neu)"}">f</span><span class="src" style="background:${igOk?"var(--c5)":"var(--neu)"}">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:${ytOk?"var(--neg)":"var(--neu)"}">YT</span><span class="hint" style="margin-left:auto">${(li.last_sync||b.meta.last_sync||b.youtube.last_sync)?"Synced "+relAgo([li.last_sync,b.meta.last_sync,b.youtube.last_sync].filter(Boolean).sort().pop()):"Never synced"}</span></div></a>`;}).join("")}</div>`
-  :`<div class="card"><p class="empty">No brands yet. Add your first brand above, then connect its LinkedIn page in the brand's Settings.</p></div>`}`;
+  :`<div class="card"><p class="empty">No brands yet. Add your first brand above, then connect its LinkedIn page in the brand's Settings.</p></div>`}
+  ${SMA.brands.length?(()=>{const tk=(SMA.brands[0].extra||{}).has_token||{};const items=SMA.brands.reduce((a,b)=>a+Object.values((b.extra||{}).apify||{}).reduce((x,s)=>x+(s.items_month||0),0),0);
+    const on=SMA.brands.reduce((a,b)=>a+Object.values(((b.extra||{}).config||{}).apify||{}).filter(Boolean).length,0);
+    return `<div class="eyebrow" style="margin-top:8px">Apify integration (shared by all brands)</div><div class="card"><div class="card-body"><div class="toolbar" style="gap:18px;flex-wrap:wrap">
+      ${[["meta","Facebook & Instagram"],["x","X & LinkedIn"],["other","YouTube, TikTok & others"]].map(([k,l])=>`<span><span class="pill ${tk[k]?"pos":"neg"}">${tk[k]?"Token set":"No token"}</span> ${l}</span>`).join("")}
+      <span class="spacer" style="flex:1"></span><span class="hint">${on} platform feed${on===1?"":"s"} on · ${fmtInt(items)} results this month</span><a class="btn" href="#sources">Manage tokens</a></div>
+      <p class="hint" style="margin:8px 0 0">One set of Apify tokens serves every brand. Turn Apify on per brand and platform in each brand's Settings > Apify integration.</p></div></div>`;})():""}`;
   const add=async()=>{const n=$("sma-new").value.trim();if(!n){smaMsg("Type a brand name first.",true);return;}
     try{const j=await smaApi("/brands",{method:"POST",body:JSON.stringify({name:n})});SMA.brands=null;location.hash=`sma-${j.brand.id}-settings`;}catch(e){smaMsg(e.message,true);}};
   $("sma-add").onclick=add;$("sma-new").onkeydown=e=>{if(e.key==="Enter")add();};
 }
 function brandHead(b,tab){
-  const T=[["platform","Platform"],["report","Report"],["monthly",((b.extra||{}).config||{}).weekly?"Weekly & monthly report":"Monthly report"],["source","Source"],["settings","Settings"]];
+  const T=[["platform","Platform"],["report","Report"],["monthly","Report deck"],["source","Source"],["settings","Settings"]];
   return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
   <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):"",b.youtube.channel_id&&b.youtube.connected?"YouTube: "+esc(b.youtube.channel_title||""):""].filter(Boolean).join(" · ")||"No platform connected yet"}${smaBusy(b)?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
   <nav class="sma-tabs" aria-label="Brand sections">${T.map(([k,n])=>`<a href="#sma-${b.id}-${k}" aria-current="${k===tab?"page":"false"}">${n}</a>`).join("")}</nav>`;
@@ -1509,7 +1540,6 @@ function renderBrand(root,b,tab){
 }
 function smaPlatform(b){
   const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
-  const soon=[["X","X (Twitter)","var(--c6)"]];
   const yt=b.youtube,ysum=b.youtube_summary||{};const ytOk=yt.connected&&yt.channel_id;
   const ytCard=`<div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--neg)">YT</span><b>YouTube</b><span class="pill ${ytOk?"pos":"neu"}" style="margin-left:auto">${ytOk?"Connected":"Not connected"}</span></div>
     ${ytOk&&ysum.views!=null?`<div class="hint">${esc(yt.channel_title||"")}${(yt.channels||[]).length>1?` (1 of ${yt.channels.length} channels)`:""} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Subscribers</span><b>${ysum.subscribers!=null?compact(ysum.subscribers):"Hidden"}</b></div><div><span class="hint">Views</span><b>${compact(ysum.views||0)}</b></div><div><span class="hint">Watch hours</span><b>${compact(Math.round(ysum.watch_hours||0))}</b></div></div>
@@ -1535,16 +1565,26 @@ function smaPlatform(b){
     ${metaCard("f","Facebook","var(--c1)",mt.page_connected,ms.facebook,esc(mt.page_name||""))}
     ${metaCard("IG","Instagram","var(--c5)",mt.page_connected&&!!mt.ig_id,ms.instagram,"@"+esc(mt.ig_username||""))}
     ${ytCard}
-    ${soon.map(([a,n,c])=>`<div class="plat-card off"><div class="plat-head"><span class="src" style="background:${c}">${a}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming next</span></div><p class="hint" style="margin:0">Official API connection planned next.</p></div>`).join("")}
+    ${["x","tiktok"].map(k=>{const e=b.extra||{},on=((e.config||{}).apify||{})[k],s=(e.apify||{})[k]||{};return `<div class="plat-card${on?"":" off"}"><div class="plat-head"><span class="src" style="background:${MRP[k].c}">${MRPX[k]}</span><b>${k==="x"?"X (Twitter)":"TikTok"}</b><span class="pill ${on&&s.last_sync&&!s.last_error?"pos":"neu"}" style="margin-left:auto">${on?"Apify":"Not set up"}</span></div>
+      ${on&&s.posts?`<div class="hint">Public data via Apify</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Posts saved</span><b>${fmtInt(s.posts)}</b></div><div><span class="hint">Last run</span><b style="font-size:15px">${relAgo(s.last_sync)}</b></div></div><a class="btn primary" href="#sma-${b.id}-monthly">Open report deck</a>`
+        :`<p class="hint" style="margin:0">${on?(s.syncing?"First collection running…":"Waiting for the first collection."):"Collect public posts and followers with Apify (no official API needed)."}</p><a class="btn${on?"":" primary"}" href="#sma-${b.id}-settings">${on?"Settings":"Set up in Settings"}</a>`}
+      ${s.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(s.last_error)}</p>`:""}</div>`;}).join("")}
   </div>`;
 }
 /* ---------- Monthly report (standard Stark template) ---------- */
-const MRP={linkedin:{n:"LinkedIn",a:"in",c:"#0a66c2"},facebook:{n:"Facebook",a:"f",c:"#1877f2"},instagram:{n:"Instagram",a:"IG",c:"#d62976"},youtube:{n:"YouTube",a:"YT",c:"#e60000"},x:{n:"X",a:"X",c:"#111111"}};
+const MRP={linkedin:{n:"LinkedIn",a:"in",c:"#0a66c2"},facebook:{n:"Facebook",a:"f",c:"#1877f2"},instagram:{n:"Instagram",a:"IG",c:"#d62976"},youtube:{n:"YouTube",a:"YT",c:"#e60000"},x:{n:"X",a:"X",c:"#111111"},tiktok:{n:"TikTok",a:"TT",c:"#010101"}};
+const APK=["facebook","instagram","x","linkedin","youtube","tiktok"];
+const apData=(b,k)=>((SMA.extra[b.id]||{}).apify||{})[k]||(k==="x"?(SMA.extra[b.id]||{}).x:null)||{};
+function mrOfficial(b,k){const md=SMA.meta[b.id]||{},ld=SMA.data[b.id]||{};
+  return k==="facebook"?!!(b.meta.page_connected||(md.fb_posts||[]).length||md.fb_daily):k==="instagram"?!!(b.meta.page_connected&&b.meta.ig_id||(md.ig_media||[]).length||md.ig_daily)
+    :k==="linkedin"?!!(b.linkedin.connected&&b.linkedin.org_urn||(ld.posts||[]).length||ld.daily):k==="youtube"?Object.keys(SMA.ytAll[b.id]||{}).length>0:false;}
+const apUse=(b,k)=>{const c=((b.extra||{}).config||{}).apify||{};const d=apData(b,k);return !!c[k]&&!mrOfficial(b,k)&&((d.posts||[]).length||d.profile);};
+const apEng=p=>(p.likes||0)+(p.comments||0)+(p.shares||0)+(p.saves||0)+(p.reposts||0)+(p.replies||0)+(p.quotes||0)+(p.bookmarks||0);
 const logoUrl=b=>`api/sma/brands/${b.id}/logo?v=${encodeURIComponent(b.logo||"")}`;
 const thumbUrl=(bid,n)=>`api/sma/brands/${bid}/thumb/${encodeURIComponent(n)}`;
 const mrChip=k=>`<span class="mr-chip" style="background:${MRP[k].c}">${MRP[k].a}</span>`;
 function ytAllKey(b){return (b.youtube.channels||[]).filter(c=>c.connected||c.last_sync).map(c=>c.id+":"+(c.last_sync||"")).join("|");}
-const extraKey=b=>{const e=b.extra||{};return [(e.x||{}).last_sync,(e.competitors||{}).last_sync].join("|");};
+const extraKey=b=>{const e=b.extra||{};return [...Object.values(e.apify||{}).map(s=>s.last_sync),(e.competitors||{}).last_sync].join("|");};
 async function smaLoadExtra(b){try{SMA.extra[b.id]=(await smaApi(`/brands/${b.id}/extra`)).data||{};SMA.extraFor[b.id]=extraKey(b);}catch(e){SMA.extra[b.id]=SMA.extra[b.id]||{};}}
 async function smaLoadYTAll(b){const out={};
   await Promise.all((b.youtube.channels||[]).filter(c=>c.connected||c.last_sync).map(async c=>{try{out[c.id]=(await smaApi(`/brands/${b.id}/youtube?channel=${encodeURIComponent(c.id)}`)).data||{};}catch(e){}}));
@@ -1558,7 +1598,7 @@ function mrSim(a,b){if(a.length<3||b.length<3)return 0;const pre=Math.min(a.leng
   const A=new Set(a),B=new Set(b);let i=0;A.forEach(w=>{if(B.has(w))i++;});const jac=i/(A.size+B.size-i),mn=Math.min(A.size,B.size);return Math.max(jac,mn>=5?.85*i/mn:0);}
 function mrGroup(posts){const groups=[];
   [...posts].sort((x,y)=>x.published<y.published?-1:1).forEach(p=>{let best=null,bs=.55;const t=+new Date(p.published);
-    for(const g of groups){if(g.posts.some(q=>q.key===p.key))continue;const fam=q=>q.plat==="youtube"||q.plat==="x"?q.plat:"social";if(fam(p)!==fam(g.posts[0]))continue;if(Math.abs(g.t-t)>3*864e5)continue;const s=Math.max(...g.posts.map(q=>mrSim(p.toks,q.toks)));if(s>=bs){bs=s;best=g;}}
+    for(const g of groups){if(g.posts.some(q=>q.key===p.key))continue;const fam=q=>q.plat==="youtube"||q.plat==="x"||q.plat==="tiktok"?q.plat:"social";if(fam(p)!==fam(g.posts[0]))continue;if(Math.abs(g.t-t)>3*864e5)continue;const s=Math.max(...g.posts.map(q=>mrSim(p.toks,q.toks)));if(s>=bs){bs=s;best=g;}}
     if(best)best.posts.push(p);else groups.push({t,posts:[p]});});
   const ord=["instagram","facebook","linkedin","youtube"];
   groups.forEach(g=>{g.posts.sort((x,y)=>ord.indexOf(x.plat)-ord.indexOf(y.plat));g.published=g.posts.map(p=>p.published).sort()[0];
@@ -1585,8 +1625,8 @@ function mrCollect(b,P){
     add("instagram","@"+((md.ig||{}).username||b.meta.ig_username||"instagram"),(md.ig||{}).followers??null,dsum(md.ig_daily,"followers_gained"),md.ig_media,x=>({text:x.text,reach:n(x.reach),eng:x.total_interactions!=null?+x.total_interactions:sum([x.likes,x.comments,x.saves,x.shares])}));}
   Object.entries(SMA.ytAll[b.id]||{}).forEach(([cid,yd])=>{if(!yd.channel)return;const g=dsum(yd.daily,"subs_gained"),l=dsum(yd.daily,"subs_lost");
     add("youtube",yd.channel.title||cid,yd.channel.subscribers??null,g==null?null:g-(l||0),yd.uploads,x=>({text:x.description||x.title,title:x.title,match:x.description||"",reach:n(x.total_views),eng:sum([x.total_likes,x.total_comments])}));});
-  const xc=((b.extra||{}).config||{}),xd=(SMA.extra[b.id]||{}).x||{};
-  if(xc.sections&&xc.sections.x&&(xd.posts||[]).length)add("x","@"+((xd.profile||{}).handle||xc.handles.x),(xd.profile||{}).followers??null,null,xd.posts,x=>({text:x.text,reach:n(x.views),eng:sum([x.likes,x.reposts,x.replies,x.quotes,x.bookmarks])}));
+  APK.filter(k=>apUse(b,k)).forEach(k=>{const d=apData(b,k);
+    add(k,(d.profile||{}).name||"@"+((d.profile||{}).handle||""),(d.profile||{}).followers??null,null,d.posts,x=>({text:x.text||x.title,title:k==="youtube"?x.title:"",match:k==="youtube"?(x.text||""):undefined,reach:n(x.views),eng:apEng(x)}));});
   const groups=mrGroup(posts);
   return {days,accts,posts,groups,plats:[...new Set(accts.map(a=>a.plat))]};}
 /* ----- Monthly report: data model shared by the on-screen deck, the PDF and the PowerPoint ----- */
@@ -1627,19 +1667,18 @@ function mrModel(b){
       charts:[{title:"Views per day",kind:"line",series:[{name:"Views",color:SLC.line1,values:A(d,["views"])}]},
         {title:"Watch hours per day",kind:"bar",series:[{name:"Watch hours",color:SLC.bar,values:A(d,["watch_minutes"]).map(v=>Math.round(v/6)/10)}]},
         {title:"New subscribers per day",kind:"bar",wide:true,series:[{name:"New subscribers",color:SLC.bar,values:A(d,["subs_gained"])}]}],days:CD});});
-  const xcfg=(b.extra||{}).config||{},xd=(SMA.extra[b.id]||{}).x||{};
-  if(xcfg.sections&&xcfg.sections.x&&(xd.posts||xd.profile)){const ps=xd.posts||[];const xs=(ds)=>{const set=new Set(ds);return ps.filter(p=>set.has(localDay(new Date(p.published))));};
-    const en=p=>(p.likes||0)+(p.reposts||0)+(p.replies||0)+(p.quotes||0)+(p.bookmarks||0);const cur=xs(days),prv=xs(prevDays);
-    const views=cur.length?cur.reduce((a,p)=>a+(p.views||0),0):null,eng=cur.length?cur.reduce((a,p)=>a+en(p),0):null;
-    const pv=prv.length?prv.reduce((a,p)=>a+(p.views||0),0):null,pe=prv.length?prv.reduce((a,p)=>a+en(p),0):null;
-    const hist=xd.followers_hist||{},hk=Object.keys(hist).sort();const f0=hk.filter(k=>k<=days[0]).pop()||hk.find(k=>k>=days[0]&&k<=days[days.length-1]);const f1=hk.filter(k=>k<=days[days.length-1]).pop();
+  APK.filter(k=>apUse(b,k)).forEach(k=>{const xd=apData(b,k);const ps=xd.posts||[];const xs=(ds)=>{const set=new Set(ds);return ps.filter(p=>set.has(localDay(new Date(p.published))));};
+    const cur=xs(days),prv=xs(prevDays);const hasV=ps.some(p=>p.views!=null);
+    const views=hasV&&cur.length?cur.reduce((a,p)=>a+(p.views||0),0):null,eng=cur.length?cur.reduce((a,p)=>a+apEng(p),0):null;
+    const pv=hasV&&prv.length?prv.reduce((a,p)=>a+(p.views||0),0):null,pe=prv.length?prv.reduce((a,p)=>a+apEng(p),0):null;
+    const hist=xd.followers_hist||{},hk=Object.keys(hist).sort();const f0=hk.filter(q=>q<=days[0]).pop()||hk.find(q=>q>=days[0]&&q<=days[days.length-1]);const f1=hk.filter(q=>q<=days[days.length-1]).pop();
     const fol=f1?hist[f1]:(xd.profile||{}).followers??null;const gained=f0&&f1&&f0!==f1?hist[f1]-hist[f0]:null;
-    const per=(fn)=>days.map(k=>ps.filter(p=>localDay(new Date(p.published))===k).reduce((a,p)=>a+fn(p),0));
-    plats.push({key:"x",name:"X",reach:null,impr:views,eng,followers:fol,gained,
-      tiles:[["Followers",fol,gained!=null&&fol?gained/(fol-gained):null],["Post views",views,chg(views,pv)],["Engagements",eng,chg(eng,pe)]],
-      charts:[{title:"Post views by day posted",kind:"line",series:[{name:"Views",color:SLC.line1,values:per(p=>p.views||0)}]},
-        {title:"Engagements by day posted",kind:"bar",series:[{name:"Engagements",color:SLC.bar,values:per(en)}]},
-        {title:"Posts per day",kind:"bar",wide:true,note:"From public posts collected with Apify",series:[{name:"Posts",color:SLC.bar,values:per(()=>1)}]}],days});}
+    const per=(fn)=>days.map(q=>ps.filter(p=>localDay(new Date(p.published))===q).reduce((a,p)=>a+fn(p),0));
+    plats.push({key:k,name:MRP[k].n+" (public data)",apify:true,reach:null,impr:views,videoViews:k==="youtube"||k==="tiktok"?views:null,eng,followers:fol,gained,
+      tiles:[["Followers",fol,gained!=null&&fol?gained/(fol-gained):null],hasV?["Post views",views,chg(views,pv)]:["Posts",cur.length,chg(cur.length,prv.length||null)],["Engagements",eng,chg(eng,pe)]],
+      charts:[hasV?{title:"Post views by day posted",kind:"line",series:[{name:"Views",color:SLC.line1,values:per(p=>p.views||0)}]}:{title:"Posts per day",kind:"bar",series:[{name:"Posts",color:SLC.bar,values:per(()=>1)}]},
+        {title:"Engagements by day posted",kind:"bar",series:[{name:"Engagements",color:SLC.bar,values:per(apEng)}]},
+        {title:hasV?"Posts per day":"Comments by day posted",kind:"bar",wide:true,note:"Public posts collected with Apify",series:[hasV?{name:"Posts",color:SLC.bar,values:per(()=>1)}:{name:"Comments",color:SLC.bar,values:per(p=>p.comments||0)}]}],days});});
   if(b.linkedin.connected&&b.linkedin.org_urn||ld.daily){const d=ld.daily||{};
     const impr=S(d,"impressions"),reach=S(d,"unique_impressions"),eng=SM(d,["clicks","reactions","comments","shares"]),gained=SM(d,["followers_organic","followers_paid"]);
     plats.push({key:"linkedin",name:"LinkedIn",reach,impr,eng,clicks:S(d,"clicks"),followers:ld.followers_total??null,gained,
@@ -1652,12 +1691,12 @@ function mrModel(b){
   const cards=[["Reach",tot("reach"),SLC.gr],["Impressions",tot("impr"),SLC.bl],["Engagements",tot("eng"),SLC.or],["Video views",tot("videoViews"),SLC.gr],
     ["Link clicks",tot("clicks"),SLC.gr,"LinkedIn only"],["Followers gained",tot("gained"),SLC.bl],["Posts published",R.posts.length,SLC.or],["Avg. engagement rate",rates.length?rates.reduce((a,x)=>a+x,0)/rates.length:null,SLC.gr,null,true]];
   const srt=list=>{const g=[...list];if(SMA.mrSort==="reach")g.sort((x,y)=>y.reach-x.reach);else if(SMA.mrSort==="eng")g.sort((x,y)=>y.eng-x.eng);else g.sort((x,y)=>x.published<y.published?-1:1);return SMA.mrLimit?g.slice(0,SMA.mrLimit):g;};
-  const isYT=g=>g.posts[0].plat==="youtube",isX=g=>g.posts[0].plat==="x",isLI=g=>g.posts.every(p=>p.plat==="linkedin");
-  const social=R.groups.filter(g=>!isYT(g)&&!isX(g)&&!isLI(g)),yts=R.groups.filter(isYT),xs=R.groups.filter(isX),lis=R.groups.filter(isLI);
+  const isYT=g=>g.posts[0].plat==="youtube",isX=g=>g.posts[0].plat==="x",isTT=g=>g.posts[0].plat==="tiktok",isLI=g=>g.posts.every(p=>p.plat==="linkedin");
+  const social=R.groups.filter(g=>!isYT(g)&&!isX(g)&&!isTT(g)&&!isLI(g)),yts=R.groups.filter(isYT),xs=R.groups.filter(isX),tts=R.groups.filter(isTT),lis=R.groups.filter(isLI);
   const rc=(b.extra||{}).config||{sections:{},handles:{}};
   const rankOf=list=>{const r=[...list].sort((x,y)=>y.eng-x.eng);return g=>list.length>3?r.indexOf(g)+1:0;};
   const slides=[{type:"cover"}];
-  const hItems=["facebook","instagram","x","linkedin","youtube"].filter(k=>rc.handles&&rc.handles[k]).map(k=>[k,"@"+rc.handles[k]]);
+  const hItems=["facebook","instagram","x","linkedin","youtube","tiktok"].filter(k=>rc.handles&&rc.handles[k]).map(k=>[k,"@"+rc.handles[k]]);
   if(rc.sections.handles&&hItems.length)slides.push({type:"handles",items:hItems});
   slides.push({type:"dash",cards,period},{type:"table",rows:plats});
   const postSlides=(title,list,kind)=>{const rk=rankOf(list);const sh=srt(list);const n=Math.max(1,Math.ceil(sh.length/2));
@@ -1670,18 +1709,21 @@ function mrModel(b){
   if(plats.some(p=>p.key==="x"))postSlides("Post-wise performance - X",xs,"x");
   plats.filter(p=>p.key==="linkedin").forEach(p=>slides.push({type:"plat",p}));
   if(plats.some(p=>p.key==="linkedin"))postSlides("Post-wise performance - LinkedIn",lis,"li");
+  plats.filter(p=>p.key==="tiktok").forEach(p=>slides.push({type:"plat",p}));
+  if(plats.some(p=>p.key==="tiktok"))postSlides("Post-wise performance - TikTok",tts,"x");
   let L=null,Cm=null;
   if(rc.sections.listening){L=mrListening(b,P,days);
-    if(L){slides.push({type:"ugc",L,cards:L.top},{type:"sent",L});const kn=Math.ceil(L.kw.length/48);for(let i=0;i<kn;i++)slides.push({type:"kw",L,items:L.kw.slice(i*48,i*48+48),page:i+1,pages:kn});
+    if(L){slides.push({type:"ugc",L,cards:L.top},{type:"sent",L});if(L.secs)slides.push({type:"secs",L});const kn=Math.ceil(L.kw.length/48);for(let i=0;i<kn;i++)slides.push({type:"kw",L,items:L.kw.slice(i*48,i*48+48),page:i+1,pages:kn});
       slides.push({type:"trend",L},{type:"geo",L},{type:"tags",L},{type:"neg",L,cards:L.neg});}}
   if(rc.sections.competitors){Cm=mrCompetitors(b,P);if(Cm.groups.length){slides.push({type:"complist",C:Cm});Cm.groups.forEach(G=>["fb","ig"].forEach(pl=>slides.push({type:"compchart",C:Cm,G,pl})));}}
   slides.push({type:"thanks"});
-  return {P,R,b,mName,period,toDate,days,plats,slides,L,Cm,file:`${b.name} - Social Media ${P.kind==="week"?"Weekly Report":"Report"} - ${mName}`.replace(/[–—]/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim()};
+  return {P,R,b,mName,period,toDate,days,plats,slides,L,Cm,file:`${b.name} - Social Media ${P.kind==="week"?"Weekly Report":P.kind==="quarter"?"Quarterly Report":"Report"} - ${mName}`.replace(/[–—]/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim()};
 }
 const mrFmt=(v,pct)=>v==null?"–":pct?(v*100).toFixed(2)+"%":compact(v);
 const mrChg=c=>c==null?["na","–"]:[c<0?"neg":"",(c>0?"+":"")+(Math.abs(c)>=10?Math.round(c*100).toLocaleString("en-IN"):(c*100).toFixed(c*100%1&&Math.abs(c)<.1?1:0))+"%"];
 function slChart(c,days,W,H){
-  const L=56,Rr=12,T=c.series.length>1?30:12,B=30;const vals=c.series.flatMap(s=>s.values);const{step,top}=niceTicks(Math.max(1,...vals));
+  const L=56,Rr=12,T=c.series.length>1?30:12,B=30;const vals=c.series.flatMap(s=>s.values);let{step,top}=niceTicks(Math.max(1,...vals));
+  if(step<1&&vals.every(v=>Number.isInteger(+v))){step=1;top=Math.max(1,Math.ceil(Math.max(...vals,1)));}
   const n=days.length,x=c.kind==="bar"?(i=>L+(i+.5)*(W-L-Rr)/Math.max(1,n)):(i=>L+(n<=1?(W-L-Rr)/2:i*(W-L-Rr)/(n-1))),y=v=>T+(H-T-B)*(1-v/top);
   let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(c.title)}">`;
   for(let v=0;v<=top+1e-9;v+=step)s+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e8e4"/><text x="${L-8}" y="${y(v)+6}" text-anchor="end" font-size="17">${compact(v)}</text>`;
@@ -1705,13 +1747,19 @@ function slPostCard(b,M,c,kind){const g=c.g;const plats=[...new Set(g.posts.map(
     ${g.posts.length>1?`<tfoot><tr><td>All platforms</td><td class="r">${g.hasReach?fmtInt(g.reach):"–"}</td><td class="r">${fmtInt(g.eng)}</td><td class="r">${g.reach?rate(g.eng,g.reach):"–"}</td></tr></tfoot>`:""}</table></div></div>`;}
 /* ----- Report period (month or Monday–Sunday week) ----- */
 const mrISO=d=>localDay(d);
+function mrQuarters(){const out=[];const d=new Date();let y=d.getFullYear(),q=Math.floor(d.getMonth()/3)+1;
+  for(let i=0;i<8;i++){const m0=new Date(y,(q-1)*3,1),m2=new Date(y,(q-1)*3+2,1);out.push([`${y}-Q${q}`,`Q${q} ${y} (${m0.toLocaleDateString("en-IN",{month:"short"})} – ${m2.toLocaleDateString("en-IN",{month:"short"})})${i===0?" (to date)":""}`]);q--;if(!q){q=4;y--;}}return out;}
 function mrWeeks(){const out=[];const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));
   for(let i=0;i<14;i++){const s=new Date(d);s.setDate(d.getDate()-7*i);const e=new Date(s);e.setDate(s.getDate()+6);out.push([mrISO(s),mrWeekLabel(mrISO(s))+(i===0?" (to date)":"")]);}return out;}
 function mrWeekLabel(from){const s=new Date(from+"T00:00:00"),e=new Date(s);e.setDate(s.getDate()+6);
   const o={day:"numeric",month:"short"};return s.getMonth()===e.getMonth()?`${s.getDate()} – ${e.toLocaleDateString("en-IN",{...o,year:"numeric"})}`:`${s.toLocaleDateString("en-IN",o)} – ${e.toLocaleDateString("en-IN",{...o,year:"numeric"})}`;}
 const mrOrd=n=>n+(n%100>=11&&n%100<=13?"th":["th","st","nd","rd"][n%10]||"th");
 function mrPeriod(b){
-  const cfg=(b.extra||{}).config||{};if(!cfg.weekly&&SMA.pkind==="week")SMA.pkind="month";
+  if(SMA.pkind==="quarter"){if(!SMA.quarter)SMA.quarter=mrQuarters()[1][0];const [Y,Q]=SMA.quarter.split("-Q").map(Number);
+    const qd=(y,q)=>{const out=[];for(let d=new Date(y,(q-1)*3,1);d.getMonth()>=(q-1)*3&&d.getMonth()<q*3&&d.getFullYear()===y;d.setDate(d.getDate()+1))out.push(mrISO(d));return out;};
+    const all=qd(Y,Q),prev=Q===1?qd(Y-1,4):qd(Y,Q-1);const m=s=>new Date(Y,(Q-1)*3+s,1).toLocaleDateString("en-IN",{month:"long"});
+    return {kind:"quarter",from:all[0],to:all[all.length-1],allDays:all,prevDays:prev,label:`Q${Q} ${Y} (${m(0).slice(0,3)} – ${m(2).slice(0,3)})`,
+      cover:["QUARTERLY REPORT",`${m(0)} – ${m(2)} ${Y}`.toUpperCase()],month:all[all.length-1].slice(0,7),word:"quarter"};}
   if(SMA.pkind==="week"){if(!SMA.week)SMA.week=mrWeeks()[1][0];
     const from=SMA.week,s=new Date(from+"T00:00:00");const all=[];for(let i=0;i<7;i++){const d=new Date(s);d.setDate(s.getDate()+i);all.push(mrISO(d));}
     const prev=all.map(k=>{const d=new Date(k+"T00:00:00");d.setDate(d.getDate()-7);return mrISO(d);});const e=new Date(all[6]+"T00:00:00");
@@ -1725,7 +1773,7 @@ function mrPeriod(b){
 
 /* ----- Listening (from a Sentimeter alert) ----- */
 function mrListening(b,P,days){
-  const cfg=(b.extra||{}).config||{};const al=S.alerts.find(a=>a.id===cfg.alert_id);if(!al)return null;
+  const cfg=(b.extra||{}).config||{};const al=cfg.alert_id==="__brand__"?brandAlert(b.name):S.alerts.find(a=>a.id===cfg.alert_id);if(!al)return null;
   const base=MENTIONS.filter(m=>!isHidden(m)&&matches(m,al));const inR=(m,a,z)=>m.day>=a&&m.day<=z;
   const cur=base.filter(m=>inR(m,P.from,P.to)),prev=base.filter(m=>inR(m,P.prevDays[0],P.prevDays[P.prevDays.length-1]));
   const sp=splits(cur),pp=splits(prev);const ugc=cur.filter(m=>!m.tracked);
@@ -1738,7 +1786,8 @@ function mrListening(b,P,days){
   const ht={};cur.forEach(m=>{(m.text.match(/#[\p{L}\p{N}_]{2,40}/gu)||[]).forEach(h=>{const k=h.toLowerCase();ht[k]=(ht[k]||0)+1;});});
   const tags=Object.entries(ht).sort((x,y)=>y[1]-x[1]).slice(0,36);
   const dl=days.filter(k=>k>=P.from&&k<=P.to);
-  return {al,cur,prev,sp,pp,top,neg,kw,countries,known,tags,reach:cur.reduce((a,m)=>a+m.reach,0),preach:prev.reduce((a,m)=>a+m.reach,0),
+  const secs=al.children?al.children.map(c=>{const cm=cur.filter(m=>matches(m,c)),s=splits(cm),pm=prev.filter(m=>matches(m,c)).length;return {a:c,n:cm.length,pn:pm,reach:cm.reduce((x,m)=>x+m.reach,0),s};}):null;
+  return {al,secs,cur,prev,sp,pp,top,neg,kw,countries,known,tags,reach:cur.reduce((a,m)=>a+m.reach,0),preach:prev.reduce((a,m)=>a+m.reach,0),
     trend:{days:dl,mentions:dl.map(k=>cur.filter(m=>m.day===k).length),reach:dl.map(k=>cur.filter(m=>m.day===k).reduce((a,m)=>a+m.reach,0))}};}
 
 /* ----- Competitors (monthly follower counts collected with Apify) ----- */
@@ -1757,7 +1806,7 @@ function mrCompetitors(b,P){
 
 /* ----- Extra slide HTML ----- */
 const MPLAT={Facebook:["f","#1877f2"],Instagram:["IG","#d62976"],X:["X","#111111"],LinkedIn:["in","#0a66c2"],YouTube:["YT","#e60000"],TikTok:["TT","#111111"],Snapchat:["SC","#e5c600"],Reddit:["R","#ff4500"],Bluesky:["B","#0085ff"],News:["N","#475569"],Blogs:["W","#475569"],Web:["W","#475569"]};
-const MRPX={facebook:"f",instagram:"IG",x:"X",linkedin:"in",youtube:"YT"};
+const MRPX={facebook:"f",instagram:"IG",x:"X",linkedin:"in",youtube:"YT",tiktok:"TT"};
 function slMention(c,kind){const m=c.m;const lab=labelOf(m);
   return `<div class="sl-pc"><div class="sl-im"><div class="ph"><span class="sl-chip" style="background:${MPLAT[m.platform]?MPLAT[m.platform][1]:"#64748b"};font-size:1cqw;min-width:2.4cqw;height:2.4cqw">${esc(MPLAT[m.platform]?MPLAT[m.platform][0]:m.platform.slice(0,1).toUpperCase())}</span></div>${c.yt?`<img src="https://i.ytimg.com/vi/${esc(c.yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer">`:""}</div>
     <div class="sl-pb"><div class="sl-pd"><span><b style="color:var(--ink)">${esc(m.author)}</b> · ${esc(m.platform)}</span><span>${new Date(m.date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</span></div>
@@ -1784,6 +1833,9 @@ function slExtraHTML(b,M,s){
       <div><div style="font-size:1.6cqw;font-weight:700;margin-bottom:.8cqw">Sentiment score</div><p style="margin:0 0 1.6cqw;color:var(--mut);font-size:1.15cqw">Percentage distribution of positive, negative and neutral posts among all monitored content for the alert "${esc(L.al.name)}".</p>
         <div class="sl-dash" style="grid-template-columns:1fr 1fr;margin:0"><div class="sl-kc" style="--a:#${SLC.gr}"><i>Mentions</i><b>${fmtInt(n)}</b><span>${mrChg(L.prev.length?(n-L.prev.length)/L.prev.length:null)[1]} vs previous ${M.P.word}</span></div><div class="sl-kc" style="--a:#${SLC.bl}"><i>Reach</i><b>${compact(L.reach)}</b><span>${mrChg(L.preach?(L.reach-L.preach)/L.preach:null)[1]} vs previous ${M.P.word}</span></div></div></div></div>
       <div class="sl-note">Source: Sentimeter listening alert "${esc(L.al.name)}". Net sentiment = % positive − % negative.</div></section>`;}
+  if(s.type==="secs"){const L=s.L;return `<section class="sl">${slHead("04 / Digital monitoring","Mentions by section")}<div class="sl-body"><table class="sl-tb" style="margin-top:0"><thead><tr><th>Section</th><th>Alert</th><th>Mentions</th><th>Change</th><th>Reach</th><th>Positive</th><th>Negative</th><th>Net</th></tr></thead><tbody>
+    ${L.secs.map(x=>`<tr><td>${esc(secLabel(x.a.section))}</td><td style="text-align:left">${esc(x.a.name)}</td><td><b>${fmtInt(x.n)}</b></td><td>${mrChg(x.pn?(x.n-x.pn)/x.pn:null)[1]}</td><td>${compact(x.reach)}</td><td style="color:#16a34a">${x.n?(x.s.p*100).toFixed(1)+"%":"–"}</td><td style="color:#dc2626">${x.n?(x.s.n*100).toFixed(1)+"%":"–"}</td><td>${x.n?(x.s.net>0?"+":"")+x.s.net:"–"}</td></tr>`).join("")}</tbody></table></div>
+    <div class="sl-note">A mention can match more than one section. Change is against the previous ${M.P.word}. Source: Sentimeter listening alerts for ${esc(b.name)}.</div></section>`;}
   if(s.type==="kw")return `<section class="sl">${slHead("04 / Digital monitoring","Sentiment Analysis - Tracked keywords",s.pages>1?`${s.page} / ${s.pages}`:"")}<div class="sl-body"><table class="sl-tb" style="margin-top:0;font-size:.95cqw;border-spacing:0"><tbody>
     ${Array.from({length:Math.ceil(s.items.length/4)},(_,r)=>`<tr>${[0,1,2,3].map(c=>{const it=s.items[r*4+c];return `<td style="text-align:left;border:1px solid #cfd6cf;padding:.55cqw .8cqw;background:#fff">${it?`${esc(it[0])}<span style="float:right;color:var(--mut)">${it[1]}</span>`:""}</td>`;}).join("")}</tr>`).join("")}</tbody></table></div>
     <div class="sl-note">Keywords and hashtags tracked by the alert "${esc(s.L.al.name)}", with the number of mentions in this ${M.P.word}.</div></section>`;
@@ -1835,6 +1887,12 @@ async function mrPPTExtra(pptx,s,sd,M,head,chip,imgs){
       s.addText(l.toUpperCase(),{x:x+.18,y:y+.12,w:1.8,h:.2,fontFace:F,fontSize:7,bold:true,color:"5F6661",margin:0});s.addText(v,{x:x+.18,y:y+.35,w:1.8,h:.38,fontFace:F,fontSize:19,bold:true,color:C.ink,margin:0});
       s.addText(`${ch} vs previous ${M.P.word}`,{x:x+.18,y:y+.8,w:1.85,h:.18,fontFace:F,fontSize:6.5,color:C.mut,margin:0});});
     note(`Source: Sentimeter listening alert "${L.al.name}". Net sentiment = % positive − % negative.`);return true;}
+  if(sd.type==="secs"){const L=sd.L;head(s,"04 / Digital monitoring","Mentions by section");
+    const hd=["Section","Alert","Mentions","Change","Reach","Positive","Negative","Net"].map(x=>({text:x.toUpperCase(),options:{bold:true,color:"FFFFFF",fill:{color:"141414"},fontSize:7.5,align:"center"}}));
+    const rows=L.secs.map((x,i)=>[secLabel(x.a.section),x.a.name,fmtInt(x.n),mrChg(x.pn?(x.n-x.pn)/x.pn:null)[1],compact(x.reach),x.n?(x.s.p*100).toFixed(1)+"%":"–",x.n?(x.s.n*100).toFixed(1)+"%":"–",x.n?(x.s.net>0?"+":"")+x.s.net:"–"]
+      .map((v,k)=>({text:String(v),options:{fontSize:8.5,align:k===1?"left":"center",fill:{color:i%2?"FFFFFF":"EEF5EA"},color:k===5?"16A34A":k===6?"DC2626":C.ink}})));
+    s.addTable([hd,...rows],{x:.43,y:1.12,w:9.14,colW:[1.3,2.24,.9,.9,.9,.95,.95,1.0],rowH:.38,fontFace:F,border:{type:"solid",pt:2,color:"FFFFFF"}});
+    note(`A mention can match more than one section. Change is against the previous ${M.P.word}. Source: Sentimeter listening alerts for ${b.name}.`);return true;}
   if(sd.type==="kw"){head(s,"04 / Digital monitoring","Sentiment Analysis - Tracked keywords",sd.pages>1?`${sd.page} / ${sd.pages}`:"");
     const rows=Array.from({length:Math.ceil(sd.items.length/4)},(_,r)=>[0,1,2,3].map(c=>{const it=sd.items[r*4+c];return {text:it?`${it[0]}  (${it[1]})`:"",options:{fontSize:7.5,color:C.ink,border:{type:"solid",pt:.5,color:"CFD6CF"}}};}));
     if(rows.length)s.addTable(rows,{x:.43,y:1.1,w:9.14,colW:[2.285,2.285,2.285,2.285],rowH:.3,fontFace:F,margin:.05});
@@ -1883,8 +1941,9 @@ function slHTML(b,M,s){
 function smaMonthly(b){
   const M=mrModel(b);SMA.mrModel=M;
   const toolbar=`<div class="toolbar no-print" style="margin:4px 0 14px">
-    ${((b.extra||{}).config||{}).weekly?`<select class="select" id="mr-kind" aria-label="Report type"><option value="month" ${M.P.kind==="month"?"selected":""}>Monthly report</option><option value="week" ${M.P.kind==="week"?"selected":""}>Weekly report</option></select>`:""}
-    ${M.P.kind==="week"?`<select class="select" id="mr-week" aria-label="Report week">${mrWeeks().map(([k,l])=>`<option value="${k}" ${k===SMA.week?"selected":""}>${l}</option>`).join("")}</select>`
+    <select class="select" id="mr-kind" aria-label="Report type">${[["week","Weekly report"],["month","Monthly report"],["quarter","Quarterly report"]].map(([k,l])=>`<option value="${k}" ${M.P.kind===k?"selected":""}>${l}</option>`).join("")}</select>
+    ${M.P.kind==="quarter"?`<select class="select" id="mr-quarter" aria-label="Report quarter">${mrQuarters().map(([k,l])=>`<option value="${k}" ${k===SMA.quarter?"selected":""}>${l}</option>`).join("")}</select>`
+    :M.P.kind==="week"?`<select class="select" id="mr-week" aria-label="Report week">${mrWeeks().map(([k,l])=>`<option value="${k}" ${k===SMA.week?"selected":""}>${l}</option>`).join("")}</select>`
       :`<select class="select" id="mr-month" aria-label="Report month">${mrMonths().map(([k,l])=>`<option value="${k}" ${k===SMA.month?"selected":""}>${l}</option>`).join("")}</select>`}
     <select class="select" id="mr-sort" aria-label="Sort posts"><option value="date" ${SMA.mrSort==="date"?"selected":""}>Posts by date</option><option value="eng" ${SMA.mrSort==="eng"?"selected":""}>Posts by engagement</option><option value="reach" ${SMA.mrSort==="reach"?"selected":""}>Posts by reach</option></select>
     <select class="select" id="mr-limit" aria-label="Posts shown">${[[0,"All posts"],[10,"Top 10"],[20,"Top 20"]].map(([v,l])=>`<option value="${v}" ${SMA.mrLimit===v?"selected":""}>${l}</option>`).join("")}</select>
@@ -2238,6 +2297,7 @@ function smaSettings(b){
     </div></div>
     ${smaSettingsMeta(b)}
     ${smaSettingsYT(b)}
+    ${smaSettingsApify(b)}
     ${smaSettingsReport(b)}
     <div class="card"><div class="card-head"><h2>Other platforms</h2></div><div class="card-body"><p class="hint" style="margin:0">X will be added here next, with its own Connect button.</p></div></div>`;
 }
@@ -2259,28 +2319,25 @@ function compRowsHTML(b){const D=compDraft(b);const months=(((SMA.extra[b.id]||{
     (mk?`<p class="hint" style="margin:8px 0 0">Follower counts for ${new Date(mk+"-01T00:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"})}. Correct a number by typing over it (press Enter); clear it to go back to the collected value.</p>`:"");}
 function smaSettingsReport(b){const e=b.extra||{},c=e.config||{sections:{},handles:{}},x=e.x||{},cp=e.competitors||{};
   const al=S.alerts||[];const sec=(k,l,d)=>`<label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" data-rsec="${k}" ${c.sections[k]?"checked":""} style="margin-top:3px"><span><b>${l}</b><br><span class="hint">${d}</span></span></label>`;
-  return `<div class="card"><div class="card-head"><h2>Report</h2><span class="pill ${c.weekly?"pos":"neu"}">${c.weekly?"Weekly & monthly":"Monthly"}</span></div><div class="card-body">
-    <p class="hint" style="margin:0">Extra sections for this brand's report deck (Weekly & monthly report tab), on top of the standard Stark template.</p>
+  const bAl=brandAlert(b.name);
+  return `<div class="card"><div class="card-head"><h2>Report</h2><span class="pill neu">Weekly · monthly · quarterly</span></div><div class="card-body">
+    <p class="hint" style="margin:0">Extra sections for this brand's report deck (Report deck tab), on top of the standard Stark template. Every brand can make weekly, monthly and quarterly reports.</p>
     <div class="form">
-      <label class="f" for="rep-weekly">Weekly report</label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="rep-weekly" ${c.weekly?"checked":""}> Also make a weekly report (Monday to Sunday)</label>
       <span class="f">Sections</span><div style="display:flex;flex-direction:column;gap:10px">
         ${sec("handles","Channel handles","A 'Management of SM Channels' slide with the handles below.")}
-        ${sec("x","X (Twitter) analytics","Public posts with views and engagement, collected daily with Apify (X/LinkedIn token).")}
         ${sec("listening","Listening & sentiment","Top UGC, sentiment, tracked keywords, mention trend, countries, hashtags and negative posts from a listening alert.")}
         ${sec("competitors","Competitor analysis","Competitor list and Facebook/Instagram follower comparisons, collected monthly with Apify (Facebook/Instagram token).")}</div>
-      <label class="f" for="rep-alert">Listening alert</label><select class="select" id="rep-alert"><option value="">Choose an alert</option>${al.map(a=>`<option value="${esc(a.id)}" ${a.id===c.alert_id?"selected":""}>${esc(a.name)}</option>`).join("")}</select>
-      ${["facebook","instagram","x","linkedin","youtube"].map(k=>`<label class="f" for="rep-h-${k}">${MRP[k].n} handle</label><input type="text" id="rep-h-${k}" value="${esc(c.handles[k]?(k==="linkedin"?c.handles[k]:"@"+c.handles[k]):"")}" placeholder="${k==="linkedin"?"company page, e.g. karnataka-tourism":"@handle or profile link"}" spellcheck="false">`).join("")}
+      <label class="f" for="rep-alert">Listening alert</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><select class="select" id="rep-alert"><option value="">Choose an alert</option>${bAl?`<option value="__brand__" ${c.alert_id==="__brand__"?"selected":""}>All ${esc(b.name)} sections (${bAl.children.length} alerts)</option>`:""}${al.map(a=>`<option value="${esc(a.id)}" ${a.id===c.alert_id?"selected":""}>${esc(a.brand?a.brand+": ":"")}${esc(a.name)}</option>`).join("")}</select><span class="hint">${bAl?"":`Tip: give alerts the brand "${esc(b.name)}" in their settings (Domestic, International, Themes…) to report on all of them together.`}</span></div>
+      ${APK.map(k=>`<label class="f" for="rep-h-${k}">${MRP[k].n} handle</label><input type="text" id="rep-h-${k}" value="${esc(c.handles[k]?(k==="linkedin"?c.handles[k]:"@"+c.handles[k]):"")}" placeholder="${k==="linkedin"?"company page, e.g. karnataka-tourism":"@handle or profile link"}" spellcheck="false">`).join("")}
     </div>
     <div><div class="eyebrow" style="margin-bottom:4px">Competitors</div><div class="toolbar"><button class="btn" type="button" id="rep-sample">Fill sample list (7 Indian + 15 international tourism boards)</button></div>
       <p class="hint" style="margin:6px 0 0">Add each competitor's Facebook page handle and Instagram username. After a refresh, the name each account reports is shown under its handle so you can check it is the right one. ${esc(b.name)} is added to the charts automatically using its handles above.</p>
       <div id="rep-comp">${compRowsHTML(b)}</div></div>
     <div class="form-actions"><span class="spacer"></span><button class="btn primary" type="button" id="rep-save">Save report settings</button></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Apify collection</th><th>Last run</th><th>Status</th><th class="r"></th></tr></thead><tbody>
-      <tr><td>X posts${x.posts?` <span class="hint">(${x.posts} saved${x.followers!=null?", "+fmtInt(x.followers)+" followers":""})</span>`:""}</td><td>${x.syncing?"Running…":x.last_sync?relAgo(x.last_sync):"Never"}</td><td>${x.last_error?`<span class="neg-c">${esc(x.last_error)}</span>`:x.last_sync?`<span class="pos-c">OK</span>`:"–"}</td>
-        <td class="r"><button class="btn" type="button" style="font-family:inherit" id="rep-xsync" ${x.syncing||!c.handles.x?"disabled":""}>Sync X now</button></td></tr>
       <tr><td>Competitor followers</td><td>${cp.syncing?"Running…":cp.last_sync?relAgo(cp.last_sync):"Never"}</td><td>${cp.last_error?`<span class="neg-c">${esc(cp.last_error)}</span>`:cp.last_sync?`<span class="pos-c">OK</span>`:"–"}</td>
         <td class="r"><button class="btn" type="button" style="font-family:inherit" id="rep-csync" ${cp.syncing?"disabled":""}>Refresh competitor followers</button></td></tr></tbody></table></div>
-    <p class="hint" style="margin:0">${e.has_token&&!e.has_token.x?"No Apify token for X yet. ":""}${e.has_token&&!e.has_token.meta?"No Apify token for Facebook/Instagram yet. ":""}X runs once a day after 9:00 (about 40 posts per run); competitor followers once a month (one profile lookup per handle). Both use your Apify tokens from API keys.</p>
+    <p class="hint" style="margin:0">${e.has_token&&!e.has_token.meta?"No Apify token for Facebook/Instagram yet. ":""}Competitor followers are refreshed once a month (one profile lookup per handle) with the shared Apify token.</p>
   </div></div>`;}
 function bindReport(b){
   const collect=()=>{const D=compDraft(b);document.querySelectorAll("#sma-root [data-cg]").forEach(i=>{const r=D[i.dataset.cg][+i.dataset.ci];if(r)r[i.dataset.cf]=i.value;});return D;};
@@ -2295,14 +2352,32 @@ function bindReport(b){
   document.getElementById("rep-comp").addEventListener("input",ev=>{const i=ev.target;if(i.dataset&&i.dataset.cg){const r=compDraft(b)[i.dataset.cg][+i.dataset.ci];if(r)r[i.dataset.cf]=i.value;}});
   $("rep-sample").onclick=()=>{const D=collect();["national","international"].forEach(g=>SAMPLE_COMP[g].forEach(n=>{if(!D[g].some(r=>r.name.toLowerCase()===n.toLowerCase()))D[g].push({name:n,facebook:"",instagram:""});}));$("rep-comp").innerHTML=compRowsHTML(b);bindComp();smaMsg("Sample list added. Fill in the handles, then save.");};
   $("rep-save").onclick=async()=>{const D=collect();const sections={};document.querySelectorAll("#sma-root [data-rsec]").forEach(i=>sections[i.dataset.rsec]=i.checked);
-    const handles={};["facebook","instagram","x","linkedin","youtube"].forEach(k=>handles[k]=$("rep-h-"+k).value.trim());
-    const body={report:{weekly:$("rep-weekly").checked,sections,handles,alert_id:$("rep-alert").value,competitors:{national:D.national.filter(r=>r.name.trim()),international:D.international.filter(r=>r.name.trim())}}};
+    const handles={};APK.forEach(k=>handles[k]=$("rep-h-"+k).value.trim());delete sections.x;
+    const body={report:{sections,handles,alert_id:$("rep-alert").value,competitors:{national:D.national.filter(r=>r.name.trim()),international:D.international.filter(r=>r.name.trim())}}};
     if(sections.listening&&!body.report.alert_id){smaMsg("Choose a listening alert for the listening & sentiment section.",true);return;}
     try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});SMA.compDraft=null;await smaRefresh();smaMsg("Report settings saved.");}catch(err){smaMsg(err.message,true);}};
-  $("rep-xsync").onclick=async()=>{try{await smaApi(`/brands/${b.id}/x/sync`,{method:"POST",body:JSON.stringify({full:!(b.extra.x||{}).last_sync})});smaMsg("X collection started.");setTimeout(smaRefresh,1500);}catch(err){smaMsg(err.message,true);}};
+  $("ap-save").onclick=async()=>{const apify={};document.querySelectorAll("#sma-root [data-apk]").forEach(i=>apify[i.dataset.apk]=i.checked);
+    try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify({report:{apify}})});await smaRefresh();smaMsg("Apify settings saved. Click Sync now to collect the first posts, or wait for the 9:00 run.");}catch(err){smaMsg(err.message,true);}};
+  document.querySelectorAll("#sma-root [data-apsync]").forEach(btn=>btn.onclick=async()=>{const k=btn.dataset.apsync;
+    try{await smaApi(`/brands/${b.id}/apify/${k}/sync`,{method:"POST",body:JSON.stringify({full:!((b.extra.apify||{})[k]||{}).last_sync})});smaMsg(MRP[k].n+" collection started.");setTimeout(smaRefresh,1500);}catch(err){smaMsg(err.message,true);}});
   $("rep-csync").onclick=async()=>{try{await smaApi(`/brands/${b.id}/competitors/sync`,{method:"POST",body:"{}"});smaMsg("Competitor follower refresh started.");setTimeout(smaRefresh,1500);}catch(err){smaMsg(err.message,true);}};
 }
 
+function smaSettingsApify(b){const e=b.extra||{},c=e.config||{apify:{},handles:{}},st=e.apify||{},tk=e.has_token||{};
+  const grp={facebook:"meta",instagram:"meta",x:"x",linkedin:"x",youtube:"other",tiktok:"other"},gname={meta:"Facebook & Instagram",x:"X & LinkedIn",other:"YouTube, TikTok & others"};
+  const official=k=>k==="facebook"?b.meta.page_connected:k==="instagram"?b.meta.page_connected&&!!b.meta.ig_id:k==="linkedin"?b.linkedin.connected&&!!b.linkedin.org_urn:k==="youtube"?(b.youtube.channels||[]).some(ch=>ch.connected):false;
+  const items=APK.reduce((a,k)=>a+((st[k]||{}).items_month||0),0);
+  return `<div class="card"><div class="card-head"><h2><span class="src" style="background:#1f9e6e;margin-right:8px">A</span>Apify integration</h2><span class="pill ${APK.some(k=>c.apify[k])?"pos":"neu"}">${APK.filter(k=>c.apify[k]).length} of ${APK.length} platforms</span></div><div class="card-body">
+    <p class="hint" style="margin:0">Collects the brand's public posts (likes, comments, shares, views where shown) and follower counts once a day after 9:00, using the Apify tokens shared by all brands (Sources > API keys). Use it for platforms without an official API connection. The report uses the official API when it is connected and Apify otherwise; the official integrations above are not changed.</p>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Platform</th><th>Handle</th><th>Official API</th><th>Collect with Apify</th><th>Collected</th><th>Last run</th><th class="r"></th></tr></thead><tbody>
+    ${APK.map(k=>{const s=st[k]||{},h=c.handles[k],off=official(k),tok=tk[grp[k]];return `<tr><td style="white-space:nowrap"><span class="src" style="background:${MRP[k].c};margin-right:6px">${MRPX[k]}</span>${MRP[k].n}</td>
+      <td>${h?esc((k==="linkedin"?"":"@")+h):`<span class="hint">Add it in Report below</span>`}</td><td>${off?`<span class="pos-c">Connected</span>`:`<span class="hint">${k==="x"||k==="tiktok"?"Not available":"Not connected"}</span>`}</td>
+      <td><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" data-apk="${k}" ${c.apify[k]?"checked":""} ${h?"":"disabled"}> ${off&&c.apify[k]?`<span class="hint">backup only</span>`:""}</label>${tok?"":`<div class="hint neg-c">No ${gname[grp[k]]} token</div>`}</td>
+      <td>${s.posts?`${fmtInt(s.posts)} posts${s.followers!=null?` · ${compact(s.followers)} followers`:""}`:"–"}</td>
+      <td>${s.syncing?"Running…":s.last_sync?relAgo(s.last_sync):"Never"}${s.last_error?`<div class="neg-c" style="font-size:12.5px">${esc(s.last_error)}</div>`:""}</td>
+      <td class="r"><button class="btn" type="button" style="font-family:inherit;padding:4px 10px;font-size:12.5px" data-apsync="${k}" ${s.syncing||!h||!c.apify[k]?"disabled":""}>Sync now</button></td></tr>`;}).join("")}</tbody></table></div>
+    <div class="form-actions"><span class="hint">${fmtInt(items)} Apify results for this brand this month. Each run collects up to 30 new posts per platform (60 on the first run).</span><span class="spacer"></span><button class="btn primary" type="button" id="ap-save">Save Apify settings</button></div>
+  </div></div>`;}
 function smaSettingsYT(b){
   const yt=b.youtube;const configured=yt.client_id&&yt.has_client_secret;const ok=yt.connected&&yt.channel_id;
   return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube API integration</h2><span class="pill ${ok?"pos":configured?"neu":"neg"}">${ok?((yt.channels||[]).length>1?yt.channels.length+" channels":"Connected"):configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
@@ -2375,7 +2450,8 @@ function bindBrand(b,tab){
   if(tab==="monthly"){
     if($("mr-month"))$("mr-month").onchange=e=>{SMA.month=e.target.value;renderSMA();};
     if($("mr-week"))$("mr-week").onchange=e=>{SMA.week=e.target.value;renderSMA();};
-    if($("mr-kind"))$("mr-kind").onchange=e=>{SMA.pkind=e.target.value;renderSMA();};
+    if($("mr-kind"))$("mr-kind").onchange=e=>{SMA.pkind=e.target.value;SMA.mrLimit=SMA.pkind==="quarter"?20:0;renderSMA();};
+    if($("mr-quarter"))$("mr-quarter").onchange=e=>{SMA.quarter=e.target.value;renderSMA();};
     $("mr-sort").onchange=e=>{SMA.mrSort=e.target.value;renderSMA();};
     $("mr-limit").onchange=e=>{SMA.mrLimit=+e.target.value;renderSMA();};
     const exp=(id,fn,label)=>{const btn=$(id);if(!btn)return;btn.onclick=async()=>{if(btn.disabled)return;btn.disabled=true;
@@ -2464,9 +2540,12 @@ function chipBox(el,arr,placeholder,onCh){const ch=()=>(onCh||preview)();
 function renderLiveStatus(){const el=$("live-status");if(!el)return;if(!LIVE){el.textContent="Live data: none on this server yet.";return;}
   const names={google_news:"Google News",reddit:"Reddit",bluesky:"Bluesky",youtube:"YouTube",apify:"X and Instagram (Apify)"};
   el.innerHTML=`<b>Live data</b> · ${LIVE.mentions.length} mentions · updated ${relAgo(LIVE.updated)}<br>`+Object.entries(LIVE.sources||{}).map(([k,v])=>`${names[k]||k}: ${v.note?esc(v.note):v.ok?`${v.count} fetched, last run ${relAgo(v.last_run)}`:"no results last run"}`).join(" · ");}
-function renderSettings(){renderLiveStatus();$("data-where").textContent=SHARED?"Imported files are uploaded to the server and shared with everyone who opens this site.":"Data stays in this browser.";$("clear-data").textContent=SHARED?"Remove imported file":"Clear data";
+function renderSettings(){if(String(S.active).startsWith("brand:")){const v=activeAlert();if(v.children)S.active=v.children[0].id;}renderLiveStatus();$("data-where").textContent=SHARED?"Imported files are uploaded to the server and shared with everyone who opens this site.":"Data stays in this browser.";$("clear-data").textContent=SHARED?"Remove imported file":"Clear data";
   draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
   $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
+  $("set-brand").value=draft.brand||"";$("set-section").innerHTML=ASECTIONS.map(([k,l])=>`<option value="${k}" ${(draft.section||"other")===k?"selected":""}>${l}</option>`).join("");
+  const fillBrands=()=>{$("set-brand-list").innerHTML=[...new Set([...alertBrands(),...((SMA.brands||[]).map(b=>b.name))])].map(n=>`<option value="${esc(n)}"></option>`).join("");};fillBrands();
+  if(AUTH_MODE==="server"&&!SMA.brands)smaApi("/brands").then(j=>{SMA.brands=j.brands;fillBrands();}).catch(()=>{});
   chipBox($("set-kw"),draft.keywords,"Add keyword");
   chipBox($("set-ex"),draft.excluded,"Add excluded keyword");
   chipBox($("set-loc"),draft.locations,"Any location (add a country, state or city)");
@@ -2475,7 +2554,7 @@ function renderSettings(){renderLiveStatus();$("data-where").textContent=SHARED?
   $("set-src").innerHTML=PLATFORMS.map(p=>`<label><input type="checkbox" value="${p}" ${draft.sources.includes(p)?"checked":""}> <span class="src" style="background:${PCOLOR[p]}">${ABBR[p]}</span> ${p}</label>`).join("");
   preview();
 }
-function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.unknown=$("set-unknown").checked;draft.tracked=$("set-tracked").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
+function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.brand=$("set-brand").value.trim();draft.section=$("set-section").value;draft.unknown=$("set-unknown").checked;draft.tracked=$("set-tracked").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
 function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,draft)).length;const ex=draft.excluded.length?MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&draft.keywords.some(k=>kwRe(k).test(m.text))&&draft.excluded.some(k=>kwRe(k).test(m.text))).length:0;
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
@@ -2539,7 +2618,8 @@ $("clear-data").onclick=async()=>{if(SHARED){try{await fetch("api/import",{metho
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
-$("alert-list").onclick=e=>{const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
+$("alert-list").onclick=e=>{const ad=e.target.closest("[data-addsec]");if(ad){const id="a"+Date.now();S.alerts.push({id,name:"New section",brand:ad.dataset.addsec,section:"keywords",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice(),srcV3:true,tracked:true});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);return;}
+  const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
 $("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
 $("range").onchange=e=>{S.range=+e.target.value;save();render();};
@@ -2604,7 +2684,7 @@ load();
 function boot(){setData();
 $("single-input").value="Honestly the houseboat in Kumarakom was AMAZING 🔥 but the booking app kept crashing and support wasn't helpful at all 😤";
 lastView=current();render();}
-const getJSON=u=>fetch(u,{cache:"no-store",credentials:"same-origin"}).then(r=>r.ok&&(r.headers.get("content-type")||"").includes("json")?r.json():null).catch(()=>null);
+const getJSON=u=>fetch(u,{cache:"no-cache",credentials:"same-origin"}).then(r=>r.ok&&(r.headers.get("content-type")||"").includes("json")?r.json():null).catch(()=>null);
 let booted=false,refreshTimer=null;
 async function loadAll(){
   const srv=AUTH_MODE==="server";

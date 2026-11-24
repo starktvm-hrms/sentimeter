@@ -36,8 +36,8 @@
   "excluded": [
     "massage"
   ],
-  "keep_days": 45,
-  "max_mentions": 6000,
+  "keep_days": 100,
+  "max_mentions": 20000,
   "google_news": {
     "enabled": true,
     "window": "1d",

@@ -64,6 +64,18 @@ IMPORT_BUF = {}
 ACTOR_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}[~/][A-Za-z0-9_.-]{1,80}$")
 
 
+GZ_CACHE = {}
+
+
+def gzip_cached(path, st):
+    """Compressed copy of a data file, rebuilt only when the file changes (mentions.json can be several MB)."""
+    import gzip
+    key = (path, st.st_mtime, st.st_size)
+    if GZ_CACHE.get(path, (None,))[0] != key:
+        GZ_CACHE[path] = (key, gzip.compress(open(path, "rb").read(), 6))
+    return GZ_CACHE[path][1]
+
+
 def read_env():
     env = {}
     try:
@@ -251,7 +263,9 @@ def clean_alert(a):
     return {"id": short(a.get("id") or "a" + str(int(time.time() * 1000)), 40), "name": short(a.get("name") or "Untitled alert", 80),
             "keywords": lst(a.get("keywords")), "excluded": lst(a.get("excluded")), "langs": lst(a.get("langs"), 20),
             "locations": lst(a.get("locations"), 50), "unknown": bool(a.get("unknown", True)), "sources": lst(a.get("sources"), 20),
-            "tracked": a.get("tracked") is not False, "srcV3": True}
+            "tracked": a.get("tracked") is not False, "srcV3": True,
+            "brand": " ".join(short(a.get("brand") or "", 80).split()),
+            "section": a.get("section") if a.get("section") in ("domestic", "international", "keywords", "themes", "competitors", "other") else ""}
 
 
 def clean_meta(m):
@@ -486,18 +500,18 @@ class H(BaseHTTPRequestHandler):
                     sma_youtube.disconnect(bid)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
                 return self.send(405, {"error": "Method not allowed"}) or True
-            ex = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(extra|x/sync|competitors/sync|competitors/manual)", path)
+            ex = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(extra|x/sync|competitors/sync|competitors/manual|apify/(facebook|instagram|x|linkedin|youtube|tiktok)/sync)", path)
             if ex:
                 bid, what = ex.group(1), ex.group(2)
                 if not sma.get_brand(bid):
                     return self.send(404, {"error": "Brand not found"}) or True
                 if what == "extra" and m == "GET":
                     return self.send(200, {"data": sma_extra.data(bid)}) or True
-                if what in ("x/sync", "competitors/sync") and m == "POST":
+                if (what in ("x/sync", "competitors/sync") or what.startswith("apify/")) and m == "POST":
                     try:
                         body = self.body()
-                        if what == "x/sync":
-                            sma_extra.run_async(bid, "x", full=bool(body.get("full")))
+                        if what == "x/sync" or what.startswith("apify/"):
+                            sma_extra.run_async(bid, ex.group(3) or "x", full=bool(body.get("full")))
                         else:
                             sma_extra.run_async(bid, "competitors")
                     except RuntimeError:
@@ -629,10 +643,23 @@ class H(BaseHTTPRequestHandler):
             f = os.path.join(DATA_DIR, os.path.basename(self.path.split("?")[0]))
             if not os.path.exists(f):
                 return self.send(404, {"error": "No data yet"})
-            body = open(f, "rb").read()
+            st = os.stat(f)
+            etag = f'"{int(st.st_mtime)}-{st.st_size}"'
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", "private, no-cache")
+                self.end_headers()
+                return
+            gz = "gzip" in (self.headers.get("Accept-Encoding") or "")
+            body = gzip_cached(f, st) if gz else open(f, "rb").read()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("Cache-Control", "private, no-cache")
+            self.send_header("ETag", etag)
+            self.send_header("Vary", "Accept-Encoding")
+            if gz:
+                self.send_header("Content-Encoding", "gzip")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

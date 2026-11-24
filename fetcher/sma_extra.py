@@ -17,7 +17,11 @@ X_ACTOR = "apidojo~tweet-scraper"
 IG_PROFILE_ACTOR = "apify~instagram-profile-scraper"
 FB_PAGES_ACTOR = "apify~facebook-pages-scraper"
 SECTIONS = ("handles", "x", "listening", "competitors")
-HANDLE_KEYS = ("facebook", "instagram", "x", "linkedin", "youtube")
+HANDLE_KEYS = ("facebook", "instagram", "x", "linkedin", "youtube", "tiktok")
+APIFY_PLATFORMS = ("facebook", "instagram", "x", "linkedin", "youtube", "tiktok")
+APIFY_ACTORS = {"facebook": "apify~facebook-posts-scraper", "instagram": "apify~instagram-post-scraper", "x": X_ACTOR,
+                "linkedin": "harvestapi~linkedin-profile-posts", "youtube": "streamers~youtube-scraper", "tiktok": "clockworks~tiktok-scraper"}
+TOKEN_GROUP = {"facebook": "meta", "instagram": "meta", "x": "x_linkedin", "linkedin": "x_linkedin", "youtube": "other", "tiktok": "other"}
 SAMPLE_COMPETITORS = {
     "national": ["Madhya Pradesh Tourism", "Incredible India Tourism", "Gujarat Tourism", "Uttarakhand Tourism", "Goa Tourism",
                  "Rajasthan Tourism", "Uttar Pradesh Tourism"],
@@ -42,7 +46,7 @@ def env():
 
 def token(group):
     e = env()
-    own = {"meta": "APIFY_TOKEN_META", "x_linkedin": "APIFY_TOKEN_X_LINKEDIN"}[group]
+    own = {"meta": "APIFY_TOKEN_META", "x_linkedin": "APIFY_TOKEN_X_LINKEDIN", "other": "APIFY_TOKEN_OTHER"}[group]
     return (e.get(own) or e.get("APIFY_TOKEN") or os.environ.get(own) or os.environ.get("APIFY_TOKEN") or "").strip()
 
 
@@ -54,7 +58,7 @@ def clean_handle(v, platform):
     if not v:
         return ""
     v = re.sub(r"^https?://(www\.|m\.|mobile\.)?", "", v, flags=re.I)
-    v = re.sub(r"^(facebook\.com|fb\.com|instagram\.com|x\.com|twitter\.com|linkedin\.com/company|linkedin\.com/in|youtube\.com)/", "", v, flags=re.I)
+    v = re.sub(r"^(facebook\.com|fb\.com|instagram\.com|x\.com|twitter\.com|linkedin\.com/company|linkedin\.com/in|youtube\.com/channel|youtube\.com/c|youtube\.com|tiktok\.com)/", "", v, flags=re.I)
     v = v.split("?")[0].strip("/").lstrip("@")
     if platform == "facebook" and v.startswith("profile.php"):
         return ""
@@ -69,6 +73,8 @@ def config(b):
     r["sections"] = {k: bool(secs.get(k)) for k in SECTIONS}
     r["handles"] = {k: (r.get("handles") or {}).get(k, "") for k in HANDLE_KEYS}
     r["weekly"] = bool(r.get("weekly"))
+    ap = r.get("apify") or {}
+    r["apify"] = {k: bool(ap.get(k, k == "x" and r["sections"]["x"])) for k in APIFY_PLATFORMS}
     r["alert_id"] = r.get("alert_id") or ""
     comp = r.get("competitors") or {}
     r["competitors"] = {g: list(comp.get(g) or []) for g in ("national", "international")}
@@ -86,11 +92,14 @@ def update(bid, body):
         cur["weekly"] = bool(rep["weekly"])
     if isinstance(rep.get("sections"), dict):
         cur["sections"] = {k: bool(rep["sections"].get(k, cur["sections"][k])) for k in SECTIONS}
+    if isinstance(rep.get("apify"), dict):
+        cur["apify"] = {k: bool(rep["apify"].get(k, cur["apify"][k])) for k in APIFY_PLATFORMS}
+        cur["sections"]["x"] = cur["apify"]["x"]
     if isinstance(rep.get("handles"), dict):
         cur["handles"] = {k: clean_handle(rep["handles"].get(k, cur["handles"][k]), k) for k in HANDLE_KEYS}
     if "alert_id" in rep:
         v = str(rep["alert_id"] or "")
-        if v and not re.fullmatch(r"[A-Za-z0-9_\-]{1,40}", v):
+        if v and not re.fullmatch(r"[A-Za-z0-9_\-]{1,40}", v):  # "__brand__" = every alert linked to this brand
             raise ValueError("Unknown listening alert.")
         cur["alert_id"] = v
     if isinstance(rep.get("competitors"), dict):
@@ -137,22 +146,33 @@ def _log(d, ok, msg, extra=None):
     d["last_error"] = "" if ok else msg[:400]
 
 
+def fname(plat):
+    return "x.json" if plat == "x" else f"apify_{plat}.json"
+
+
 def public(b):
     bid = b["id"]
-    x, c = load(bid, "x.json"), load(bid, "competitors.json")
+    c = load(bid, "competitors.json")
     months = sorted((c.get("months") or {}).keys())
-    return {"config": config(b),
-            "x": {"last_sync": x.get("last_sync"), "syncing": (bid, "x") in BUSY, "last_error": x.get("last_error", ""),
-                  "posts": len(x.get("posts") or []), "followers": (x.get("profile") or {}).get("followers")},
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    st = {}
+    for k in APIFY_PLATFORMS:
+        d = load(bid, fname(k))
+        st[k] = {"last_sync": d.get("last_sync"), "syncing": (bid, k) in BUSY, "last_error": d.get("last_error", ""),
+                 "posts": len(d.get("posts") or []), "followers": (d.get("profile") or {}).get("followers"), "items_month": (d.get("billed") or {}).get(month, 0)}
+    return {"config": config(b), "apify": st, "x": st["x"],
             "competitors": {"last_sync": c.get("last_sync"), "syncing": (bid, "competitors") in BUSY, "last_error": c.get("last_error", ""),
                             "months": months},
-            "has_token": {"meta": bool(token("meta")), "x": bool(token("x_linkedin"))}}
+            "has_token": {"meta": bool(token("meta")), "x": bool(token("x_linkedin")), "other": bool(token("other"))}}
 
 
 def data(bid):
-    x, c = load(bid, "x.json"), load(bid, "competitors.json")
-    x.pop("sync_log", None)
-    return {"x": x, "competitors": c}
+    ap = {}
+    for k in APIFY_PLATFORMS:
+        d = load(bid, fname(k))
+        d.pop("sync_log", None)
+        ap[k] = d
+    return {"x": ap["x"], "apify": ap, "competitors": load(bid, "competitors.json")}
 
 
 # ---------------- X via Apify ----------------
@@ -175,61 +195,173 @@ def _n(v):
 
 
 def sync_x(bid, full=False):
+    return sync_scrape(bid, "x", full)
+
+
+# ---------------- brand's own public posts via Apify (all platforms) ----------------
+
+def _first(i, *paths):
+    """Like fetch.g, but also understands list indexes such as media.0.thumbnail."""
+    for p in paths:
+        v = i
+        for part in p.split("."):
+            if isinstance(v, list):
+                v = v[int(part)] if part.isdigit() and int(part) < len(v) else None
+            elif isinstance(v, dict):
+                v = v.get(part)
+            else:
+                v = None
+            if v is None:
+                break
+        if v not in (None, "", []):
+            return v
+    return None
+
+
+def _date(v):
+    if isinstance(v, (int, float)):
+        v = v / 1000 if v > 1e11 else v
+        return sma.iso(v)
+    if isinstance(v, dict):
+        v = v.get("date") or v.get("timestamp")
+        return _date(v) if v else ""
+    s = str(v or "")
+    if re.fullmatch(r"\d{9,13}", s):
+        return _date(int(s))
+    d = _x_date(s)
+    if d:
+        return d
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return ""
+
+
+def scrape_input(plat, h, cap, since, full):
+    if plat == "facebook":
+        return {"startUrls": [{"url": f"https://www.facebook.com/{h}"}], "resultsLimit": cap, "onlyPostsNewerThan": since}
+    if plat == "instagram":
+        return {"username": [h], "resultsLimit": cap, "onlyPostsNewerThan": since, "skipPinnedPosts": True}
+    if plat == "x":
+        return {"twitterHandles": [h], "maxItems": cap, "sort": "Latest", "start": since, "includeSearchTerms": False}
+    if plat == "linkedin":
+        return {"targetUrls": [f"https://www.linkedin.com/company/{h}/"], "maxPosts": cap, "postedLimit": "month" if full else "week", "includeReposts": False}
+    if plat == "youtube":
+        url = h if h.startswith("UC") and len(h) == 24 and not h.startswith("@") else ("@" + h.lstrip("@"))
+        url = f"https://www.youtube.com/channel/{h}" if url == h else f"https://www.youtube.com/{url}"
+        half = max(1, cap // 2)
+        return {"startUrls": [{"url": url}], "maxResults": half, "maxResultsShorts": half, "maxResultStreams": 0, "sortVideosBy": "NEWEST",
+                "oldestPostDate": since}
+    if plat == "tiktok":
+        return {"profiles": [h], "resultsPerPage": cap, "profileSorting": "latest", "excludePinnedPosts": True, "oldestPostDateUnified": since}
+
+
+def scrape_map(plat, i, h):
+    """One actor item -> (post or None, profile dict or None)."""
+    if plat == "x":
+        au = i.get("author") or {}
+        mine = str(au.get("userName") or "").lower() == h.lower()
+        prof = {"name": au.get("name"), "followers": _n(au.get("followers"))} if mine else None
+        if not mine or i.get("isRetweet") or i.get("retweet"):
+            return None, prof
+        pid = str(i.get("id") or "")
+        return ({"id": pid, "text": str(i.get("fullText") or i.get("text") or "")[:1200], "published": _x_date(i.get("createdAt")),
+                 "url": i.get("url") or i.get("twitterUrl") or f"https://x.com/{h}/status/{pid}",
+                 "picture": _first(i, "extendedEntities.media.0.media_url_https", "entities.media.0.media_url_https", "media.0.media_url_https", "media.0.url") or "",
+                 "likes": _n(i.get("likeCount")), "reposts": _n(i.get("retweetCount")), "replies": _n(i.get("replyCount")),
+                 "quotes": _n(i.get("quoteCount")), "bookmarks": _n(i.get("bookmarkCount")), "views": _n(i.get("viewCount"))} if pid else None), prof
+    if plat == "facebook":
+        pid = str(_first(i, "postId", "id") or "")
+        return ({"id": pid, "text": str(_first(i, "text", "message", "postText") or "")[:1200], "published": _date(_first(i, "time", "timestamp", "date")),
+                 "url": _first(i, "url", "topLevelUrl") or "", "picture": _first(i, "media.0.thumbnail", "media.0.photo_image.uri", "media.0.image.uri", "thumbnail", "fullPicture") or "",
+                 "likes": _n(_first(i, "likes", "reactionsCount")), "comments": _n(_first(i, "comments", "commentsCount")), "shares": _n(_first(i, "shares", "sharesCount")),
+                 "views": _n(_first(i, "viewsCount", "videoViewCount"))} if pid else None), None
+    if plat == "instagram":
+        pid = str(_first(i, "id", "shortCode") or "")
+        prof = {"name": i.get("ownerFullName"), "followers": None} if i.get("ownerUsername") else None
+        return ({"id": pid, "text": str(i.get("caption") or "")[:1200], "published": _date(i.get("timestamp")), "url": i.get("url") or "",
+                 "picture": _first(i, "displayUrl", "images.0", "thumbnailUrl") or "", "type": i.get("type") or "",
+                 "likes": _n(i.get("likesCount")), "comments": _n(i.get("commentsCount")), "views": _n(_first(i, "videoPlayCount", "videoViewCount"))} if pid else None), prof
+    if plat == "linkedin":
+        pid = str(_first(i, "id", "entityId", "linkedinUrl", "url") or "")
+        foll = _n(_first(i, "author.info.followers", "author.followers", "author.followerCount"))
+        return ({"id": pid, "text": str(_first(i, "content", "text", "commentary") or "")[:1200], "published": _date(_first(i, "postedAt.timestamp", "postedAt.date", "postedAt", "date")),
+                 "url": _first(i, "linkedinUrl", "url", "postUrl") or "", "picture": _first(i, "postImages.0.url", "images.0.url", "image.url", "article.image.url") or "",
+                 "likes": _n(_first(i, "engagement.likes", "numLikes")), "comments": _n(_first(i, "engagement.comments", "numComments")),
+                 "shares": _n(_first(i, "engagement.shares", "numShares"))} if pid else None), ({"name": _first(i, "author.name"), "followers": foll} if foll is not None else None)
+    if plat == "youtube":
+        pid = str(_first(i, "id") or "")
+        prof = {"name": i.get("channelName"), "followers": _n(_first(i, "numberOfSubscribers", "channelSubscribers"))}
+        return ({"id": pid, "title": str(i.get("title") or "")[:300], "text": str(_first(i, "text", "description") or "")[:1200], "published": _date(_first(i, "date", "uploadDate", "publishedAt")),
+                 "url": i.get("url") or f"https://www.youtube.com/watch?v={pid}", "picture": _first(i, "thumbnailUrl", "thumbnail") or (f"https://i.ytimg.com/vi/{pid}/mqdefault.jpg" if pid else ""),
+                 "likes": _n(i.get("likes")), "comments": _n(_first(i, "commentsCount", "comments")), "views": _n(i.get("viewCount"))} if pid else None), prof
+    if plat == "tiktok":
+        pid = str(_first(i, "id") or "")
+        prof = {"name": _first(i, "authorMeta.nickName", "authorMeta.name"), "followers": _n(_first(i, "authorMeta.fans"))}
+        return ({"id": pid, "text": str(i.get("text") or "")[:1200], "published": _date(_first(i, "createTimeISO", "createTime")), "url": i.get("webVideoUrl") or "",
+                 "picture": _first(i, "videoMeta.coverUrl", "covers.0") or "", "likes": _n(i.get("diggCount")), "comments": _n(i.get("commentCount")),
+                 "shares": _n(i.get("shareCount")), "saves": _n(i.get("collectCount")), "views": _n(i.get("playCount"))} if pid else None), prof
+    return None, None
+
+
+def sync_scrape(bid, plat, full=False):
     b = sma.get_brand(bid)
-    handle = config(b)["handles"]["x"]
-    d = load(bid, "x.json")
+    handle = config(b)["handles"].get(plat, "")
+    name = fname(plat)
+    d = load(bid, name)
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
     try:
         if not handle:
-            raise ValueError("Add the brand's X handle in Settings > Report first.")
-        tok = token("x_linkedin")
+            raise ValueError(f"Add the brand's {plat} handle in Settings first.")
+        tok = token(TOKEN_GROUP[plat])
         if not tok:
-            raise ValueError("No Apify token for X. Add APIFY_TOKEN_X_LINKEDIN (or APIFY_TOKEN) in Settings > API keys.")
-        if d.get("profile", {}).get("handle", "").lower() != handle.lower():
-            d = {"followers_hist": {}, "posts": []}
+            raise ValueError("No Apify token for this platform. Add it in Sources > API keys (shared by all brands).")
+        if (d.get("profile") or {}).get("handle", "").lower() != handle.lower():
+            d = {"followers_hist": {}, "posts": [], "billed": d.get("billed") or {}}
         last = max([p.get("published", "") for p in d.get("posts") or []] or [""])
-        since = sma.iso(time.time() - 35 * 86400) if full or not last else sma.iso(min(time.time() - 7 * 86400, datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp() - 2 * 86400))
-        cap = 100 if full or not last else 40
-        items, billed = fetch.apify_run_capped(X_ACTOR, {"twitterHandles": [handle], "maxItems": cap, "sort": "Latest", "start": since[:10], "includeSearchTerms": False}, tok, cap)
-        posts, prof = [], None
+        first = full or not last
+        since = sma.iso(time.time() - 35 * 86400) if first else sma.iso(min(time.time() - 7 * 86400, datetime.strptime(last, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp() - 2 * 86400))
+        cap = 60 if first else 30
+        items, billed = fetch.apify_run_capped(APIFY_ACTORS[plat], scrape_input(plat, handle, cap, since[:10], first), tok, cap)
+        posts, prof = [], {}
         for i in items:
-            if not isinstance(i, dict) or i.get("noResults"):
+            if not isinstance(i, dict) or i.get("noResults") or i.get("error"):
                 continue
-            au = i.get("author") or {}
-            if str(au.get("userName") or "").lower() != handle.lower() or i.get("isRetweet") or i.get("retweet"):
-                if prof is None and str(au.get("userName") or "").lower() == handle.lower():
-                    prof = au
-                continue
-            prof = prof or au
-            media = fetch.g(i, "extendedEntities.media", "entities.media", "media", default=[]) or []
-            pic = ""
-            if isinstance(media, list) and media:
-                m0 = media[0] if isinstance(media[0], dict) else {}
-                pic = m0.get("media_url_https") or m0.get("url") or m0.get("thumbnail") or ""
-            pid = str(i.get("id") or "")
-            if not pid:
-                continue
-            posts.append({"id": pid, "text": str(i.get("fullText") or i.get("text") or "")[:1200], "published": _x_date(i.get("createdAt")),
-                          "url": i.get("url") or i.get("twitterUrl") or f"https://x.com/{handle}/status/{pid}", "picture": pic if str(pic).startswith("http") else "",
-                          "likes": _n(i.get("likeCount")), "reposts": _n(i.get("retweetCount")), "replies": _n(i.get("replyCount")),
-                          "quotes": _n(i.get("quoteCount")), "bookmarks": _n(i.get("bookmarkCount")), "views": _n(i.get("viewCount"))})
+            post, pr = scrape_map(plat, i, handle)
+            if pr:
+                prof.update({k: v for k, v in pr.items() if v is not None})
+            if post and post.get("published"):
+                posts.append(post)
+        if plat in ("facebook", "instagram") and tok:
+            try:  # follower count: one profile lookup
+                if plat == "instagram":
+                    its, b2 = fetch.apify_run_capped(IG_PROFILE_ACTOR, {"usernames": [handle]}, tok, 2)
+                    f = next((x for x in its if _key(x.get("username")) == _key(handle)), None)
+                    if f:
+                        prof.update({"name": f.get("fullName") or prof.get("name"), "followers": _n(f.get("followersCount"))})
+                else:
+                    its, b2 = fetch.apify_run_capped(FB_PAGES_ACTOR, {"startUrls": [{"url": f"https://www.facebook.com/{handle}"}]}, tok, 2)
+                    f = its[0] if its else None
+                    if f:
+                        prof.update({"name": f.get("title") or f.get("pageName"), "followers": _n(f.get("followers") if f.get("followers") is not None else f.get("likes"))})
+                billed += b2
+            except Exception as e:
+                sma.log(f"{plat} followers {bid}: {e}")
         for p in posts:
-            p["thumb"] = sma.cache_thumb(bid, "x", p["id"], p.get("picture")) or None
-        d["posts"] = sma.merge_posts(d.get("posts"), [p for p in posts if p["published"]])
-        if prof:
-            d["profile"] = {"handle": handle, "name": prof.get("name") or handle, "followers": _n(prof.get("followers")),
-                            "following": _n(prof.get("following")), "picture": prof.get("profilePicture") or ""}
-            if d["profile"]["followers"] is not None:
-                d.setdefault("followers_hist", {})[datetime.now(timezone.utc).strftime("%Y-%m-%d")] = d["profile"]["followers"]
-        else:
-            d.setdefault("profile", {"handle": handle})
+            p["thumb"] = sma.cache_thumb(bid, plat[:2] if plat != "x" else "x", p["id"], p.get("picture")) or None
+        d["posts"] = sma.merge_posts(d.get("posts"), posts)
+        d["profile"] = {**(d.get("profile") or {}), "handle": handle, **{k: v for k, v in prof.items() if v is not None}}
+        if prof.get("followers") is not None:
+            d.setdefault("followers_hist", {})[datetime.now(timezone.utc).strftime("%Y-%m-%d")] = prof["followers"]
+        d.setdefault("billed", {})[month] = (d.get("billed") or {}).get(month, 0) + billed
         d["last_sync"] = sma.iso()
-        d["last_sync_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         _log(d, True, f"{len(posts)} posts", {"billed": billed})
     except Exception as e:
-        d["last_sync_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        _log(d, False, f"X: {e}")
-        sma.log(f"x sync {bid}: {e}")
-    save(bid, "x.json", d)
+        _log(d, False, f"{plat}: {e}")
+        sma.log(f"apify {plat} sync {bid}: {e}")
+    d["last_sync_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    save(bid, name, d)
 
 
 # ---------------- competitors via Apify ----------------
@@ -329,7 +461,10 @@ def run_async(bid, what, **kw):
 
     def go():
         try:
-            (sync_x if what == "x" else sync_competitors)(bid, **kw)
+            if what == "competitors":
+                sync_competitors(bid)
+            else:
+                sync_scrape(bid, what, **kw)
         finally:
             BUSY.discard((bid, what))
     threading.Thread(target=go, daemon=True).start()
@@ -342,8 +477,9 @@ def daily_due(today):
         cfg = config(b)
         bid = b["id"]
         try:
-            if cfg["sections"]["x"] and cfg["handles"]["x"] and load(bid, "x.json").get("last_sync_date") != today and (bid, "x") not in BUSY:
-                run_async(bid, "x")
+            for k in APIFY_PLATFORMS:
+                if cfg["apify"][k] and cfg["handles"].get(k) and load(bid, fname(k)).get("last_sync_date") != today and (bid, k) not in BUSY:
+                    run_async(bid, k)
             c = load(bid, "competitors.json")
             if cfg["sections"]["competitors"] and c.get("last_attempt_month") != month and (bid, "competitors") not in BUSY and any(competitor_handles(b)):
                 run_async(bid, "competitors")
