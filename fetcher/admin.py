@@ -106,15 +106,22 @@ def write_env_keys(updates):
 
 def clean_settings(body):
     s = fetch.load_settings()
+    brand = " ".join(str(body.get("brand") or "").split())[:80]
+    if brand:  # accounts and search terms for one brand; the rest of the settings stay shared
+        bs = s.setdefault("brand_sources", {})
+        cur = bs.get(brand) or {"accounts": {}, "search_terms": []}
+        target = {"accounts": dict(cur.get("accounts") or {}), "search_terms": list(cur.get("search_terms") or [])}
+    else:
+        target = s
     acc = body.get("accounts", {})
     for p in fetch.PLATFORMS:
-        vals = acc.get(p, s["accounts"].get(p, []))
+        vals = acc.get(p, target["accounts"].get(p, []))
         if not isinstance(vals, list):
             raise ValueError(f"accounts.{p} must be a list")
         vals = [str(v).strip() for v in vals if str(v).strip()]
         if len(vals) > 25 or any(len(v) > 200 or "\n" in v or " " in v for v in vals):
             raise ValueError(f"accounts.{p}: up to 25 usernames or URLs, no spaces")
-        s["accounts"][p] = vals
+        target["accounts"][p] = vals
     for k, v in (body.get("actors") or {}).items():
         if k not in fetch.DEFAULT_ACTORS:
             continue
@@ -134,7 +141,12 @@ def clean_settings(body):
         terms = [str(x).strip() for x in body["search_terms"] or [] if str(x).strip()]
         if len(terms) > 10 or any(len(x) > 60 or "\n" in x for x in terms):
             raise ValueError("Search terms: up to 10, each at most 60 characters")
-        s["search_terms"] = terms
+        target["search_terms"] = terms
+    if brand:
+        if any(target["accounts"].values()) or target["search_terms"]:
+            s["brand_sources"][brand] = target
+        else:
+            s["brand_sources"].pop(brand, None)
     if "monthly_limit" in body:
         n = int(body["monthly_limit"])
         if not 0 <= n <= max_monthly():

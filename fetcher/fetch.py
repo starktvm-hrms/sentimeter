@@ -492,6 +492,28 @@ MAPPERS = {
 }
 
 
+def norm_handle(a):
+    """'https://www.instagram.com/KeralaTourism/' or '@keralatourism' -> 'keralatourism'."""
+    a = str(a or "").strip().rstrip("/")
+    a = re.sub(r"^https?://(www\.|m\.)?[^/]+/(company/|channel/|c/|in/)?", "", a, flags=re.I).split("?")[0]
+    return re.sub(r"[^a-z0-9]", "", a.lstrip("@").lower())
+
+
+def brands_for(platform, m, owner, shared_handles):
+    """Which brands' Sources lists a tracked post came from (empty = a shared account)."""
+    cands = {norm_handle(m.get("handle")), norm_handle(m.get("author"))}
+    url = str(m.get("url") or "").lower()
+    out = set()
+    for (p, h), names in owner.items():
+        if p == platform and h and (h in cands or re.search(r"[/@]" + re.escape(h) + r"(?![a-z0-9])", re.sub(r"[^a-z0-9/@]", "", url))):
+            out |= names
+    if not out and (platform, next(iter(cands - {""}), "")) not in shared_handles:
+        mine = {names_ for (p, _), n in owner.items() if p == platform for names_ in n}
+        if len(mine) == 1 and not any(p == platform for p, _ in shared_handles):
+            out = mine  # only one brand tracks accounts on this platform
+    return sorted(out)
+
+
 def platform_input(platform, accounts, keywords, per, total, today):
     if platform == "facebook":
         urls = [a if a.startswith("http") else f"https://www.facebook.com/{a.lstrip('@')}" for a in accounts]
@@ -588,6 +610,17 @@ def src_social(cfg, kws, force=False):
     allowance = remaining // days_left if days_left else 0
 
     accounts = {p: [a.strip() for a in st["accounts"].get(p, []) if a.strip()] for p in PLATFORMS}
+    owner = {}  # (platform, normalised handle) -> brand names; shared accounts have no brand
+    for bname, src in (st.get("brand_sources") or {}).items():
+        for p in PLATFORMS:
+            for a in (src.get("accounts") or {}).get(p, []):
+                a = a.strip()
+                if not a:
+                    continue
+                if a.lower() not in {x.lower() for x in accounts[p]}:
+                    accounts[p].append(a)
+                owner.setdefault((p, norm_handle(a)), set()).add(bname)
+    shared_handles = {(p, norm_handle(a)) for p in PLATFORMS for a in st["accounts"].get(p, []) if a.strip()}
     actors = st["actors"]
     out = []
     # YouTube through the free API does not use the Apify budget
@@ -602,7 +635,10 @@ def src_social(cfg, kws, force=False):
             log("social youtube skipped: set YOUTUBE_API_KEY, or choose an Apify actor for YouTube")
     jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
     jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
-    terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()] or kws[:10]
+    terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()]
+    for src in (st.get("brand_sources") or {}).values():
+        terms += [s.strip() for s in src.get("search_terms") or [] if s.strip() and s.strip().lower() not in {x.lower() for x in terms}]
+    terms = terms or kws[:10]
     handle = lambda a: a.rstrip("/").rsplit("/", 1)[-1].lstrip("@")
     mention_terms = {}  # public posts that mention a tracked profile
     if st.get("include_mentions", True):
@@ -653,6 +689,10 @@ def src_social(cfg, kws, force=False):
                     continue
                 if p in KEYWORD_JOBS:
                     m["tracked"] = False
+                elif owner:
+                    b = brands_for(p, m, owner, shared_handles)
+                    if b:
+                        m["brands"] = b
                 if m["date"] >= iso(day_start):
                     out.append(m)
                     kept += 1
@@ -663,6 +703,8 @@ def src_social(cfg, kws, force=False):
         k = dedupe_key(m)
         if k in seen and m.get("tracked"):
             seen[k]["tracked"] = True
+            if m.get("brands") or seen[k].get("brands"):
+                seen[k]["brands"] = sorted(set(seen[k].get("brands") or []) | set(m.get("brands") or []))
         seen.setdefault(k, m)
     mu["runs"] = (mu["runs"] + [run_log])[-62:]
     run_log["window_from"] = iso(day_start)

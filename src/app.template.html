@@ -679,6 +679,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       </div></div>
 
       <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Brand profiles and public posts</h2><span class="hint">new posts since the previous run, collected daily at <span id="run-after">09:00</span> India time</span></div><div class="card-body">
+        <div class="toolbar" style="margin-bottom:4px"><label class="f" for="src-brand" style="margin:0">Sources for</label><select class="select" id="src-brand" style="min-width:240px"></select><span class="hint" id="src-brand-hint"></span></div>
         <div class="eyebrow">Brand profiles: posts published by these accounts</div>
         <div class="form" id="acct-form"></div>
         <div class="eyebrow" style="margin-top:6px">Public posts: anyone's posts that match the search terms (also counts toward the limit)</div>
@@ -972,7 +973,7 @@ function prepare(raw){
     const d=new Date(m.date);const iso=isNaN(d)?new Date().toISOString():d.toISOString();
     return{id:m.id||("m"+i),text,author:m.author||m.handle||"Unknown author",handle:m.handle||"",platform:normPlatform(m.platform),location:loc,
       country:parts.length?parts[parts.length-1]:"",region:parts.length>=3?parts[parts.length-2]:parts.length===2?parts[0]:parts[0]||"",
-      gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),tracked:!!m.tracked,url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
+      gender:normGender(m.gender),age:normAge(m.age),acct:acctType(m),tracked:!!m.tracked,brands:Array.isArray(m.brands)?m.brands.map(String):[],url:/^https?:\/\//i.test(m.url||"")?m.url:"",title:String(m.title||""),lang:normLang(m.lang,text),reach:Math.max(0,+m.reach||0),date:iso,day:iso.slice(0,10),a:analyze(text)};
   });
 }
 function hasLive(){return !!(LIVE&&LIVE.mentions.length&&!S.forceSample);}
@@ -995,7 +996,7 @@ const reCache=new Map();
 function kwRe(k){if(reCache.has(k))return reCache.get(k);const e=k.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");const r=new RegExp("(?<![\\p{L}\\p{N}_])"+e+"(?![\\p{L}\\p{N}_])","iu");reCache.set(k,r);return r;}
 function matches(m,al){
   if(al.children)return al.children.some(c=>matches(m,c));
-  const own=m.tracked&&al.tracked!==false;
+  const own=m.tracked&&al.tracked!==false&&(!m.brands||!m.brands.length||m.brands.some(b=>b.toLowerCase()===String(al.brand||"").trim().toLowerCase()));
   if(!own&&(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text))))return false;
   if(al.excluded.some(k=>kwRe(k).test(m.text)))return false;
   if(al.langs.length&&!al.langs.includes(m.lang))return false;
@@ -1373,7 +1374,7 @@ function copyOut(text,btn,label){const out=$("r-out");const fb=()=>{out.hidden=f
   try{navigator.clipboard.writeText(text).then(()=>{out.hidden=true;btn.textContent="Copied";setTimeout(()=>btn.textContent=label,1600);},fb);}catch(e){fb();}}
 
 /* ---------- Sources (server settings) ---------- */
-const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPoll=null,runArm=false;
+const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPoll=null,runArm=false,SRC_BRAND="";
 try{admKey=localStorage.getItem(ADM_KEY)||sessionStorage.getItem(ADM_KEY)||"";}catch(e){}
 const SOC=[["facebook","Facebook","Page URL or username, e.g. keralatourism"],["instagram","Instagram","Username, e.g. keralatourism"],["x","X","Handle, e.g. KeralaTourism"],["linkedin","LinkedIn","Company or profile URL"],["youtube","YouTube","Channel handle, e.g. @keralatourism"],["tiktok","TikTok","Username"],["snapchat","Snapchat","Username"]];
 const SOC_DEF={facebook:"apify~facebook-posts-scraper",instagram:"apify~instagram-post-scraper",x:"apidojo~tweet-scraper",linkedin:"harvestapi~linkedin-profile-posts",youtube:"youtube-data-api",tiktok:"clockworks~tiktok-scraper",snapchat:"parseforge~snapchat-scraper",x_search:"apidojo~tweet-scraper",instagram_hashtags:"apify~instagram-hashtag-scraper",facebook_search:"apify~facebook-search-scraper",linkedin_search:"harvestapi~linkedin-post-search",tiktok_hashtags:"clockworks~tiktok-scraper",snapchat_hashtags:"w3crawler~snapchat-hashtag-scraper"};
@@ -1405,7 +1406,12 @@ function renderSources(){
   ["src-accounts","src-news","src-keys","src-save-bar"].forEach(id=>$(id).hidden=!on);
   renderBudget();
   if(!on){if(!$("adm-msg").textContent)admConnect(true);return;}
-  const st=ADM.settings;if(!acctDraft)acctDraft=JSON.parse(JSON.stringify({accounts:st.accounts,actors:st.actors,keyword_search:st.keyword_search,search_terms:st.search_terms||[],include_mentions:st.include_mentions!==false,news:st.news||{google_news:true,bing_news:true}}));
+  const st=ADM.settings;const bsrc=st.brand_sources||{};
+  const bnames=[...new Set([...alertBrands(),...Object.keys(bsrc),...((SMA.brands||[]).map(b=>b.name))])].sort((x,y)=>x.localeCompare(y));
+  if(SRC_BRAND&&!bnames.includes(SRC_BRAND))SRC_BRAND="";
+  $("src-brand").innerHTML=`<option value="">Shared (all alerts)</option>`+bnames.map(n=>{const c=bsrc[n]?Object.values(bsrc[n].accounts||{}).reduce((a,l)=>a+l.length,0):0;return `<option value="${esc(n)}" ${n===SRC_BRAND?"selected":""}>${esc(n)}${c?` (${c} account${c>1?"s":""})`:""}</option>`;}).join("");
+  $("src-brand-hint").textContent=SRC_BRAND?`Posts from these accounts appear only in alerts with the brand "${SRC_BRAND}". Actors, news, tokens and the monthly limit below are shared by all brands.`:"Posts from shared accounts appear in every alert that includes brand profiles. Pick a brand to give it its own accounts and search terms.";
+  if(!acctDraft){const own=SRC_BRAND?(bsrc[SRC_BRAND]||{}):st;acctDraft=JSON.parse(JSON.stringify({accounts:own.accounts||{},actors:st.actors,keyword_search:st.keyword_search,search_terms:own.search_terms||[],include_mentions:st.include_mentions!==false,news:st.news||{google_news:true,bing_news:true}}));}
   const ns=(LIVE&&LIVE.sources)||{};
   $("news-form").innerHTML=[["google_news","Google News (English, Malayalam, Hindi)"],["bing_news","Bing News (India)"]].map(([k,n])=>`<label><input type="checkbox" id="news-${k}" ${acctDraft.news[k]!==false?"checked":""}> <span class="src" style="background:var(--c2)">N</span> ${n}</label>`).join("");
   $("news-status").textContent=["google_news","bing_news"].filter(k=>ns[k]).map(k=>`${k==="google_news"?"Google News":"Bing News"}: last run ${relAgo(ns[k].last_run)}, ${ns[k].new||0} new, ${ns[k].duplicates||0} already tracked`).join(" · ");
@@ -1442,7 +1448,7 @@ async function saveSources(){
   {const i=$("kw-terms").querySelector("input");if(i&&i.value.trim()){i.value.split(",").map(x=>x.trim()).filter(Boolean).forEach(v=>{if(!acctDraft.search_terms.includes(v))acctDraft.search_terms.push(v);});i.value="";}}
   const lim=parseInt($("bud-limit").value,10);const rt=$("run-time").value;if(/^\d\d:\d\d$/.test(rt))acctDraft.run_after=rt;
   $("src-msg").textContent="Saving…";
-  try{ADM=await adm("/settings",{method:"PUT",body:JSON.stringify(Object.assign({},acctDraft,isNaN(lim)?{}:{monthly_limit:lim}))});acctDraft=null;$("src-msg").textContent="Saved. The next daily run uses these settings.";renderSources();}
+  try{ADM=await adm("/settings",{method:"PUT",body:JSON.stringify(Object.assign({},acctDraft,isNaN(lim)?{}:{monthly_limit:lim},SRC_BRAND?{brand:SRC_BRAND}:{}))});acctDraft=null;$("src-msg").textContent="Saved. The next daily run uses these settings.";renderSources();}
   catch(e){$("src-msg").textContent=e.message;}
 }
 function pollRun(){clearInterval(runPoll);$("run-log").hidden=false;$("run-now").disabled=true;
@@ -1453,6 +1459,7 @@ $("adm-connect").onclick=()=>admConnect(false);
 $("adm-key").onkeydown=e=>{if(e.key==="Enter")admConnect(false);};
 $("adm-forget").onclick=()=>{ADM=null;admKey="";acctDraft=null;try{localStorage.removeItem(ADM_KEY);sessionStorage.removeItem(ADM_KEY);}catch(e){}$("adm-msg").textContent="Disconnected.";renderSources();};
 $("src-save").onclick=saveSources;
+$("src-brand").onchange=e=>{SRC_BRAND=e.target.value;acctDraft=null;$("src-msg").textContent="";renderSources();};
 $("key-save").onclick=async()=>{const b={};const F=[["key-apify","apify_token"],["key-apify-meta","apify_token_meta"],["key-apify-xli","apify_token_x_linkedin"],["key-apify-other","apify_token_other"],["key-yt","youtube_api_key"]];
   F.forEach(([id,f])=>{const v=$(id).value.trim();if(v)b[f]=v;});
   if(!Object.keys(b).length){$("key-msg").textContent="Paste a key to save it.";return;}
