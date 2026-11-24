@@ -612,6 +612,10 @@ SEEDS = {
 }
 
 
+SEEDS["kt-all-v2"] = {"brand_match": "karnataka", "handles": SEEDS["kt-domestic-2026-11"]["handles"],
+                     "national": SEEDS["kt-domestic-2026-11"]["national"], "international": SEEDS["kt-international-2026-11"]["international"]}
+
+
 def apply_seeds():
     """Apply each seed once (recorded in seeds.json); merges into existing settings, never removes anything."""
     path = sma._p("seeds.json")
@@ -624,29 +628,38 @@ def apply_seeds():
         if sid in done:
             continue
         try:
-            b = next((x for x in sma.brands() if x["name"].strip().lower() == s["brand"].lower()), None) or sma.create_brand(s["brand"])
-            cfg = config(b)
-            for f, h in s.get("handles", {}).items():
-                if not cfg["handles"].get(f):
-                    cfg["handles"][f] = h
-            for g in ("national", "international"):
-                for row in s.get(g, []):
-                    cur = next((r for r in cfg["competitors"][g] if r["name"].lower() == row["name"].lower()), None)
-                    if cur is None:
-                        cfg["competitors"][g].append({"name": row["name"], **{f: "" for f in ("facebook", "instagram", "x", "linkedin", "youtube")}, **row})
-                    else:
-                        for f, h in row.items():
-                            if f != "name" and h:
-                                cur[f] = h
-            sma.update_brand_record(b["id"], lambda r: r.update({"report": cfg}))
+            if s.get("brand_match"):  # every brand whose name contains the text; never creates one
+                targets = [x for x in sma.brands() if s["brand_match"] in x["name"].lower()]
+            else:
+                targets = [next((x for x in sma.brands() if x["name"].strip().lower() == s["brand"].lower()), None) or sma.create_brand(s["brand"])]
+            for b in targets:
+                _seed_brand(b, s)
+                collect.add(b["id"])
+                sma.log(f"seed {sid}: applied to {b['name']} ({b['id']})")
             done.add(sid)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             json.dump(sorted(done), open(path, "w"))
-            sma.log(f"seed {sid}: applied to {b['name']} ({b['id']})")
-            collect.add(b["id"])
         except Exception as e:
             sma.log(f"seed {sid} failed: {e}")
     for bid in collect:  # one collection per brand, after every seed is in place
         if token("meta") and (bid, "competitors") not in BUSY:
             run_async(bid, "competitors")
+
+
+def _seed_brand(b, s):
+    """Merge one seed into a brand: fills empty brand handles, adds or updates competitors by name."""
+    cfg = config(b)
+    for f, h in s.get("handles", {}).items():
+        if not cfg["handles"].get(f):
+            cfg["handles"][f] = h
+    for g in ("national", "international"):
+        for row in s.get(g, []):
+            cur = next((r for r in cfg["competitors"][g] if r["name"].lower() == row["name"].lower()), None)
+            if cur is None:
+                cfg["competitors"][g].append({"name": row["name"], **{f: "" for f in ("facebook", "instagram", "x", "linkedin", "youtube")}, **row})
+            else:
+                for f, h in row.items():
+                    if f != "name" and h:
+                        cur[f] = h
+    sma.update_brand_record(b["id"], lambda r: r.update({"report": cfg}))
 
