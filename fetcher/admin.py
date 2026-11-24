@@ -846,6 +846,10 @@ def scheduler():
 
 if __name__ == "__main__":
     migrate_public_data()
+    try:
+        sma_extra.apply_seeds()
+    except Exception as e:
+        sys.stderr.write(f"seeds: {e}\n")
     threading.Thread(target=scheduler, daemon=True).start()
     port = int(os.environ.get("SENTIMETER_ADMIN_PORT", "8787"))
     print(f"sentimeter-admin on 127.0.0.1:{port}", file=sys.stderr)

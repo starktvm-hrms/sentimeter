@@ -567,3 +567,61 @@ def daily_due(today):
                 run_async(bid, "competitors")
         except Exception as e:
             sma.log(f"extra daily {bid}: {e}")
+
+
+# ---------------- one-time data updates shipped with the code ----------------
+
+SEEDS = {
+    # Karnataka Tourism: domestic competitors (Facebook + Instagram) and the brand's own handles
+    "kt-domestic-2026-11": {
+        "brand": "Karnataka Tourism",
+        "handles": {"facebook": "KarnatakaWorld", "instagram": "karnatakaworld"},
+        "national": [
+            {"name": "Gujarat Tourism", "facebook": "gujtourism", "instagram": "gujarattourism"},
+            {"name": "Madhya Pradesh Tourism", "facebook": "MPTourism", "instagram": "mptourism"},
+            {"name": "Incredible India Tourism", "facebook": "incredibleindia", "instagram": "incredibleindia"},
+            {"name": "Uttarakhand Tourism", "facebook": "UttarakhandTourismOfficialPage", "instagram": "uttarakhand_tourismofficial"},
+            {"name": "Maharashtra Tourism", "facebook": "MaharashtraTourismOfficial", "instagram": "maharashtratourismofficial"},
+            {"name": "Goa Tourism", "facebook": "officialgoatourism"},
+            {"name": "Rajasthan Tourism", "facebook": "rajasthantourism", "instagram": "rajasthan_tourism"},
+            {"name": "Uttar Pradesh Tourism", "instagram": "uttarpradeshtourism"},
+        ],
+    },
+}
+
+
+def apply_seeds():
+    """Apply each seed once (recorded in seeds.json); merges into existing settings, never removes anything."""
+    path = sma._p("seeds.json")
+    try:
+        done = set(json.load(open(path)))
+    except Exception:
+        done = set()
+    for sid, s in SEEDS.items():
+        if sid in done:
+            continue
+        try:
+            b = next((x for x in sma.brands() if x["name"].strip().lower() == s["brand"].lower()), None) or sma.create_brand(s["brand"])
+            cfg = config(b)
+            for f, h in s.get("handles", {}).items():
+                if not cfg["handles"].get(f):
+                    cfg["handles"][f] = h
+            for g in ("national", "international"):
+                for row in s.get(g, []):
+                    cur = next((r for r in cfg["competitors"][g] if r["name"].lower() == row["name"].lower()), None)
+                    if cur is None:
+                        cfg["competitors"][g].append({"name": row["name"], **{f: "" for f in ("facebook", "instagram", "x", "linkedin", "youtube")}, **row})
+                    else:
+                        for f, h in row.items():
+                            if f != "name" and h:
+                                cur[f] = h
+            sma.update_brand_record(b["id"], lambda r: r.update({"report": cfg}))
+            done.add(sid)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            json.dump(sorted(done), open(path, "w"))
+            sma.log(f"seed {sid}: applied to {b['name']} ({b['id']})")
+            if (token("meta") or "") and (b["id"], "competitors") not in BUSY:
+                run_async(b["id"], "competitors")
+        except Exception as e:
+            sma.log(f"seed {sid} failed: {e}")
+
