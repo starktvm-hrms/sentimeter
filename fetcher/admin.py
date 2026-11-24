@@ -111,6 +111,8 @@ def clean_settings(body):
         bs = s.setdefault("brand_sources", {})
         cur = bs.get(brand) or {"accounts": {}, "search_terms": []}
         target = {"accounts": dict(cur.get("accounts") or {}), "search_terms": list(cur.get("search_terms") or [])}
+        if "monthly_limit" in cur:
+            target["monthly_limit"] = cur["monthly_limit"]
     else:
         target = s
     acc = body.get("accounts", {})
@@ -142,16 +144,16 @@ def clean_settings(body):
         if len(terms) > 10 or any(len(x) > 60 or "\n" in x for x in terms):
             raise ValueError("Search terms: up to 10, each at most 60 characters")
         target["search_terms"] = terms
-    if brand:
-        if any(target["accounts"].values()) or target["search_terms"]:
-            s["brand_sources"][brand] = target
-        else:
-            s["brand_sources"].pop(brand, None)
     if "monthly_limit" in body:
         n = int(body["monthly_limit"])
         if not 0 <= n <= max_monthly():
-            raise ValueError(f"The monthly limit can be at most {max_monthly()} posts on this server.")
-        s["monthly_limit"] = n
+            raise ValueError(f"The monthly limit can be at most {max_monthly()} posts per brand on this server.")
+        target["monthly_limit"] = n
+    if brand:
+        if any(target["accounts"].values()) or target["search_terms"] or "monthly_limit" in target:
+            s["brand_sources"][brand] = target
+        else:
+            s["brand_sources"].pop(brand, None)
     if "run_after" in body:
         if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(body["run_after"])):
             raise ValueError("run_after must be HH:MM")
@@ -640,7 +642,8 @@ class H(BaseHTTPRequestHandler):
         mu = u.get("months", {}).get(month, {"posts": 0, "runs": []})
         return {"settings": s, "keys": {"apify": bool(env.get("APIFY_TOKEN")), "apify_meta": bool(env.get("APIFY_TOKEN_META")), "apify_x_linkedin": bool(env.get("APIFY_TOKEN_X_LINKEDIN")),
                          "apify_other": bool(env.get("APIFY_TOKEN_OTHER")), "youtube": bool(env.get("YOUTUBE_API_KEY"))},
-                "usage": {"month": month, "used": mu.get("posts", 0), "runs": mu.get("runs", [])[-10:], "last_daily_run": u.get("last_daily_run")},
+                "usage": {"month": month, "used": mu.get("posts", 0), "brands": mu.get("brands") or {"": {"posts": mu.get("posts", 0)}},
+                          "runs": mu.get("runs", [])[-40:], "last_daily_run": u.get("last_daily_run")},
                 "running": running(), "public": True, "user": getattr(self, "user", None), "max_monthly": max_monthly(),
                 "next_manual_run_in": max(0, int(LAST_MANUAL_RUN[0] + 1800 - time.time()))}
 

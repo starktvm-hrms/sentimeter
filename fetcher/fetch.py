@@ -491,28 +491,6 @@ MAPPERS = {
 }
 
 
-def norm_handle(a):
-    """'https://www.instagram.com/KeralaTourism/' or '@keralatourism' -> 'keralatourism'."""
-    a = str(a or "").strip().rstrip("/")
-    a = re.sub(r"^https?://(www\.|m\.)?[^/]+/(company/|channel/|c/|in/)?", "", a, flags=re.I).split("?")[0]
-    return re.sub(r"[^a-z0-9]", "", a.lstrip("@").lower())
-
-
-def brands_for(platform, m, owner, shared_handles):
-    """Which brands' Sources lists a tracked post came from (empty = a shared account)."""
-    cands = {norm_handle(m.get("handle")), norm_handle(m.get("author"))}
-    url = str(m.get("url") or "").lower()
-    out = set()
-    for (p, h), names in owner.items():
-        if p == platform and h and (h in cands or re.search(r"[/@]" + re.escape(h) + r"(?![a-z0-9])", re.sub(r"[^a-z0-9/@]", "", url))):
-            out |= names
-    if not out and (platform, next(iter(cands - {""}), "")) not in shared_handles:
-        mine = {names_ for (p, _), n in owner.items() if p == platform for names_ in n}
-        if len(mine) == 1 and not any(p == platform for p, _ in shared_handles):
-            out = mine  # only one brand tracks accounts on this platform
-    return sorted(out)
-
-
 def platform_input(platform, accounts, keywords, per, total, today):
     if platform == "facebook":
         urls = [a if a.startswith("http") else f"https://www.facebook.com/{a.lstrip('@')}" for a in accounts]
@@ -586,7 +564,27 @@ def youtube_api_channel_posts(handles, key, day_start):
     return out
 
 
+def social_groups(st):
+    """The shared Sources list plus one list per brand: (name, accounts, search terms, monthly limit)."""
+    out = [("", st.get("accounts") or {}, st.get("search_terms") or [], int(st.get("monthly_limit", 5000)))]
+    for name, src in sorted((st.get("brand_sources") or {}).items()):
+        out.append((name, src.get("accounts") or {}, src.get("search_terms") or [], int(src.get("monthly_limit", st.get("monthly_limit", 5000)))))
+    return out
+
+
+def alert_keywords_by_brand():
+    try:
+        alerts = json.load(open(os.environ.get("SENTIMETER_SHARED", "/var/lib/sentimeter/shared.json"))).get("alerts") or []
+    except Exception:
+        alerts = []
+    by = {}
+    for al in alerts:
+        by.setdefault((al.get("brand") or "").strip().lower(), []).extend(al.get("keywords") or [])
+    return by
+
+
 def src_social(cfg, kws, force=False):
+    """Daily run. Each brand (and the shared list) has its own monthly limit and is collected separately."""
     st = load_settings()
     now_l = local_now(st.get("timezone", "Asia/Kolkata"))
     today = now_l.strftime("%Y-%m-%d")
@@ -602,58 +600,57 @@ def src_social(cfg, kws, force=False):
             return "not_due"
     month = today[:7]
     mu = usage["months"].setdefault(month, {"posts": 0, "runs": []})
+    if "brands" not in mu:  # usage counted before limits were per brand belongs to the shared list
+        mu["brands"] = {"": {"posts": mu.get("posts", 0)}}
     days_in_month = calendar.monthrange(now_l.year, now_l.month)[1]
     days_left = days_in_month - now_l.day + 1
     ceiling = int(os.environ.get("SENTIMETER_MAX_MONTHLY") or 5000)
-    remaining = max(0, min(int(st.get("monthly_limit", 5000)), ceiling) - mu["posts"])
-    allowance = remaining // days_left if days_left else 0
-
-    accounts = {p: [a.strip() for a in st["accounts"].get(p, []) if a.strip()] for p in PLATFORMS}
-    owner = {}  # (platform, normalised handle) -> brand names; shared accounts have no brand
-    for bname, src in (st.get("brand_sources") or {}).items():
-        for p in PLATFORMS:
-            for a in (src.get("accounts") or {}).get(p, []):
-                a = a.strip()
-                if not a:
-                    continue
-                if a.lower() not in {x.lower() for x in accounts[p]}:
-                    accounts[p].append(a)
-                owner.setdefault((p, norm_handle(a)), set()).add(bname)
-    shared_handles = {(p, norm_handle(a)) for p in PLATFORMS for a in st["accounts"].get(p, []) if a.strip()}
     actors = st["actors"]
-    out = []
-    # YouTube through the free API does not use the Apify budget
-    yt_free = accounts["youtube"] and actors.get("youtube") == "youtube-data-api"
-    if yt_free:
-        key = os.environ.get("YOUTUBE_API_KEY")
-        if key:
-            got = youtube_api_channel_posts(accounts["youtube"], key, day_start)
-            out += got
-            log(f"social youtube (free API): {len(got)} today")
-        else:
-            log("social youtube skipped: set YOUTUBE_API_KEY, or choose an Apify actor for YouTube")
-    jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
-    jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
-    terms = [s.strip() for s in st.get("search_terms") or [] if s.strip()]
-    for src in (st.get("brand_sources") or {}).values():
-        terms += [s.strip() for s in src.get("search_terms") or [] if s.strip() and s.strip().lower() not in {x.lower() for x in terms}]
-    terms = terms or kws[:10]
+    kw_by_brand = alert_keywords_by_brand()
     handle = lambda a: a.rstrip("/").rsplit("/", 1)[-1].lstrip("@")
-    mention_terms = {}  # public posts that mention a tracked profile
-    if st.get("include_mentions", True):
-        mention_terms = {
-            "x_search": [f"@{handle(a)}" for a in accounts["x"]],
-            "instagram_hashtags": [handle(a) for a in accounts["instagram"]],
-            "tiktok_hashtags": [handle(a) for a in accounts["tiktok"]],
-        }
-    run_log = {"date": today, "time": now_l.strftime("%H:%M"), "allowance": allowance, "jobs": {}}
-    if jobs and not any(token_for(p)[0] for p in jobs):
-        log("social skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
-        run_log["note"] = "no Apify token"
-    elif jobs and allowance < 1:
-        log(f"social skipped: monthly limit reached ({mu['posts']}/{st.get('monthly_limit')})")
-        run_log["note"] = "monthly limit reached"
-    elif jobs:
+    out, any_billable, no_token_everywhere = [], False, True
+
+    for gname, gacc, gterms, glimit in social_groups(st):
+        label = gname or "Shared"
+        bu = mu["brands"].setdefault(gname, {"posts": 0})
+        remaining = max(0, min(glimit, ceiling) - bu["posts"])
+        allowance = remaining // days_left if days_left else 0
+        accounts = {p: [a.strip() for a in gacc.get(p, []) if a.strip()] for p in PLATFORMS}
+        terms = [s.strip() for s in gterms if s.strip()] or [k for k in kw_by_brand.get(gname.lower(), []) if k.strip()][:10]
+        run_log = {"date": today, "time": now_l.strftime("%H:%M"), "group": label, "allowance": allowance, "limit": min(glimit, ceiling), "jobs": {}}
+        yt_free = accounts["youtube"] and actors.get("youtube") == "youtube-data-api"
+        if yt_free:  # YouTube through the free API does not use the Apify budget
+            key = os.environ.get("YOUTUBE_API_KEY")
+            if key:
+                got = youtube_api_channel_posts(accounts["youtube"], key, day_start)
+                for m in got:
+                    if gname:
+                        m["brands"] = [gname]
+                out += got
+                log(f"social [{label}] youtube (free API): {len(got)} today")
+            else:
+                log(f"social [{label}] youtube skipped: set YOUTUBE_API_KEY, or choose an Apify actor for YouTube")
+        jobs = [p for p in PLATFORMS if accounts[p] and not (p == "youtube" and yt_free)]
+        if terms:
+            jobs += [k for k in KEYWORD_JOBS if st.get("keyword_search", {}).get(k)]
+        mention_terms = {}  # public posts that mention a tracked profile
+        if st.get("include_mentions", True):
+            mention_terms = {"x_search": [f"@{handle(a)}" for a in accounts["x"]], "instagram_hashtags": [handle(a) for a in accounts["instagram"]],
+                             "tiktok_hashtags": [handle(a) for a in accounts["tiktok"]]}
+        if not jobs:
+            continue
+        any_billable = True
+        if not any(token_for(p)[0] for p in jobs):
+            log(f"social [{label}] skipped: add the Apify token in Sentimeter settings or /etc/sentimeter.env")
+            run_log["note"] = "no Apify token"
+            mu["runs"] = (mu["runs"] + [run_log])[-120:]
+            continue
+        no_token_everywhere = False
+        if allowance < 1:
+            log(f"social [{label}] skipped: monthly limit reached ({bu['posts']}/{min(glimit, ceiling)})")
+            run_log["note"] = "monthly limit reached"
+            mu["runs"] = (mu["runs"] + [run_log])[-120:]
+            continue
         share = max(1, allowance // len(jobs))
         left = allowance
         for p in jobs:
@@ -673,10 +670,11 @@ def src_social(cfg, kws, force=False):
                 payload = platform_input(p, accounts.get(p, []), jt, per, total, since)
                 items, billed = apify_run_capped(actor, payload, token, total)
             except Exception as e:
-                log(f"social {p} failed:", e)
+                log(f"social [{label}] {p} failed:", e)
                 run_log["jobs"][p] = {"error": str(e)[:200], "token": tgroup}
                 continue
             left -= billed
+            bu["posts"] += billed
             mu["posts"] += billed
             kept = 0
             for it in items:
@@ -690,15 +688,14 @@ def src_social(cfg, kws, force=False):
                     m["reach_basis"] = "views"
                 if p in KEYWORD_JOBS:
                     m["tracked"] = False
-                elif owner:
-                    b = brands_for(p, m, owner, shared_handles)
-                    if b:
-                        m["brands"] = b
+                elif gname:
+                    m["brands"] = [gname]  # a brand's own profiles: shown only in that brand's alerts
                 if m["date"] >= iso(day_start):
                     out.append(m)
                     kept += 1
             run_log["jobs"][p] = {"actor": actor, "billed": billed, "kept_today": kept, "token": tgroup}
-            log(f"social {p} ({tgroup} token): {billed} results billed, {kept} since {iso(day_start)}")
+            log(f"social [{label}] {p} ({tgroup} token): {billed} results billed, {kept} since {iso(day_start)}")
+        mu["runs"] = (mu["runs"] + [run_log])[-120:]
     seen = {}
     for m in out:
         k = dedupe_key(m)
@@ -707,12 +704,9 @@ def src_social(cfg, kws, force=False):
             if m.get("brands") or seen[k].get("brands"):
                 seen[k]["brands"] = sorted(set(seen[k].get("brands") or []) | set(m.get("brands") or []))
         seen.setdefault(k, m)
-    mu["runs"] = (mu["runs"] + [run_log])[-62:]
-    run_log["window_from"] = iso(day_start)
-    if run_log.get("note") != "no Apify token":
+    if not (any_billable and no_token_everywhere):
         usage["last_daily_run"] = today
-        if any("billed" in j for j in run_log["jobs"].values()) or not jobs:
-            usage["last_run_at"] = iso(NOW)
+        usage["last_run_at"] = iso(NOW)
     save_usage(usage)
     return out
 

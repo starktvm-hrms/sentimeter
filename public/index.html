@@ -699,13 +699,14 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
         <span class="hint" id="adm-msg" role="status"></span>
       </div></div>
 
-      <div class="card"><div class="card-head"><h2>Monthly limit</h2><span class="hint" id="bud-month"></span></div><div class="card-body">
+      <div class="card"><div class="card-head"><h2 id="bud-title">Monthly limit</h2><span class="hint" id="bud-month"></span></div><div class="card-body">
         <div class="kpi"><span class="big" id="bud-used">0</span><span class="hint" id="bud-of">of 5,000 posts this month</span></div>
         <div class="track" style="height:10px;border-radius:5px;background:var(--sunk);overflow:hidden"><div id="bud-bar" style="height:100%;width:0;background:var(--accent)"></div></div>
         <p class="hint" style="margin:0" id="bud-note"></p>
         <div class="tbl-wrap" id="bud-runs"></div>
+        <div class="tbl-wrap" id="bud-all"></div>
         <div class="toolbar" id="bud-admin" hidden>
-          <label for="bud-limit" style="font-weight:600">Posts per month</label><input type="text" id="bud-limit" inputmode="numeric" style="width:110px">
+          <label for="bud-limit" style="font-weight:600" id="bud-limit-l">Posts per month</label><input type="text" id="bud-limit" inputmode="numeric" style="width:110px">
           <label for="run-time" style="font-weight:600">Daily run (India time)</label><input type="time" id="run-time" value="09:00" style="width:120px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px">
           <span class="spacer"></span>
           <button class="btn" id="run-now" type="button">Run today's collection now</button>
@@ -1592,8 +1593,14 @@ async function adm(path,opts={}){
 function fmtInt(n){return Number(n||0).toLocaleString("en-IN");}
 function daysLeftInMonth(){const ist=new Date(Date.now()+5.5*36e5);const y=ist.getUTCFullYear(),mo=ist.getUTCMonth();const dim=new Date(Date.UTC(y,mo+1,0)).getUTCDate();return dim-ist.getUTCDate()+1;}
 function renderBudget(){
-  const pub=LIVE&&LIVE.social;const used=ADM?ADM.usage.used:(pub?pub.used:0);const limit=ADM?Math.min(ADM.settings.monthly_limit,ADM.max_monthly||5000):(pub?pub.limit:5000);
-  const runs=ADM?ADM.usage.runs:(pub&&pub.last_run?[pub.last_run]:[]);
+  const pub=LIVE&&LIVE.social;const g=ADM?SRC_BRAND:"";const bsrc=ADM?(ADM.settings.brand_sources||{}):{};
+  const limOf=n=>Math.min(n&&bsrc[n]&&bsrc[n].monthly_limit!=null?bsrc[n].monthly_limit:(ADM?ADM.settings.monthly_limit:5000),ADM?ADM.max_monthly||5000:5000);
+  const usedOf=n=>ADM?(((ADM.usage.brands||{})[n]||{}).posts||0):(pub?pub.used:0);
+  const used=usedOf(g),limit=ADM?limOf(g):(pub?pub.limit:5000);
+  const runs=ADM?ADM.usage.runs.filter(r=>(r.group||"Shared")===(g||"Shared")):(pub&&pub.last_run?[pub.last_run]:[]);
+  if(ADM){const names=[""].concat(Object.keys(bsrc).sort());
+    $("bud-all").innerHTML=names.length>1?tbl([["Sources for"],["Used","r"],["Limit","r"],["",""]],names.map(n=>{const u=usedOf(n),l=limOf(n);return [n?esc(n):"Shared (all alerts)",fmtInt(u),fmtInt(l),`<div style="width:110px;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden"><div style="height:100%;width:${Math.min(100,l?u/l*100:0)}%;background:${u>=l?"var(--neg)":u>=l*.8?"var(--c4)":"var(--accent)"}"></div></div>`];})):"";}
+  $("bud-title").textContent=g?`Monthly limit · ${g}`:"Monthly limit · Shared";if(ADM)$("bud-limit-l").textContent=g?`Posts per month for ${g}`:"Posts per month for the shared list (also the default for new brands)";
   $("bud-used").textContent=fmtInt(used);$("bud-of").textContent=`of ${fmtInt(limit)} posts this month`;
   $("bud-month").textContent=ADM?ADM.usage.month:(pub?pub.month:"");
   $("bud-bar").style.width=Math.min(100,limit?used/limit*100:0)+"%";$("bud-bar").style.background=used>=limit?"var(--neg)":used>=limit*.8?"var(--c4)":"var(--accent)";

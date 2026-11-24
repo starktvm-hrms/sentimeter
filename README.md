@@ -208,7 +208,7 @@ Nothing is collected or shown without a keyword. The collector searches news, Yo
 
 ### Sources per brand
 
-The Sources page has a **Sources for** picker: "Shared (all alerts)" or a brand (brands come from alert settings and Social Media Analytics). Each brand can have its own tracked profiles and search terms. Posts from a brand's profiles are tagged with that brand and appear only in alerts with that brand; posts from shared profiles appear in every alert that includes brand profiles, as before. Actors, news sources, Apify tokens, the run time and the monthly limit stay shared, and every brand's accounts are collected in the same daily run within the one monthly budget.
+The Sources page has a **Sources for** picker: "Shared (all alerts)" or a brand (brands come from alert settings and Social Media Analytics). Each brand can have its own tracked profiles and search terms. Posts from a brand's profiles are tagged with that brand and appear only in alerts with that brand; posts from shared profiles appear in every alert that includes brand profiles, as before. Each brand has its own **monthly limit** (posts per month, set on the Sources page with that brand selected; the shared list's limit is the default for new brands) and is collected separately in the daily run within its own allowance, so one brand cannot use up another's budget. A brand's public-post searches use its own search terms, or its alerts' keywords if it has none. Actors, news sources, Apify tokens and the run time stay shared.
 
 ### Apify integration (shared by all brands)
 
