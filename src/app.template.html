@@ -751,7 +751,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
           <label class="f" for="set-brand">Brand</label>
           <div><input type="text" id="set-brand" list="set-brand-list" placeholder="No brand (a stand-alone alert)" autocomplete="off"><datalist id="set-brand-list"></datalist><div class="hint" style="margin-top:4px">Alerts with the same brand are grouped under it in the sidebar, with an "all sections" view, and can feed that brand's report.</div></div>
           <label class="f" for="set-section">Section</label>
-          <select class="select" id="set-section"></select>
+          <div><input type="text" id="set-section" list="set-section-list" maxlength="60" placeholder="Name a section, or leave empty" autocomplete="off"><datalist id="set-section-list"></datalist><div class="hint" style="margin-top:4px">Your own name for the group this alert belongs to under the brand. Alerts with the same section name are shown together.</div></div>
           <label class="f">Keywords</label>
           <div><div class="chipbox" id="set-kw"></div><div class="hint" style="margin-top:4px">Press Enter or comma to add. Phrases match as written; hashtags match the tag.</div></div>
           <label class="f">Excluded keywords</label>
@@ -982,8 +982,8 @@ const getMeta=id=>{const m=S.meta[id];return m?Object.assign({star:false,done:fa
 const M=id=>{const m=S.meta[id]||(S.meta[id]={star:false,done:false,tags:[]});if(!Array.isArray(m.tags))m.tags=[];return m;};
 const isHidden=m=>!!(S.meta[m.id]&&S.meta[m.id].del)||S.blocked.includes(m.author);
 const labelOf=m=>S.overrides[m.id]||m.a.label;
-const ASECTIONS=[["domestic","Domestic region"],["international","International"],["keywords","Specific keywords"],["themes","Themes"],["competitors","Competitors"],["other","Other"]];
-const secLabel=k=>(ASECTIONS.find(s=>s[0]===k)||[0,"Other"])[1];
+const OLDSEC={domestic:"Domestic region",international:"International",keywords:"Specific keywords",themes:"Themes",competitors:"Competitors",other:"Other"};
+const secLabel=k=>OLDSEC[k]||String(k||"").trim();
 const alertBrands=()=>[...new Set(S.alerts.map(a=>(a.brand||"").trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y));
 function brandAlert(name){const kids=S.alerts.filter(a=>(a.brand||"").trim().toLowerCase()===String(name).trim().toLowerCase());if(!kids.length)return null;
   return {id:"brand:"+name,name:name+" · all sections",brand:name,virtual:true,children:kids,keywords:[...new Set(kids.flatMap(a=>a.keywords))],excluded:[],langs:[],locations:[],unknown:true,
@@ -1085,9 +1085,9 @@ function renderChrome(){
     +(loose.length?`<optgroup label="Other alerts">${loose.map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(a.name)}</option>`).join("")}</optgroup>`:"");
   const p=periods();const inP=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end);
   const gear=a=>`<button class="gear" data-gear="${a.id}" title="Settings for ${esc(a.name)}" aria-label="Settings for ${esc(a.name)}" aria-current="${a.id===al.id&&current()==="alert-setup"?"page":"false"}"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg></button>`;
-  const row=(a,sub)=>{const n=inP.filter(m=>matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}${sub?" sub":""}"><button class="alert-link" data-id="${esc(a.id)}" aria-current="${on}"><span>${sub&&a.section?`<em class="sec-tag">${esc(secLabel(a.section))}</em>`:""}${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button>${a.virtual?`<button class="gear" data-addsec="${esc(a.brand)}" title="Add a section to ${esc(a.brand)}" aria-label="Add a section to ${esc(a.brand)}">+</button>`:gear(a)}</div>`;};
-  const order=a=>{const i=ASECTIONS.findIndex(s=>s[0]===a.section);return i<0?99:i;};
-  $("alert-list").innerHTML=brands.map(bn=>{const v=brandAlert(bn);return `<div class="alert-group">${row(v,false).replace('<span>'+esc(v.name),'<span><b>'+esc(bn)+'</b>')}${v.children.slice().sort((x,y)=>order(x)-order(y)||x.name.localeCompare(y.name)).map(a=>row(a,true)).join("")}</div>`;}).join("")
+  const row=(a,sub)=>{const n=inP.filter(m=>matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}${sub?" sub":""}"><button class="alert-link" data-id="${esc(a.id)}" aria-current="${on}"><span>${sub&&secLabel(a.section)?`<em class="sec-tag">${esc(secLabel(a.section))}</em>`:""}${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button>${a.virtual?`<button class="gear" data-addsec="${esc(a.brand)}" title="Add a section to ${esc(a.brand)}" aria-label="Add a section to ${esc(a.brand)}">+</button>`:gear(a)}</div>`;};
+  const order=a=>secLabel(a.section)?0:1;
+  $("alert-list").innerHTML=brands.map(bn=>{const v=brandAlert(bn);return `<div class="alert-group">${row(v,false).replace('<span>'+esc(v.name),'<span><b>'+esc(bn)+'</b>')}${v.children.slice().sort((x,y)=>order(x)-order(y)||secLabel(x.section).localeCompare(secLabel(y.section))||x.name.localeCompare(y.name)).map(a=>row(a,true)).join("")}</div>`;}).join("")
     +(loose.length?(brands.length?`<div class="alert-sep">Other alerts</div>`:"")+loose.map(a=>row(a,false)).join(""):"");
   $("src-toggles").innerHTML=PLATFORMS.map(pl=>`<button class="src-toggle" data-src="${pl}" aria-pressed="${!S.srcOff.includes(pl)}" title="${pl}"><span class="src s-${pl.replace("/","\\/")}" style="background:${PCOLOR[pl]}">${ABBR[pl]}</span></button>`).join("");
   $("range").value=String(S.range);
@@ -1834,7 +1834,7 @@ function slExtraHTML(b,M,s){
         <div class="sl-dash" style="grid-template-columns:1fr 1fr;margin:0"><div class="sl-kc" style="--a:#${SLC.gr}"><i>Mentions</i><b>${fmtInt(n)}</b><span>${mrChg(L.prev.length?(n-L.prev.length)/L.prev.length:null)[1]} vs previous ${M.P.word}</span></div><div class="sl-kc" style="--a:#${SLC.bl}"><i>Reach</i><b>${compact(L.reach)}</b><span>${mrChg(L.preach?(L.reach-L.preach)/L.preach:null)[1]} vs previous ${M.P.word}</span></div></div></div></div>
       <div class="sl-note">Source: Sentimeter listening alert "${esc(L.al.name)}". Net sentiment = % positive − % negative.</div></section>`;}
   if(s.type==="secs"){const L=s.L;return `<section class="sl">${slHead("04 / Digital monitoring","Mentions by section")}<div class="sl-body"><table class="sl-tb" style="margin-top:0"><thead><tr><th>Section</th><th>Alert</th><th>Mentions</th><th>Change</th><th>Reach</th><th>Positive</th><th>Negative</th><th>Net</th></tr></thead><tbody>
-    ${L.secs.map(x=>`<tr><td>${esc(secLabel(x.a.section))}</td><td style="text-align:left">${esc(x.a.name)}</td><td><b>${fmtInt(x.n)}</b></td><td>${mrChg(x.pn?(x.n-x.pn)/x.pn:null)[1]}</td><td>${compact(x.reach)}</td><td style="color:#16a34a">${x.n?(x.s.p*100).toFixed(1)+"%":"–"}</td><td style="color:#dc2626">${x.n?(x.s.n*100).toFixed(1)+"%":"–"}</td><td>${x.n?(x.s.net>0?"+":"")+x.s.net:"–"}</td></tr>`).join("")}</tbody></table></div>
+    ${L.secs.map(x=>`<tr><td>${esc(secLabel(x.a.section)||"–")}</td><td style="text-align:left">${esc(x.a.name)}</td><td><b>${fmtInt(x.n)}</b></td><td>${mrChg(x.pn?(x.n-x.pn)/x.pn:null)[1]}</td><td>${compact(x.reach)}</td><td style="color:#16a34a">${x.n?(x.s.p*100).toFixed(1)+"%":"–"}</td><td style="color:#dc2626">${x.n?(x.s.n*100).toFixed(1)+"%":"–"}</td><td>${x.n?(x.s.net>0?"+":"")+x.s.net:"–"}</td></tr>`).join("")}</tbody></table></div>
     <div class="sl-note">A mention can match more than one section. Change is against the previous ${M.P.word}. Source: Sentimeter listening alerts for ${esc(b.name)}.</div></section>`;}
   if(s.type==="kw")return `<section class="sl">${slHead("04 / Digital monitoring","Sentiment Analysis - Tracked keywords",s.pages>1?`${s.page} / ${s.pages}`:"")}<div class="sl-body"><table class="sl-tb" style="margin-top:0;font-size:.95cqw;border-spacing:0"><tbody>
     ${Array.from({length:Math.ceil(s.items.length/4)},(_,r)=>`<tr>${[0,1,2,3].map(c=>{const it=s.items[r*4+c];return `<td style="text-align:left;border:1px solid #cfd6cf;padding:.55cqw .8cqw;background:#fff">${it?`${esc(it[0])}<span style="float:right;color:var(--mut)">${it[1]}</span>`:""}</td>`;}).join("")}</tr>`).join("")}</tbody></table></div>
@@ -1889,7 +1889,7 @@ async function mrPPTExtra(pptx,s,sd,M,head,chip,imgs){
     note(`Source: Sentimeter listening alert "${L.al.name}". Net sentiment = % positive − % negative.`);return true;}
   if(sd.type==="secs"){const L=sd.L;head(s,"04 / Digital monitoring","Mentions by section");
     const hd=["Section","Alert","Mentions","Change","Reach","Positive","Negative","Net"].map(x=>({text:x.toUpperCase(),options:{bold:true,color:"FFFFFF",fill:{color:"141414"},fontSize:7.5,align:"center"}}));
-    const rows=L.secs.map((x,i)=>[secLabel(x.a.section),x.a.name,fmtInt(x.n),mrChg(x.pn?(x.n-x.pn)/x.pn:null)[1],compact(x.reach),x.n?(x.s.p*100).toFixed(1)+"%":"–",x.n?(x.s.n*100).toFixed(1)+"%":"–",x.n?(x.s.net>0?"+":"")+x.s.net:"–"]
+    const rows=L.secs.map((x,i)=>[secLabel(x.a.section)||"–",x.a.name,fmtInt(x.n),mrChg(x.pn?(x.n-x.pn)/x.pn:null)[1],compact(x.reach),x.n?(x.s.p*100).toFixed(1)+"%":"–",x.n?(x.s.n*100).toFixed(1)+"%":"–",x.n?(x.s.net>0?"+":"")+x.s.net:"–"]
       .map((v,k)=>({text:String(v),options:{fontSize:8.5,align:k===1?"left":"center",fill:{color:i%2?"FFFFFF":"EEF5EA"},color:k===5?"16A34A":k===6?"DC2626":C.ink}})));
     s.addTable([hd,...rows],{x:.43,y:1.12,w:9.14,colW:[1.3,2.24,.9,.9,.9,.95,.95,1.0],rowH:.38,fontFace:F,border:{type:"solid",pt:2,color:"FFFFFF"}});
     note(`A mention can match more than one section. Change is against the previous ${M.P.word}. Source: Sentimeter listening alerts for ${b.name}.`);return true;}
@@ -2543,7 +2543,8 @@ function renderLiveStatus(){const el=$("live-status");if(!el)return;if(!LIVE){el
 function renderSettings(){if(String(S.active).startsWith("brand:")){const v=activeAlert();if(v.children)S.active=v.children[0].id;}renderLiveStatus();$("data-where").textContent=SHARED?"Imported files are uploaded to the server and shared with everyone who opens this site.":"Data stays in this browser.";$("clear-data").textContent=SHARED?"Remove imported file":"Clear data";
   draft=JSON.parse(JSON.stringify(activeAlert()));delArm=false;$("del-alert").textContent="Delete alert";
   $("set-name-h").textContent=draft.name;$("set-name").value=draft.name;
-  $("set-brand").value=draft.brand||"";$("set-section").innerHTML=ASECTIONS.map(([k,l])=>`<option value="${k}" ${(draft.section||"other")===k?"selected":""}>${l}</option>`).join("");
+  $("set-brand").value=draft.brand||"";$("set-section").value=secLabel(draft.section);
+  $("set-section-list").innerHTML=[...new Set(S.alerts.map(a=>secLabel(a.section)).filter(Boolean))].sort((x,y)=>x.localeCompare(y)).map(n=>`<option value="${esc(n)}"></option>`).join("");
   const fillBrands=()=>{$("set-brand-list").innerHTML=[...new Set([...alertBrands(),...((SMA.brands||[]).map(b=>b.name))])].map(n=>`<option value="${esc(n)}"></option>`).join("");};fillBrands();
   if(AUTH_MODE==="server"&&!SMA.brands)smaApi("/brands").then(j=>{SMA.brands=j.brands;fillBrands();}).catch(()=>{});
   chipBox($("set-kw"),draft.keywords,"Add keyword");
@@ -2554,7 +2555,7 @@ function renderSettings(){if(String(S.active).startsWith("brand:")){const v=acti
   $("set-src").innerHTML=PLATFORMS.map(p=>`<label><input type="checkbox" value="${p}" ${draft.sources.includes(p)?"checked":""}> <span class="src" style="background:${PCOLOR[p]}">${ABBR[p]}</span> ${p}</label>`).join("");
   preview();
 }
-function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.brand=$("set-brand").value.trim();draft.section=$("set-section").value;draft.unknown=$("set-unknown").checked;draft.tracked=$("set-tracked").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
+function readDraft(){draft.name=$("set-name").value.trim()||"Untitled alert";draft.brand=$("set-brand").value.trim();draft.section=$("set-section").value.replace(/\s+/g," ").trim().slice(0,60);draft.unknown=$("set-unknown").checked;draft.tracked=$("set-tracked").checked;draft.langs=[...$("set-lang").querySelectorAll("input:checked")].map(i=>i.value);draft.sources=[...$("set-src").querySelectorAll("input:checked")].map(i=>i.value);}
 function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&matches(m,draft)).length;const ex=draft.excluded.length?MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end&&draft.keywords.some(k=>kwRe(k).test(m.text))&&draft.excluded.some(k=>kwRe(k).test(m.text))).length:0;
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
@@ -2618,7 +2619,7 @@ $("clear-data").onclick=async()=>{if(SHARED){try{await fetch("api/import",{metho
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
-$("alert-list").onclick=e=>{const ad=e.target.closest("[data-addsec]");if(ad){const id="a"+Date.now();S.alerts.push({id,name:"New section",brand:ad.dataset.addsec,section:"keywords",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice(),srcV3:true,tracked:true});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);return;}
+$("alert-list").onclick=e=>{const ad=e.target.closest("[data-addsec]");if(ad){const id="a"+Date.now();S.alerts.push({id,name:"New alert",brand:ad.dataset.addsec,section:"",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice(),srcV3:true,tracked:true});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);return;}
   const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
 $("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};

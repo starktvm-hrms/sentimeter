@@ -196,7 +196,7 @@ Every brand's **Report deck** tab makes weekly (Monday–Sunday), monthly and qu
 
 ### Brand sections in Mentions
 
-In an alert's settings, set **Brand** (for example "Karnataka Tourism") and **Section**: Domestic region, International, Specific keywords, Themes, Competitors or Other. Alerts with the same brand are grouped under it in the sidebar, with an "all sections" view on top and a **+** button to add a section. In the brand's Settings > Report, choose "All <brand> sections" as the listening alert to get a **Mentions by section** slide (mentions, change, reach, positive/negative share and net sentiment per section). The fetcher collects every alert's keywords, so new sections are collected automatically.
+In an alert's settings, set **Brand** (for example "Karnataka Tourism") and **Section**, a name you choose (for example Domestic, International, Themes); names already used are suggested so alerts group together. Alerts with the same brand are grouped under it in the sidebar, with an "all sections" view on top and a **+** button to add a section. In the brand's Settings > Report, choose "All <brand> sections" as the listening alert to get a **Mentions by section** slide (mentions, change, reach, positive/negative share and net sentiment per section). The fetcher collects every alert's keywords, so new sections are collected automatically.
 
 ### Apify integration (shared by all brands)
 

@@ -265,7 +265,7 @@ def clean_alert(a):
             "locations": lst(a.get("locations"), 50), "unknown": bool(a.get("unknown", True)), "sources": lst(a.get("sources"), 20),
             "tracked": a.get("tracked") is not False, "srcV3": True,
             "brand": " ".join(short(a.get("brand") or "", 80).split()),
-            "section": a.get("section") if a.get("section") in ("domestic", "international", "keywords", "themes", "competitors", "other") else ""}
+            "section": " ".join(short(a.get("section") or "", 60).split())}
 
 
 def clean_meta(m):
