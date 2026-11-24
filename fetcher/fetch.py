@@ -293,7 +293,7 @@ def src_apify(cfg, kws):
                 out.append({"id": mid("x", str(t.get("id") or t.get("url") or text)), "date": iso(parse_date(t.get("createdAt")) or NOW),
                             "platform": "X", "author": a.get("name") or a.get("userName", ""), "handle": a.get("userName", ""),
                             "location": a.get("location", ""), "text": text, "url": t.get("url") or t.get("twitterUrl", ""),
-                            "lang": t.get("lang", ""), "reach": int(a.get("followers") or 0)})
+                            "lang": t.get("lang", ""), "reach": int(t.get("viewCount") or 0), "reach_basis": "views"})
         except Exception as e:
             log("apify x failed:", e)
     ig = cfg.get("instagram")
@@ -471,7 +471,7 @@ MAPPERS = {
                                    g(i, "caption"), g(i, "url"), num(g(i, "likesCount", default=0), g(i, "commentsCount", default=0)), g(i, "locationName")),
     "instagram_hashtags": lambda i: MAPPERS["instagram"](i),
     "x": lambda i: mention("X", g(i, "id", "url"), g(i, "createdAt"), g(i, "author.name", "author.userName"), g(i, "author.userName"),
-                           g(i, "fullText", "text"), g(i, "url", "twitterUrl"), num(g(i, "author.followers", default=0)), g(i, "author.location")),
+                           g(i, "fullText", "text"), g(i, "url", "twitterUrl"), num(g(i, "viewCount", "views", default=0)), g(i, "author.location")),
     "x_search": lambda i: MAPPERS["x"](i),
     "linkedin": lambda i: mention("LinkedIn", g(i, "id", "linkedinUrl", "url"), g(i, "postedAt.date", "postedAt.timestamp", "postedAt", "date"),
                                   g(i, "author.name", "authorName"), g(i, "author.publicIdentifier", "author.universalName", "author.linkedinUrl"),
@@ -686,6 +686,8 @@ def src_social(cfg, kws, force=False):
                     continue
                 if not m["text"]:
                     continue
+                if p in ("x", "x_search"):
+                    m["reach_basis"] = "views"
                 if p in KEYWORD_JOBS:
                     m["tracked"] = False
                 elif owner:
@@ -817,6 +819,10 @@ def main():
                     byid[mid_] = {**cur, **{f: v for f, v in m.items() if v not in (None, "")}}
                     if was_tracked:
                         byid[mid_]["tracked"] = True
+                elif cur.get("platform") == "X" and m.get("reach_basis") == "views" and cur.get("reach_basis") != "views":
+                    cur["reach"], cur["reach_basis"] = int(m.get("reach") or 0), "views"
+                    if m.get("tracked"):
+                        cur["tracked"] = True
                 else:
                     cur["reach"] = max(int(cur.get("reach") or 0), int(m.get("reach") or 0))
                     if m.get("tracked"):
@@ -828,6 +834,9 @@ def main():
         status[name] = {"last_run": iso(NOW), "ok": bool(got), "count": len(got), "new": new, "duplicates": dup}
         log(f"{name}: {len(got)} fetched, {new} new, {dup} already tracked" + (f", {old_n} older than 24h skipped" if old_n else "") + (f", {no_kw} without a keyword dropped" if no_kw else "") + f", {time.time()-t0:.0f}s")
 
+    for m in byid.values():
+        if m.get("platform") == "X" and m.get("reach_basis") != "views":
+            m["reach"], m["reach_basis"] = 0, "views"  # was the author's follower count; X reach is now post views
     cutoff = iso(NOW - timedelta(days=cfg.get("keep_days", 45)))
     ms = sorted((m for m in byid.values() if m.get("date", "") >= cutoff and has_kw(m) and not any(r.search(m.get("text") or "") for r in excl)), key=lambda m: m["date"], reverse=True)[: cfg.get("max_mentions", 6000)]
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
