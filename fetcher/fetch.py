@@ -349,13 +349,12 @@ def token_for(job):
 
 
 KEYWORD_JOBS = ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]
-DEFAULT_SEARCH_TERMS = ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"]
 DEFAULT_SETTINGS = {
     "accounts": {p: [] for p in PLATFORMS},
     "actors": dict(DEFAULT_ACTORS),
     "keyword_search": {k: False for k in ["x_search", "instagram_hashtags", "facebook_search", "linkedin_search", "tiktok_hashtags", "snapchat_hashtags"]},
     "include_mentions": True,
-    "search_terms": ["#keralatourism", "Kerala tourism", "Munnar", "Varkala", "Kovalam", "Kumarakom", "Wayanad", "Kerala backwaters"],
+    "search_terms": [],
     "monthly_limit": 5000,
     "news": {"google_news": True, "bing_news": True},
     "run_after": "09:00",
@@ -734,15 +733,20 @@ def main():
         return
     cfg = json.load(open(a.config))
     kws, excl_words = list(cfg["keywords"]), list(cfg.get("excluded", []))
-    try:  # follow the alerts people edit on the site, plus the Sources search terms
+    alert_kws = list(kws)
+    try:  # follow the keywords of the alerts people edit on the site
         shared = json.load(open(os.environ.get("SENTIMETER_SHARED", "/var/lib/sentimeter/shared.json")))
         alerts = shared.get("alerts") or []
         if alerts:
-            kws = sorted({k for al in alerts for k in al.get("keywords", [])} | set(load_settings().get("search_terms") or []), key=str.lower)
+            alert_kws = sorted({k for al in alerts for k in al.get("keywords", [])}, key=str.lower)
+            kws = list(alert_kws)  # news, YouTube and keyword searches use only alert keywords
             excl_words = sorted({k for al in alerts for k in al.get("excluded", [])})
     except Exception:
         pass
     excl = [kw_regex(k) for k in excl_words]
+    # keep only posts that contain an alert keyword or hashtag: nothing is stored without one
+    need = [kw_regex(k) for k in alert_kws if k.strip()]
+    has_kw = lambda m: any(r.search((m.get("title") or "") + " " + (m.get("text") or "")) for r in need)
     news_on = load_settings().get("news", {})
     for name in ("google_news", "bing_news"):
         if name in news_on:
@@ -792,10 +796,13 @@ def main():
         if got is None:
             status[name] = {"last_run": status.get(name, {}).get("last_run"), "ok": False, "count": 0, "note": "needs an API key"}
             continue
-        new = dup = old_n = 0
+        new = dup = old_n = no_kw = 0
         news_cut = iso(NOW - timedelta(hours=24))
         for m in got:
             if not m.get("text") or any(r.search(m["text"]) for r in excl):
+                continue
+            if not has_kw(m):
+                no_kw += 1
                 continue
             if name in ("google_news", "bing_news") and m["date"] < news_cut:
                 old_n += 1
@@ -819,10 +826,10 @@ def main():
             byid[m["id"]] = m
             new += 1
         status[name] = {"last_run": iso(NOW), "ok": bool(got), "count": len(got), "new": new, "duplicates": dup}
-        log(f"{name}: {len(got)} fetched, {new} new, {dup} already tracked" + (f", {old_n} older than 24h skipped" if old_n else "") + f", {time.time()-t0:.0f}s")
+        log(f"{name}: {len(got)} fetched, {new} new, {dup} already tracked" + (f", {old_n} older than 24h skipped" if old_n else "") + (f", {no_kw} without a keyword dropped" if no_kw else "") + f", {time.time()-t0:.0f}s")
 
     cutoff = iso(NOW - timedelta(days=cfg.get("keep_days", 45)))
-    ms = sorted((m for m in byid.values() if m.get("date", "") >= cutoff), key=lambda m: m["date"], reverse=True)[: cfg.get("max_mentions", 6000)]
+    ms = sorted((m for m in byid.values() if m.get("date", "") >= cutoff and has_kw(m) and not any(r.search(m.get("text") or "") for r in excl)), key=lambda m: m["date"], reverse=True)[: cfg.get("max_mentions", 6000)]
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     tmp = a.out + ".tmp"
     with open(tmp, "w") as f:

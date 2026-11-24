@@ -198,6 +198,10 @@ Every brand's **Report deck** tab makes weekly (Monday–Sunday), monthly and qu
 
 In an alert's settings, set **Brand** (for example "Karnataka Tourism") and **Section**, a name you choose (for example Domestic, International, Themes); names already used are suggested so alerts group together. Alerts with the same brand are grouped under it in the sidebar, with an "all sections" view on top and a **+** button to add a section. In the brand's Settings > Report, choose "All <brand> sections" as the listening alert to get a **Mentions by section** slide (mentions, change, reach, positive/negative share and net sentiment per section). The fetcher collects every alert's keywords, so new sections are collected automatically.
 
+### Keywords only
+
+Nothing is collected or shown without a keyword. The collector searches news, YouTube and the public-post searches with your alerts' keywords and hashtags, and stores a post only if its title or text contains one of them (older stored posts without one are removed on the next run). Posts from tracked profiles on the Sources page follow the same rule, and an alert shows a mention only when it contains one of that alert's keywords.
+
 ### Sources per brand
 
 The Sources page has a **Sources for** picker: "Shared (all alerts)" or a brand (brands come from alert settings and Social Media Analytics). Each brand can have its own tracked profiles and search terms. Posts from a brand's profiles are tagged with that brand and appear only in alerts with that brand; posts from shared profiles appear in every alert that includes brand profiles, as before. Actors, news sources, Apify tokens, the run time and the monthly limit stay shared, and every brand's accounts are collected in the same daily run within the one monthly budget.

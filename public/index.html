@@ -688,12 +688,12 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 
       <div class="card" id="src-accounts" hidden><div class="card-head"><h2>Brand profiles and public posts</h2><span class="hint">new posts since the previous run, collected daily at <span id="run-after">09:00</span> India time</span></div><div class="card-body">
         <div class="toolbar" style="margin-bottom:4px"><label class="f" for="src-brand" style="margin:0">Sources for</label><select class="select" id="src-brand" style="min-width:240px"></select><span class="hint" id="src-brand-hint"></span></div>
-        <div class="eyebrow">Brand profiles: posts published by these accounts</div>
+        <div class="eyebrow">Brand profiles: posts published by these accounts (kept only when they contain an alert keyword or hashtag)</div>
         <div class="form" id="acct-form"></div>
         <div class="eyebrow" style="margin-top:6px">Public posts: anyone's posts that match the search terms (also counts toward the limit)</div>
         <div class="form">
           <label class="f">Search terms</label>
-          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox" id="kw-terms"></div><span class="hint">Up to 10 terms, shared by every public-post search below. Hashtag searches use them without spaces. Fewer terms means more posts per term.</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div class="chipbox" id="kw-terms"></div><span class="hint">Up to 10 terms, shared by every public-post search below. Results are kept only when they contain a keyword or hashtag from one of your alerts, so use terms your alerts also track. Hashtag searches use them without spaces. Fewer terms means more posts per term.</span></div>
           <label class="f">Brand mentions</label>
           <label style="display:inline-flex;gap:8px;align-items:center;padding-top:8px"><input type="checkbox" id="kw-mentions" style="accent-color:var(--accent)"> Also collect public posts that mention the brand profiles above (for example @KeralaTourism on X)</label>
         </div>
@@ -772,8 +772,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
             <label style="display:inline-flex;gap:8px;align-items:center"><input type="checkbox" id="set-unknown" style="accent-color:var(--accent)"> Include results with unknown location</label></div>
           <label class="f">Sources</label>
           <div class="checks" id="set-src"></div>
-          <label class="f">Brand profiles</label>
-          <label style="display:inline-flex;gap:8px;align-items:center;padding-top:8px"><input type="checkbox" id="set-tracked" style="accent-color:var(--accent)"> Include every post from the brand profiles on the Sources page, even without a keyword. Public posts appear when they match this alert's keywords.</label>
+          <input type="checkbox" id="set-tracked" hidden>
         </div>
         <div class="form-actions">
           <button class="btn danger" id="del-alert">Delete alert</button>
@@ -1169,11 +1168,12 @@ const reCache=new Map();
 function kwRe(k){if(reCache.has(k))return reCache.get(k);const e=k.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");const r=new RegExp("(?<![\\p{L}\\p{N}_])"+e+"(?![\\p{L}\\p{N}_])","iu");reCache.set(k,r);return r;}
 function matches(m,al){
   if(al.children)return al.children.some(c=>matches(m,c));
-  const own=m.tracked&&al.tracked!==false&&(!m.brands||!m.brands.length||m.brands.some(b=>b.toLowerCase()===String(al.brand||"").trim().toLowerCase()));
-  if(!own&&(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text))))return false;
+  // a mention belongs to an alert only when it contains one of the alert's keywords or hashtags
+  if(!al.keywords.length||!al.keywords.some(k=>kwRe(k).test(m.text)||(m.title&&kwRe(k).test(m.title))))return false;
+  if(m.tracked&&m.brands&&m.brands.length&&!m.brands.some(b=>b.toLowerCase()===String(al.brand||"").trim().toLowerCase()))return false;
   if(al.excluded.some(k=>kwRe(k).test(m.text)))return false;
   if(al.langs.length&&!al.langs.includes(m.lang))return false;
-  if(al.locations.length&&!own){if(!m.location){if(!al.unknown)return false;}else if(!al.locations.some(l=>m.location.toLowerCase().includes(l.toLowerCase())))return false;}
+  if(al.locations.length&&!m.tracked){if(!m.location){if(!al.unknown)return false;}else if(!al.locations.some(l=>m.location.toLowerCase().includes(l.toLowerCase())))return false;}
   if(!al.sources.includes(m.platform))return false;
   return true;
 }
