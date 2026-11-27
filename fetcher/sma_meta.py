@@ -21,7 +21,8 @@ GRAPH = os.environ.get("SENTIMETER_FB_GRAPH_BASE", "https://graph.facebook.com")
 REDIRECT_PATH = "/api/sma/meta/callback"
 DEFAULT_VERSION = "v23.0"
 DEFAULT_SCOPES = ("pages_show_list pages_read_engagement read_insights business_management "
-                  "instagram_basic instagram_manage_insights")
+                  "instagram_basic instagram_manage_insights pages_manage_posts instagram_content_publish")
+OLD_DEFAULT_SCOPES = ("pages_show_list pages_read_engagement read_insights business_management instagram_basic instagram_manage_insights",)
 STATES = {}
 
 
@@ -60,6 +61,11 @@ def public(b):
     m["syncing"] = key(b["id"]) in sma.SYNCING
     m["redirect_uri"] = redirect_uri()
     m.setdefault("scopes", DEFAULT_SCOPES)
+    if " ".join(m["scopes"].split()) in OLD_DEFAULT_SCOPES:
+        m["scopes"] = DEFAULT_SCOPES
+    granted = set(str(m.get("granted_scopes") or "").replace(",", " ").split())
+    m["can_post_fb"] = m["page_connected"] and "pages_manage_posts" in granted
+    m["can_post_ig"] = m["page_connected"] and bool(m.get("ig_id")) and "instagram_content_publish" in granted
     m.setdefault("version", "")
     m["default_version"] = DEFAULT_VERSION
     return m
@@ -99,7 +105,7 @@ def update(bid, body):
         v = " ".join(str(m["scopes"]).replace(",", " ").split())
         if v and not re.fullmatch(r"[a-z_ ]{3,500}", v):
             errors.append("Permissions: lowercase names separated by spaces.")
-        changes["scopes"] = v or DEFAULT_SCOPES
+        changes["scopes"] = (DEFAULT_SCOPES if " ".join(v.split()) in OLD_DEFAULT_SCOPES else v) or DEFAULT_SCOPES
     if "version" in m:
         v = str(m["version"]).strip()
         if v and not re.fullmatch(r"v\d{2}\.\d", v):
@@ -150,7 +156,7 @@ def start(bid, email):
         STATES.pop(k, None)
     STATES[state] = {"brand": bid, "email": email, "exp": now + 600}
     q = urllib.parse.urlencode({"client_id": m["app_id"], "redirect_uri": redirect_uri(), "state": state, "response_type": "code",
-                                "scope": ",".join((m.get("scopes") or DEFAULT_SCOPES).split())})
+                                "scope": ",".join((DEFAULT_SCOPES if " ".join((m.get("scopes") or "").split()) in OLD_DEFAULT_SCOPES else (m.get("scopes") or DEFAULT_SCOPES)).split())})
     return f"{DIALOG}/{version(b)}/dialog/oauth?{q}"
 
 
@@ -513,3 +519,78 @@ def daily_due(today):
                 and m.get("last_attempt_date") != today and key(b["id"]) not in sma.SYNCING:
             sma.update_brand_record(b["id"], lambda r: r["meta"].update({"last_attempt_date": today}))
             sync_async(b["id"])
+
+
+# ---------------- publishing (Page posts and Instagram) ----------------
+
+def graph_post(bid, path, data):
+    b = sma.get_brand(bid)
+    tok = sma.secret(bid, "fb_page_token")
+    if not tok:
+        raise RuntimeError("The Facebook Page is not connected for this brand.")
+    form = dict(data, access_token=tok, appsecret_proof=_proof(bid, tok))
+    req = urllib.request.Request(f"{GRAPH}/{version(b)}/{path.lstrip('/')}", data=urllib.parse.urlencode(form).encode(), method="POST",
+                                 headers={"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:500]
+        try:
+            err = json.loads(body).get("error") or {}
+            body = err.get("error_user_msg") or err.get("message") or body
+        except Exception:
+            pass
+        low = body.lower()
+        if "permission" in low or "(#200)" in low or "(#10)" in low:
+            body += " Reconnect Facebook & Instagram in Brand settings and allow posting (pages_manage_posts / instagram_content_publish)."
+        raise RuntimeError(friendly(body))
+
+
+def fb_publish(bid, text, image_urls):
+    page = cfg(sma.get_brand(bid)).get("page_id")
+    if not page:
+        raise RuntimeError("Choose the brand's Facebook Page in Brand settings first.")
+    if not image_urls:
+        j = graph_post(bid, f"{page}/feed", {"message": text})
+        pid = j.get("id", "")
+    elif len(image_urls) == 1:
+        j = graph_post(bid, f"{page}/photos", {"url": image_urls[0], "caption": text})
+        pid = j.get("post_id") or j.get("id", "")
+    else:
+        ids = [graph_post(bid, f"{page}/photos", {"url": u, "published": "false"}).get("id") for u in image_urls[:10]]
+        data = {"message": text}
+        for i, fid in enumerate(ids):
+            data[f"attached_media[{i}]"] = json.dumps({"media_fbid": fid})
+        pid = graph_post(bid, f"{page}/feed", data).get("id", "")
+    return pid, (f"https://www.facebook.com/{pid}" if pid else "")
+
+
+def ig_publish(bid, text, image_urls):
+    ig = cfg(sma.get_brand(bid)).get("ig_id")
+    if not ig:
+        raise RuntimeError("No Instagram professional account is linked to the brand's Facebook Page.")
+    if not image_urls:
+        raise RuntimeError("Instagram posts need at least one image.")
+    if len(image_urls) == 1:
+        cid = graph_post(bid, f"{ig}/media", {"image_url": image_urls[0], "caption": text}).get("id")
+    else:
+        kids = [graph_post(bid, f"{ig}/media", {"image_url": u, "is_carousel_item": "true"}).get("id") for u in image_urls[:10]]
+        cid = graph_post(bid, f"{ig}/media", {"media_type": "CAROUSEL", "children": ",".join(kids), "caption": text}).get("id")
+    if not cid:
+        raise RuntimeError("Instagram did not accept the image.")
+    for _ in range(20):  # Instagram processes the upload before it can be published
+        st = graph(bid, cid, {"fields": "status_code"}).get("status_code")
+        if st in (None, "FINISHED"):
+            break
+        if st in ("ERROR", "EXPIRED"):
+            raise RuntimeError("Instagram could not process the image. Use a JPG between 4:5 and 1.91:1.")
+        time.sleep(3)
+    mid = graph_post(bid, f"{ig}/media_publish", {"creation_id": cid}).get("id", "")
+    url = ""
+    try:
+        url = graph(bid, mid, {"fields": "permalink"}).get("permalink", "") if mid else ""
+    except Exception:
+        pass
+    return mid, url
+

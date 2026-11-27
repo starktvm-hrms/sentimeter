@@ -739,6 +739,28 @@ def save_media(bid, data_url):
     return mid
 
 
+def _media_key():
+    p = sma._p("media_key")
+    try:
+        return open(p).read().strip()
+    except FileNotFoundError:
+        import secrets as _s
+        k = _s.token_hex(32)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+            f.write(k)
+        return k
+
+
+def media_sig(bid, mid):
+    import hashlib, hmac as _h
+    return _h.new(_media_key().encode(), f"{bid}/{mid}".encode(), hashlib.sha256).hexdigest()[:40]
+
+
+def public_media_url(bid, mid):
+    return f"{sma.PUBLIC_URL}/api/public/media/{bid}/{mid}/{media_sig(bid, mid)}.jpg"
+
+
 def media_bytes(bid, mid):
     if not re.fullmatch(r"m[0-9a-f]{12}", mid or ""):
         return None, None
@@ -749,7 +771,7 @@ def media_bytes(bid, mid):
     return raw, next((v for k, v in sma.LOGO_MAGIC.items() if raw.startswith(k)), "application/octet-stream")
 
 
-PUBLISHERS = {"linkedin"}   # platforms that can post today; the others follow as their permissions are granted
+PUBLISHERS = {"linkedin", "facebook", "instagram"}   # platforms that can post today; the others follow as their permissions are granted
 PUBLISH_LOCK = threading.Lock()
 
 
@@ -757,6 +779,10 @@ def can_publish(b, platform):
     if platform == "linkedin":
         li = sma.public_brand(b, False)["linkedin"]
         return bool(li.get("can_post"))
+    if platform in ("facebook", "instagram"):
+        import sma_meta
+        m = sma_meta.public(b)
+        return bool(m.get("can_post_fb" if platform == "facebook" else "can_post_ig"))
     return False
 
 
@@ -770,8 +796,14 @@ def _publish_one(bid, p):
             if k == "linkedin" and can_publish(b, k):
                 urn, url = sma.li_publish(bid, p.get("text") or "", images)
                 results[k] = {"ok": True, "id": urn, "url": url, "at": sma.iso()}
+            elif k in ("facebook", "instagram") and can_publish(b, k):
+                import sma_meta
+                urls = [public_media_url(bid, m) for m in p.get("media") or [] if media_bytes(bid, m)[0]]
+                pid, url = (sma_meta.fb_publish if k == "facebook" else sma_meta.ig_publish)(bid, p.get("text") or "", urls)
+                results[k] = {"ok": True, "id": pid, "url": url, "at": sma.iso()}
             elif k in PUBLISHERS:
-                results[k] = {"ok": False, "error": "LinkedIn is not connected with posting permission for this brand. Reconnect LinkedIn in Brand settings.", "at": sma.iso()}
+                who = {"linkedin": "LinkedIn", "facebook": "Facebook", "instagram": "Instagram"}[k]
+                results[k] = {"ok": False, "error": f"{who} is not connected with posting permission for this brand. Reconnect it in Brand settings.", "at": sma.iso()}
             else:
                 results[k] = {"ok": False, "pending": True, "error": f"Posting to {k.title() if k != 'x' else 'X'} isn't connected yet.", "at": sma.iso()}
         except Exception as e:
