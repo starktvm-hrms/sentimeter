@@ -19,7 +19,8 @@ LI_AUTH = os.environ.get("SENTIMETER_LI_AUTH_BASE", "https://www.linkedin.com/oa
 LI_API = os.environ.get("SENTIMETER_LI_API_BASE", "https://api.linkedin.com/rest")
 PUBLIC_URL = os.environ.get("SENTIMETER_PUBLIC_URL", "https://sentimeter.starkpeople.in").rstrip("/")
 REDIRECT_PATH = "/api/sma/linkedin/callback"
-DEFAULT_SCOPES = "r_organization_social rw_organization_admin"
+DEFAULT_SCOPES = "r_organization_social rw_organization_admin w_organization_social"
+OLD_DEFAULT_SCOPES = ("r_organization_social rw_organization_admin",)  # upgraded automatically so posting works
 LOCK = threading.Lock()
 STATES = {}          # OAuth state -> {brand, email, exp}
 SYNCING = set()      # brand ids with a sync running
@@ -213,6 +214,9 @@ def public_brand(b, with_counts=True):
     li["syncing"] = b["id"] in SYNCING
     li["redirect_uri"] = redirect_uri()
     li.setdefault("scopes", DEFAULT_SCOPES)
+    if li["scopes"] in OLD_DEFAULT_SCOPES:
+        li["scopes"] = DEFAULT_SCOPES
+    li["can_post"] = "w_organization_social" in str(li.get("granted_scopes") or "").replace(",", " ").split() and bool(li.get("org_urn")) and li["connected"]
     li.setdefault("version", "")
     li["default_version"] = default_version()
     out = {"id": b["id"], "name": b["name"], "created": b.get("created"), "logo": b.get("logo"), "linkedin": li}
@@ -250,7 +254,7 @@ def update_brand(bid, body):
         v = " ".join(str(li["scopes"]).replace(",", " ").split())
         if v and not re.fullmatch(r"[a-z_ ]{3,300}", v):
             errors.append("Scopes: lowercase scope names separated by spaces.")
-        changes["scopes"] = v or DEFAULT_SCOPES
+        changes["scopes"] = (DEFAULT_SCOPES if v in OLD_DEFAULT_SCOPES else v) or DEFAULT_SCOPES
     if "version" in li:
         v = str(li["version"]).strip()
         if v and not re.fullmatch(r"20\d{4}", v):
@@ -297,7 +301,7 @@ def li_start(bid, email):
         STATES.pop(k, None)
     STATES[state] = {"brand": bid, "email": email, "exp": now + 600}
     q = urllib.parse.urlencode({"response_type": "code", "client_id": li["client_id"], "redirect_uri": redirect_uri(),
-                                "state": state, "scope": li.get("scopes") or DEFAULT_SCOPES})
+                                "state": state, "scope": (DEFAULT_SCOPES if li.get("scopes") in OLD_DEFAULT_SCOPES else li.get("scopes")) or DEFAULT_SCOPES})
     return f"{LI_AUTH}/authorization?{q}"
 
 
@@ -428,6 +432,75 @@ def li_get(bid, path_and_query):
         if e.code == 426 or "version" in body.lower():
             raise RuntimeError(f"LinkedIn API version problem ({body}). Set a newer version (YYYYMM) in Settings.")
         raise RuntimeError(f"LinkedIn API error {e.code}: {body}")
+
+
+def li_call(bid, method, path, body=None, raw=None, ctype=None, url=None):
+    """LinkedIn write call. Returns (status, response headers, parsed body)."""
+    b = get_brand(bid)
+    li = b.get("linkedin") or {}
+    tok = secret(bid, "li_access_token")
+    if not tok:
+        raise RuntimeError("LinkedIn is not connected for this brand.")
+    h = {"Authorization": f"Bearer {tok}", "LinkedIn-Version": li.get("version") or default_version(), "X-Restli-Protocol-Version": "2.0.0"}
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode()
+        h["Content-Type"] = "application/json"
+    elif raw is not None:
+        data = raw
+        h["Content-Type"] = ctype or "application/octet-stream"
+    req = urllib.request.Request(url or f"{LI_API}/{path}", data=data, method=method, headers=h)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            txt = r.read()
+            return r.status, dict(r.headers), (json.loads(txt) if txt and txt[:1] in b"{[" else {})
+    except urllib.error.HTTPError as e:
+        msg = e.read().decode(errors="replace")[:400]
+        try:
+            msg = json.loads(msg).get("message") or msg
+        except Exception:
+            pass
+        if e.code == 401:
+            raise RuntimeError("LinkedIn says the connection is no longer valid. Reconnect LinkedIn in Brand settings.")
+        if e.code == 403:
+            raise RuntimeError(f"LinkedIn denied posting ({msg}). Reconnect LinkedIn so it grants w_organization_social, as a page Super or Content admin.")
+        raise RuntimeError(f"LinkedIn error {e.code}: {msg}")
+
+
+def li_commentary(text):
+    """LinkedIn 'little text': escape reserved characters and turn #words into hashtags."""
+    out = []
+    for part in re.split(r"(#[\w\u0080-\uffff]+)", text or ""):
+        if re.fullmatch(r"#[\w\u0080-\uffff]+", part):
+            out.append("{hashtag|\\#|" + part[1:] + "}")
+        else:
+            out.append(re.sub(r"([\\|{}@\[\]()<>#*_~])", r"\\\1", part))
+    return "".join(out)
+
+
+def li_publish(bid, text, images):
+    """Post as the brand's company page. images: list of bytes. Returns (post urn, url)."""
+    li_refresh_if_needed(bid)
+    org = (get_brand(bid).get("linkedin") or {}).get("org_urn")
+    if not org:
+        raise RuntimeError("Choose the brand's LinkedIn company page in Brand settings first.")
+    ids = []
+    for raw in images[:9]:
+        _, _, j = li_call(bid, "POST", "images?action=initializeUpload", body={"initializeUploadRequest": {"owner": org}})
+        v = j.get("value") or {}
+        if not v.get("uploadUrl") or not v.get("image"):
+            raise RuntimeError("LinkedIn did not return an image upload address.")
+        li_call(bid, "PUT", "", raw=raw, ctype="application/octet-stream", url=v["uploadUrl"])
+        ids.append(v["image"])
+    post = {"author": org, "commentary": li_commentary(text), "visibility": "PUBLIC", "lifecycleState": "PUBLISHED", "isReshareDisabledByAuthor": False,
+            "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []}}
+    if len(ids) == 1:
+        post["content"] = {"media": {"id": ids[0]}}
+    elif ids:
+        post["content"] = {"multiImage": {"images": [{"id": i} for i in ids]}}
+    _, hdr, j = li_call(bid, "POST", "posts", body=post)
+    urn = {k.lower(): v for k, v in hdr.items()}.get("x-restli-id") or j.get("id") or ""
+    return urn, (f"https://www.linkedin.com/feed/update/{urn}/" if urn else "")
 
 
 def enc(urn):

@@ -283,6 +283,10 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .bt-ic{font-size:22px}
 .pub-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pub-actions .btn{height:46px;padding:0 22px;font-size:15px}
+.res-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.res{display:inline-flex;align-items:center;gap:5px;font-size:12px;border-radius:999px;padding:2px 9px 2px 3px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res svg{width:16px;height:16px;flex:none}.res.ok{background:#e7f8ee;color:#15803d}.res.bad{background:#fdecec;color:#b91c1c}.res.wait{background:var(--sunk);color:var(--muted)}
+.pchip{position:relative}.pchip .live-dot{position:absolute;left:28px;top:4px;width:9px;height:9px;border-radius:50%;background:#22c55e;border:2px solid var(--surface)}
 .pub-note{font-size:13px;color:var(--muted);padding:10px 14px;border:1px dashed var(--line);border-radius:12px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line)}
 .cal-dh{padding:8px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line)}
@@ -3135,6 +3139,7 @@ const PICON={facebook:'<svg viewBox="0 0 24 24" width="22" height="22"><circle c
   x:'<svg viewBox="0 0 24 24" width="22" height="22"><rect width="24" height="24" rx="6" fill="#000"/><path d="M6.5 6h3.2l2.8 3.9L15.8 6h1.6l-4.2 4.9L18 18h-3.2l-3-4.2L8.2 18H6.6l4.5-5.2z" fill="#fff"/></svg>',
   linkedin:'<svg viewBox="0 0 24 24" width="22" height="22"><rect width="24" height="24" rx="5" fill="#0a66c2"/><path d="M7.3 9.8h2.2V17H7.3zM8.4 6.3a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM11 9.8h2.1v1c.3-.6 1.1-1.2 2.2-1.2 2.3 0 2.7 1.5 2.7 3.5V17h-2.2v-3.4c0-.8 0-1.9-1.2-1.9s-1.3.9-1.3 1.8V17H11z" fill="#fff"/></svg>'};
 const PNAME={facebook:"Facebook",instagram:"Instagram",youtube:"YouTube",x:"X",linkedin:"LinkedIn"};
+const canPost=(b,k)=>k==="linkedin"&&!!b.linkedin.can_post;
 const PLIMIT={facebook:63206,instagram:2200,youtube:5000,x:280,linkedin:3000};
 const firstName=()=>{const e=(AUTH&&(AUTH.name||AUTH.email))||"";const n=String(e).split("@")[0].split(/[._\-\s]+/)[0]||"";return n?n.charAt(0).toUpperCase()+n.slice(1):"";};
 const initials=()=>{const e=(AUTH&&(AUTH.name||AUTH.email))||"";const p=String(e).split("@")[0].split(/[._\-\s]+/).filter(Boolean);return ((p[0]||"?")[0]+(p[1]?p[1][0]:"")).toUpperCase();};
@@ -3226,7 +3231,10 @@ async function renderOverview(){const root=$("ov-root");
 }
 const PICON_SEND='<svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3L8.5 11.5"/><path d="M17 3l-5 14-3.5-5.5L3 8z"/></svg>';
 function postThumb(b,p){const mid=(p.media||[])[0];return mid?`<img src="api/sma/brands/${b.id}/media/${mid}" alt="">`:`<span class="pt-ph">${esc((p.text||"·").trim().slice(0,1)||"·")}</span>`;}
-function whenLabel(p){if(p.status==="scheduled"&&p.when){const d=new Date(p.when);return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+", "+d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}return p.status==="queued"?"In queue":"Edited "+relAgo(p.updated);}
+function whenLabel(p){if(["published","partial"].includes(p.status)&&p.published_at)return "Posted "+relAgo(p.published_at);if(["scheduled","publishing","failed"].includes(p.status)&&p.when){const d=new Date(p.when);return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+", "+d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}return p.status==="queued"?"In queue":"Edited "+relAgo(p.updated);}
+function resultsHTML(p){const st={publishing:`<span class="hint" style="font-size:12.5px">Publishing…</span>`,failed:`<span class="neg-c" style="font-size:12.5px">Not posted${p.note?": "+esc(p.note):""}</span>`}[p.status]||"";
+  const r=Object.entries(p.results||{}).map(([k,x])=>x.ok?`<a class="res ok" href="${esc(x.url||"#")}" target="_blank" rel="noopener noreferrer">${PICON[k]}Posted ↗</a>`:`<span class="res ${x.pending?"wait":"bad"}" title="${esc(x.error||"")}">${PICON[k]}${x.pending?"Waiting for permission":"Failed: "+esc((x.error||"").slice(0,90))}</span>`).join("");
+  return st+(r?`<div class="res-row">${r}</div>`:"");}
 function postRowHTML(b,p){return `<div class="prow"><div class="pthumb">${postThumb(b,p)}${p.platforms[0]?`<span class="pbadge">${PICON[p.platforms[0]]}</span>`:""}</div><div class="pinfo"><b>${esc((p.title||p.text||"Untitled post").split("\n")[0].slice(0,60))}</b><span class="hint">📅 ${esc(whenLabel(p))}${p.platforms.length>1?` · ${p.platforms.length} platforms`:""}</span></div><button class="icon-round sm" type="button" data-edit-post="${p.id}" title="Open" aria-label="Open post">⋯</button></div>`;}
 /* ---- Publish & Schedule ---- */
 function draftFrom(p){return {id:p.id,platforms:[...p.platforms],text:p.text||"",title:p.title||"",media:[...(p.media||[])],mode:p.status==="queued"?"queue":"schedule",date:p.when?localDay(new Date(p.when)):"",time:p.when?new Date(p.when).toTimeString().slice(0,5):"10:00",tz:p.tz||"Asia/Kolkata"};}
@@ -3251,20 +3259,21 @@ async function renderPublish(){const root=$("pub-root");
   if(!b){root.innerHTML=pageHeader("Publish &amp; Schedule","Add a brand first.")+`<a class="btn primary" href="#sma">Add a brand</a>`;return;}
   if(!PUB.posts[b.id]){root.innerHTML=pageHeader("Publish &amp; Schedule",`Loading ${esc(b.name)}…`);await ensureBrandData(b);if(current()!=="publish")return;}
   if(!PUB.draft||PUB.draft.brand!==b.id){PUB.draft=Object.assign(newDraft(b),{brand:b.id});}
-  const D=PUB.draft,posts=PUB.posts[b.id]||[],cnt=s=>posts.filter(p=>p.status===s).length;const conn=brandPlatforms(b);
+  const D=PUB.draft,posts=PUB.posts[b.id]||[],cnt=s=>posts.filter(p=>(s==="scheduled"?["scheduled","publishing","failed"]:s==="published"?["published","partial"]:[s]).includes(p.status)).length;const conn=brandPlatforms(b);
   if(!D.platforms.includes(PUB.preview))PUB.preview=D.platforms[0]||"facebook";
   const lim=Math.min(...(D.platforms.length?D.platforms:["instagram"]).map(k=>PLIMIT[k]));const len=[...D.text].length;const bt=bestTime(b);
   const tabs=[["create","Create Post",'<path d="M5 2.5h7l3.5 3.5v11H5z"/><path d="M8 10h5M8 13h5"/>'],["scheduled",`Scheduled (${cnt("scheduled")})`,'<rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/>'],["published",`Published (${cnt("published")})`,'<circle cx="10" cy="10" r="7"/><path d="M7 10l2 2 4-4"/>'],["drafts",`Drafts (${cnt("draft")})`,'<path d="M5 2.5h7l3.5 3.5v11H5z"/>'],["queue",`Queue (${cnt("queued")})`,'<path d="M10 3l7 3.5-7 3.5-7-3.5z"/><path d="M3 10l7 3.5 7-3.5M3 13.5L10 17l7-3.5"/>']];
   const tabsHTML=`<div class="pub-tabs" role="tablist">${tabs.map(([k,l,ic])=>`<button role="tab" type="button" data-ptab="${k}" aria-selected="${PUB.tab===k}"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ic}</svg>${l}</button>`).join("")}</div>`;
   const head=pageHeader(`<span class="ph-ic">${PICON_SEND}</span>Publish &amp; Schedule`,"Create, schedule and publish content across your social media channels.",`<label class="ov-bsel">${brandLogo(b)}<select id="pub-brand" aria-label="Brand">${SMA.brands.map(x=>`<option value="${x.id}" ${x.id===b.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>`);
-  const note=`<div class="pub-note">Publishing to the platforms is being set up: posts are saved and scheduled here, and will go out automatically once each platform grants posting permission. <a href="#sma-${b.id}-settings">Accounts</a></div>`;
-  if(PUB.tab!=="create"){const st={scheduled:"scheduled",published:"published",drafts:"draft",queue:"queued"}[PUB.tab];const list=posts.filter(p=>p.status===st).sort((x,y)=>(st==="scheduled"?(x.when<y.when?-1:1):(x.updated<y.updated?1:-1)));
-    root.innerHTML=head+tabsHTML+`<div class="card"><div class="card-body">${list.length?list.map(p=>`<div class="prow big">${`<div class="pthumb">${postThumb(b,p)}</div>`}<div class="pinfo"><b>${esc((p.title||p.text||"Untitled post").split("\n")[0].slice(0,90))}</b><span class="hint">${esc(whenLabel(p))} · ${p.platforms.map(k=>PNAME[k]).join(", ")||"no platform"} · by ${esc(p.updated_by||p.created_by||"")}</span>${st==="scheduled"&&p.when&&p.when<new Date().toISOString()?`<span class="neg-c" style="font-size:12.5px">Due time passed: publishing isn't connected yet, so this was not posted.</span>`:""}</div><div class="toolbar"><button class="btn" type="button" data-open-post="${p.id}">Edit</button><button class="btn danger" type="button" data-del-post="${p.id}">Delete</button></div></div>`).join("")
+  const ready=["facebook","instagram","youtube","x","linkedin"].filter(k=>canPost(b,k));
+  const note=`<div class="pub-note">${ready.length?`<b>Posting live for ${ready.map(k=>PNAME[k]).join(", ")}.</b> `:""}${b.linkedin.connected&&!b.linkedin.can_post?`LinkedIn: reconnect in <a href="#sma-${b.id}-settings">Brand settings</a> to grant posting permission. `:""}Other platforms are saved and scheduled here and will post once they grant permission (Meta App Review for Facebook and Instagram).</div>`;
+  if(PUB.tab!=="create"){const st={scheduled:"scheduled",published:"published",drafts:"draft",queue:"queued"}[PUB.tab];const grp={scheduled:["scheduled","publishing","failed"],published:["published","partial"],draft:["draft"],queued:["queued"]}[st];const list=posts.filter(p=>grp.includes(p.status)).sort((x,y)=>(st==="scheduled"?(x.when<y.when?-1:1):(x.updated<y.updated?1:-1)));
+    root.innerHTML=head+tabsHTML+`<div class="card"><div class="card-body">${list.length?list.map(p=>`<div class="prow big">${`<div class="pthumb">${postThumb(b,p)}</div>`}<div class="pinfo"><b>${esc((p.title||p.text||"Untitled post").split("\n")[0].slice(0,90))}</b><span class="hint">${esc(whenLabel(p))} · ${p.platforms.map(k=>PNAME[k]).join(", ")||"no platform"} · by ${esc(p.updated_by||p.created_by||"")}</span>${resultsHTML(p)}</div><div class="toolbar">${["published","partial","publishing"].includes(p.status)?"":`<button class="btn" type="button" data-open-post="${p.id}">Edit</button>`}<button class="btn danger" type="button" data-del-post="${p.id}">Delete</button></div></div>`).join("")
       :`<p class="empty">Nothing here yet. <a href="#publish" data-ptab-go="create">Create a post</a></p>`}</div></div>`+note;
     bindPublish(b);return;}
   root.innerHTML=head+tabsHTML+`<div class="pub-grid">
     <div class="card"><div class="card-head"><h2>${D.id?"Edit Post":"Create Post"}</h2>${D.id?`<button class="btn" type="button" id="pub-new">New post</button>`:""}</div><div class="card-body pub-form">
-      <div><div class="f-l">Post to</div><div class="chips-in">${D.platforms.map(k=>`<span class="pchip">${PICON[k]}<button type="button" data-rm-plat="${k}" aria-label="Remove ${PNAME[k]}">×</button></span>`).join("")}
+      <div><div class="f-l">Post to</div><div class="chips-in">${D.platforms.map(k=>`<span class="pchip${canPost(b,k)?" live":""}" title="${PNAME[k]}: ${canPost(b,k)?"posts for real":"saved, waits for posting permission"}">${PICON[k]}${canPost(b,k)?`<i class="live-dot"></i>`:""}<button type="button" data-rm-plat="${k}" aria-label="Remove ${PNAME[k]}">×</button></span>`).join("")}
         <select id="pub-add-plat" aria-label="Add platform"><option value="">${D.platforms.length?"Add":"Choose platforms"}</option>${["facebook","instagram","youtube","x","linkedin"].filter(k=>!D.platforms.includes(k)).map(k=>`<option value="${k}">${PNAME[k]}${conn.includes(k)?"":" (not connected)"}</option>`).join("")}</select></div></div>
       ${D.platforms.includes("youtube")?`<div><div class="f-l">YouTube title</div><input type="text" id="pub-title" maxlength="100" value="${esc(D.title)}" placeholder="Video title"></div>`:""}
       <textarea id="pub-text" rows="7" placeholder="Write your caption… #hashtags">${esc(D.text)}</textarea>
@@ -3279,14 +3288,14 @@ async function renderPublish(){const root=$("pub-root");
       ${PUB.video?`<div class="hint" style="font-size:12.5px">Videos are previewed here only; uploading video comes with the publishing setup.</div>`:""}
       <div class="pub-sched"><div class="f-l" style="font-size:16px">Schedule</div>
         <div class="radios">${[["now","Publish Now"],["schedule","Schedule"],["queue","Add to Queue"]].map(([k,l])=>`<label><input type="radio" name="pmode" value="${k}" ${D.mode===k?"checked":""}> ${l}</label>`).join("")}</div>
-        ${D.mode==="schedule"?`<div class="toolbar"><input type="date" id="pub-date" value="${D.date}" min="${localDay(new Date())}"><input type="time" id="pub-time" value="${D.time}"><select class="select" id="pub-tz"><option value="Asia/Kolkata">(GMT+05:30) Chennai, Kolkata, Mumbai</option></select></div>`:D.mode==="now"?`<div class="hint">Publishing now becomes available once the platforms grant posting permission.</div>`:`<div class="hint">Queued posts go out in the next free slot once publishing is connected.</div>`}</div>
+        ${D.mode==="schedule"?`<div class="toolbar"><input type="date" id="pub-date" value="${D.date}" min="${localDay(new Date())}"><input type="time" id="pub-time" value="${D.time}"><select class="select" id="pub-tz"><option value="Asia/Kolkata">(GMT+05:30) Chennai, Kolkata, Mumbai</option></select></div>`:D.mode==="now"?`<div class="hint">${D.platforms.some(k=>canPost(b,k))?`Posts immediately to ${D.platforms.filter(k=>canPost(b,k)).map(k=>PNAME[k]).join(", ")}.`:"None of the selected platforms can post yet."}${D.platforms.some(k=>!canPost(b,k))?` ${D.platforms.filter(k=>!canPost(b,k)).map(k=>PNAME[k]).join(", ")} will show as waiting for permission.`:""}</div>`:`<div class="hint">Queued posts go out in the next free slot once publishing is connected.</div>`}</div>
     </div></div>
     <div class="pub-side"><div class="card"><div class="card-head"><h2>Post Preview</h2><div class="dev-tog"><button type="button" data-dev="desktop" aria-pressed="${PUB.device==="desktop"}" title="Desktop">🖥</button><button type="button" data-dev="mobile" aria-pressed="${PUB.device==="mobile"}" title="Mobile">📱</button></div></div>
       <div class="pv-tabs">${(D.platforms.length?D.platforms:["facebook"]).map(k=>`<button type="button" data-pv="${k}" aria-selected="${PUB.preview===k}">${PICON[k]}${PNAME[k]}</button>`).join("")}</div>
       <div class="card-body"><div class="pv-wrap ${PUB.device}">${previewHTML(b,D)}</div></div></div>
       <div class="card best"><div class="card-body"><div class="bt-row"><span class="bt-ic">📅</span><div><b>Best Time to Publish</b><div>${bt?`${bt.label}`:"Not enough post history yet"}</div><div class="hint" style="font-size:12px">${bt?`Highest average engagement across ${bt.n} past posts`:"Shown once the brand has some synced posts"}</div></div>${bt?`<span class="spill pos">↗ High Engagement</span>`:""}</div></div></div>
       <div class="card"><div class="card-body pub-actions"><span id="pub-msg" class="hint"></span><span class="spacer" style="flex:1"></span><button class="btn" type="button" id="pub-draft">Save as Draft</button>
-        <button class="btn primary" type="button" id="pub-go" ${D.mode==="now"?"disabled title='Available once publishing is connected'":""}>${D.mode==="queue"?"Add to Queue":D.mode==="now"?"Publish Now":"📅 Schedule Post"}</button></div></div></div>
+        <button class="btn primary" type="button" id="pub-go" ${D.mode==="now"&&!D.platforms.some(k=>canPost(b,k))?"disabled title='None of the selected platforms can post yet'":""}>${D.mode==="queue"?"Add to Queue":D.mode==="now"?"Publish Now":"📅 Schedule Post"}</button></div></div></div>
   </div>`+note;
   bindPublish(b);}
 async function pubImage(b,file){const url=URL.createObjectURL(file);try{const img=new Image();await new Promise((ok,bad)=>{img.onload=ok;img.onerror=()=>bad(new Error("Could not read that image."));img.src=url;});
@@ -3322,7 +3331,13 @@ function bindPublish(b){const D=PUB.draft;const rr=()=>renderPublish();bindHeade
       await loadPosts(b,true);PUB.draft=Object.assign(newDraft(b),{brand:b.id});PUB.video=null;PUB.tab=status==="draft"?"drafts":status==="queued"?"queue":"scheduled";rr();}
     catch(e){msg.textContent=e.message;msg.className="neg-c";}};
   $("pub-draft").onclick=()=>saveAs("draft");
-  $("pub-go").onclick=()=>saveAs(D.mode==="queue"?"queued":"scheduled");}
+  $("pub-go").onclick=()=>D.mode==="now"?publishNow():saveAs(D.mode==="queue"?"queued":"scheduled");
+  const publishNow=async()=>{keep();const msg=$("pub-msg");if(!D.text.trim()&&!D.media.length){msg.textContent="Write a caption or add an image first.";msg.className="neg-c";return;}
+    $("pub-go").disabled=true;msg.textContent="Publishing…";msg.className="hint";
+    try{await smaApi(`/brands/${b.id}/posts`,{method:"POST",body:JSON.stringify({id:D.id,platforms:D.platforms,text:D.text,title:D.title,media:D.media,status:"now",tz:D.tz})});
+      for(let i=0;i<20;i++){await new Promise(r=>setTimeout(r,1500));await loadPosts(b,true);const last=(PUB.posts[b.id]||[]).slice().sort((x,y)=>x.updated<y.updated?1:-1)[0];if(last&&last.status!=="scheduled"&&last.status!=="publishing")break;}
+      PUB.draft=Object.assign(newDraft(b),{brand:b.id});PUB.tab="published";rr();}
+    catch(e){msg.textContent=e.message;msg.className="neg-c";$("pub-go").disabled=false;}};}
 /* ---- Content calendar ---- */
 async function renderCalendar(){const root=$("cal-root");
   if(AUTH_MODE!=="server"){root.innerHTML=pageHeader("Content Calendar","This section needs the Sentimeter server and a login.");return;}
@@ -3332,7 +3347,7 @@ async function renderCalendar(){const root=$("cal-root");
   if(!PUB.calM){const d=new Date();PUB.calM=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
   const [Y,M]=PUB.calM.split("-").map(Number);const first=new Date(Y,M-1,1),start=new Date(first);start.setDate(1-((first.getDay()+6)%7));
   const posts=PUB.posts[b.id]||[];const md=SMA.meta[b.id]||{};const pub=[...(md.fb_posts||[]).map(p=>["facebook",p]),...(md.ig_media||[]).map(p=>["instagram",p])];
-  const byDay={};posts.forEach(p=>{const d=p.status==="scheduled"&&p.when?localDay(new Date(p.when)):p.status==="published"&&p.when?localDay(new Date(p.when)):null;if(d)(byDay[d]=byDay[d]||[]).push({k:p.platforms[0],t:(p.title||p.text||"Untitled").split("\n")[0],st:p.status,id:p.id});});
+  const byDay={};posts.forEach(p=>{const d=p.status==="scheduled"&&p.when?localDay(new Date(p.when)):["published","partial"].includes(p.status)&&(p.published_at||p.when)?localDay(new Date(p.published_at||p.when)):null;if(d)(byDay[d]=byDay[d]||[]).push({k:p.platforms[0],t:(p.title||p.text||"Untitled").split("\n")[0],st:p.status,id:p.id});});
   pub.forEach(([k,p])=>{const d=localDay(new Date(p.published));(byDay[d]=byDay[d]||[]).push({k,t:(p.text||"").split("\n")[0]||"Post",st:"live",url:p.url});});
   const cells=[];for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);cells.push(d);}const today=localDay(new Date());
   const mName=first.toLocaleDateString("en-IN",{month:"long",year:"numeric"});

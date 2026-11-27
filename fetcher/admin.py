@@ -871,6 +871,10 @@ def scheduler():
                                      env={**os.environ, **read_env()})
         except Exception as e:
             sys.stderr.write(f"scheduler error: {e}\n")
+        try:
+            sma_extra.publish_due()
+        except Exception as e:
+            sys.stderr.write(f"publisher: {e}\n")
         time.sleep(30)
 
 

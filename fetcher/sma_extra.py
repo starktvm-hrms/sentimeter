@@ -688,8 +688,13 @@ def save_post(bid, body, user):
     plats = [p for p in body.get("platforms") or [] if p in POST_PLATFORMS]
     text = str(body.get("text") or "")[:63000]
     status = body.get("status") or "draft"
+    now_req = status == "now"
+    if now_req:
+        status, body = "scheduled", {**body, "when": sma.iso()}
     if status not in ("draft", "scheduled", "queued"):
         raise ValueError("A post can be saved as a draft, scheduled or queued.")
+    if cur and cur.get("status") in ("publishing", "published", "partial"):
+        raise ValueError("This post has already been sent; create a new post instead.")
     when = str(body.get("when") or "")
     if status == "scheduled":
         if not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d)?(Z|[+-]\d\d:\d\d)", when):
@@ -703,10 +708,13 @@ def save_post(bid, body, user):
     rec = cur or {"id": "p" + _s.token_hex(5), "created": now, "created_by": user}
     rec.update({"platforms": plats, "text": text, "title": str(body.get("title") or "")[:100], "media": media, "status": status,
                 "when": when if status == "scheduled" else "", "tz": str(body.get("tz") or "Asia/Kolkata")[:40], "updated": now, "updated_by": user})
+    rec.pop("results", None) if not cur or cur.get("status") in ("draft", "scheduled", "queued") else None
     if not cur:
         lst.append(rec)
     d["posts"] = lst[-2000:]
     save(bid, "posts.json", d)
+    if now_req:
+        threading.Thread(target=publish_due, daemon=True).start()
     return rec
 
 
@@ -739,3 +747,77 @@ def media_bytes(bid, mid):
     except FileNotFoundError:
         return None, None
     return raw, next((v for k, v in sma.LOGO_MAGIC.items() if raw.startswith(k)), "application/octet-stream")
+
+
+PUBLISHERS = {"linkedin"}   # platforms that can post today; the others follow as their permissions are granted
+PUBLISH_LOCK = threading.Lock()
+
+
+def can_publish(b, platform):
+    if platform == "linkedin":
+        li = sma.public_brand(b, False)["linkedin"]
+        return bool(li.get("can_post"))
+    return False
+
+
+def _publish_one(bid, p):
+    results = {}
+    images = [media_bytes(bid, m)[0] for m in p.get("media") or []]
+    images = [i for i in images if i]
+    b = sma.get_brand(bid)
+    for k in p.get("platforms") or []:
+        try:
+            if k == "linkedin" and can_publish(b, k):
+                urn, url = sma.li_publish(bid, p.get("text") or "", images)
+                results[k] = {"ok": True, "id": urn, "url": url, "at": sma.iso()}
+            elif k in PUBLISHERS:
+                results[k] = {"ok": False, "error": "LinkedIn is not connected with posting permission for this brand. Reconnect LinkedIn in Brand settings.", "at": sma.iso()}
+            else:
+                results[k] = {"ok": False, "pending": True, "error": f"Posting to {k.title() if k != 'x' else 'X'} isn't connected yet.", "at": sma.iso()}
+        except Exception as e:
+            results[k] = {"ok": False, "error": str(e)[:300], "at": sma.iso()}
+            sma.log(f"publish {bid} {p['id']} {k}: {e}")
+    return results
+
+
+def publish_due():
+    """Send scheduled posts whose time has come. A post is marked 'publishing' before any call, so it is never sent twice."""
+    if not PUBLISH_LOCK.acquire(blocking=False):
+        return
+    try:
+        now = sma.iso()
+        for b in sma.brands():
+            bid = b["id"]
+            d = load(bid, "posts.json")
+            due = [p for p in d.get("posts") or [] if p.get("status") == "scheduled" and p.get("when") and _utc(p["when"]) <= now]
+            stale = [p for p in d.get("posts") or [] if p.get("status") == "publishing" and (p.get("publishing_at") or "") < sma.iso(time.time() - 900)]
+            if not due and not stale:
+                continue
+            for p in stale:  # interrupted mid-way: don't risk a duplicate post
+                p["status"], p["note"] = "failed", "Publishing was interrupted; check the platforms before trying again."
+            for p in due:
+                p["status"], p["publishing_at"] = "publishing", sma.iso()
+            save(bid, "posts.json", d)
+            for p in due:
+                res = _publish_one(bid, p)
+                d = load(bid, "posts.json")
+                cur = next((x for x in d.get("posts") or [] if x["id"] == p["id"]), None)
+                if not cur:
+                    continue
+                ok = [k for k, r in res.items() if r.get("ok")]
+                cur["results"] = res
+                cur["status"] = "published" if ok and len(ok) == len(res) else "partial" if ok else "failed"
+                cur["published_at"] = sma.iso() if ok else cur.get("published_at")
+                save(bid, "posts.json", d)
+    except Exception as e:
+        sma.log(f"publish_due: {e}")
+    finally:
+        PUBLISH_LOCK.release()
+
+
+def _utc(s):
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return s
+
