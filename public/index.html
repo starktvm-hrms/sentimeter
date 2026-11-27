@@ -56,6 +56,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .nav a,.alert-link{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--side-ink);text-decoration:none;font-weight:600;font-size:14px}
 .nav a:hover,.alert-link:hover{background:var(--side-hover)}
 .nav a[aria-current="page"]{background:var(--side-active);color:var(--side-strong)}
+.nav-sec{display:block;padding:14px 10px 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--side-muted);font-weight:600}
+.nav .nav-n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:10.5px;font-weight:700;background:var(--side-hover);color:var(--side-ink);margin-right:-4px;flex:none}
+.nav a[aria-current="page"] .nav-n{background:var(--accent);color:var(--on-accent)}
+.nav a.nav-sub{padding-left:40px;font-size:13px}
+.brand-switch{display:flex;flex-direction:column;gap:5px;padding:4px 2px 2px}
+.side-label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--side-muted);font-weight:600;padding-left:8px}
+.brand-switch .select{width:100%;font-weight:600}
 .nav a svg{flex:none;opacity:.85}
 .side-head{display:flex;justify-content:space-between;align-items:center;padding:16px 10px 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--side-muted);font-weight:600}
 .side-head button{background:none;border:1px solid var(--side-line);color:var(--side-ink);border-radius:6px;width:24px;height:24px;cursor:pointer;line-height:1}
@@ -150,6 +157,11 @@ h2{font-family:var(--f-display);font-size:14.5px;font-weight:600;margin:0;letter
 .tbl .btn{font-family:Inter,system-ui,sans-serif}
 .alert-row.sub .alert-link span:first-child{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
 .sec-tag{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.plat-head .src,.tbl .src,.brand-card .src{color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.listen-note{margin:0;padding:10px 24px;background:color-mix(in srgb,var(--c4) 14%,var(--surface));border-bottom:1px solid var(--line);font-size:13.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.listen-note .btn{font-size:12.5px;padding:5px 10px}
+.alert-empty{display:flex;flex-direction:column;gap:8px;padding:8px 10px;font-size:13px;color:var(--side-muted)}
+.alert-empty .btn{font-size:12.5px;padding:6px 10px}
 .alert-sep{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px 10px}
 [data-addsec]{font-size:17px;font-weight:600;line-height:1}
 svg[data-tip]{cursor:crosshair;touch-action:pan-y}
@@ -440,6 +452,8 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
   .brand{padding:0 8px 0 4px;font-size:18px}
   .nav{display:flex;gap:2px;overflow-x:auto;max-width:100%}
   .nav a{white-space:nowrap;padding:7px 10px}
+  .nav-sec{display:none}.nav a.nav-sub{padding-left:10px}
+  .brand-switch{flex-direction:row;align-items:center;width:100%;order:-1}.brand-switch .select{flex:1}
   .side-head,.alert-list,.side-foot{display:none}
 }
 @media (prefers-reduced-motion: reduce){.gauge .marker{transition:none}}
@@ -451,21 +465,29 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" style="fill:var(--accent)"/><path d="M5 15c2-5 4-5 5 0s3 5 4 0 3-6 4-1 2 3 3 1" fill="none" style="stroke:var(--on-accent)" stroke-width="2" stroke-linecap="round"/></svg>
       Sentimeter
     </div>
+    <div class="brand-switch"><label for="brand-switch" class="side-label">Brand</label><select class="select" id="brand-switch" aria-label="Brand"><option value="">Loading…</option></select></div>
     <nav class="nav" aria-label="Main">
-      <a href="#dashboard" data-view="dashboard"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="7" rx="1.5"/><rect x="10" y="2" width="6" height="4" rx="1.5"/><rect x="2" y="11" width="6" height="5" rx="1.5"/><rect x="10" y="8" width="6" height="8" rx="1.5"/></svg>Dashboard</a>
-      <a href="#mentions" data-view="mentions"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h12v8H8l-3 3v-3H3z" stroke-linejoin="round"/></svg>Mentions</a>
-      <a href="#reports" data-view="reports"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2" width="13" height="14" rx="2"/><path d="M6 12V9M9 12V6M12 12v-2" stroke-linecap="round"/></svg>Reports</a>
-      <a href="#sma" data-view="sma"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 15.5h13" stroke-linecap="round"/><rect x="3.5" y="9" width="2.6" height="4.5" rx=".8"/><rect x="7.7" y="5.5" width="2.6" height="8" rx=".8"/><rect x="11.9" y="2.5" width="2.6" height="11" rx=".8"/></svg>Social Media Analytics</a>
-      <a href="#competitors" data-view="competitors"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6.5" r="2.4"/><circle cx="12.5" cy="6.5" r="2.4"/><path d="M1.8 15c.6-2.4 2.2-3.8 4.2-3.8s3.6 1.4 4.2 3.8M9.6 12c.8-.6 1.8-.9 2.9-.9 2 0 3.6 1.4 4.2 3.8" stroke-linecap="round"/></svg>Competitors</a>
-      <a href="#sources" data-view="sources"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="5" r="2.2"/><circle cx="13" cy="5" r="2.2"/><circle cx="9" cy="13.5" r="2.2"/><path d="M6.5 6.7 8 11.5M11.5 6.7 10 11.5M7.2 5h3.6" stroke-linecap="round"/></svg>Sources</a>
-      <a href="#analyze" data-view="analyze"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 6-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 5h4v4" stroke-linecap="round"/></svg>Analyze text</a>
+      <span class="nav-sec">Workflow</span>
+      <a href="#publish" data-view="publish" data-key="publish"><span class="nav-n">1</span><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 2.5L8 10"/><path d="M15.5 2.5l-4.5 13-3-5.5-5.5-3z"/></svg>Publish</a>
+      <a href="#sma" data-view="sma" data-key="analytics" data-bhref="sma-{b}-platform"><span class="nav-n">2</span><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 15.5h13" stroke-linecap="round"/><rect x="3.5" y="9" width="2.6" height="4.5" rx=".8"/><rect x="7.7" y="5.5" width="2.6" height="8" rx=".8"/><rect x="11.9" y="2.5" width="2.6" height="11" rx=".8"/></svg>Social analytics</a>
+      <a href="#dashboard" data-view="dashboard" data-key="dashboard"><span class="nav-n">3</span><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="7" rx="1.5"/><rect x="10" y="2" width="6" height="4" rx="1.5"/><rect x="2" y="11" width="6" height="5" rx="1.5"/><rect x="10" y="8" width="6" height="8" rx="1.5"/></svg>Listening</a>
+      <a href="#mentions" data-view="mentions" data-key="mentions" class="nav-sub"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h12v8H8l-3 3v-3H3z" stroke-linejoin="round"/></svg>Mentions</a>
+      <a href="#reports" data-view="reports" data-key="reports" class="nav-sub"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2" width="13" height="14" rx="2"/><path d="M6 12V9M9 12V6M12 12v-2" stroke-linecap="round"/></svg>Sentiment report</a>
+      <a href="#competitors" data-view="competitors" data-key="competitors"><span class="nav-n">4</span><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6.5" r="2.4"/><circle cx="12.5" cy="6.5" r="2.4"/><path d="M1.8 15c.6-2.4 2.2-3.8 4.2-3.8s3.6 1.4 4.2 3.8M9.6 12c.8-.6 1.8-.9 2.9-.9 2 0 3.6 1.4 4.2 3.8" stroke-linecap="round"/></svg>Competitors</a>
+      <a href="#sma" data-view="sma" data-key="deck" data-bhref="sma-{b}-monthly"><span class="nav-n">5</span><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="14" height="9" rx="1.5"/><path d="M9 12v3M6 15.5h6" stroke-linecap="round"/></svg>Report deck</a>
+      <span class="nav-sec">Setup</span>
+      <a href="#sma" data-view="sma" data-key="brandset" data-bhref="sma-{b}-settings"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="2.5"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M3.9 14.1l1.4-1.4M12.7 5.3l1.4-1.4" stroke-linecap="round"/></svg>Brand settings</a>
+      <a href="#sma" data-view="sma" data-key="allbrands"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg>All brands</a>
+      <a href="#sources" data-view="sources" data-key="sources"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="5" r="2.2"/><circle cx="13" cy="5" r="2.2"/><circle cx="9" cy="13.5" r="2.2"/><path d="M6.5 6.7 8 11.5M11.5 6.7 10 11.5M7.2 5h3.6" stroke-linecap="round"/></svg>Sources &amp; keys</a>
+      <a href="#analyze" data-view="analyze" data-key="analyze"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12l4-4 3 3 6-6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 5h4v4" stroke-linecap="round"/></svg>Analyze text</a>
     </nav>
-    <div class="side-head"><span>Alerts</span><button id="new-alert" title="New alert" aria-label="New alert">+</button></div>
+    <div class="side-head"><span id="alerts-head">Listening alerts</span><button id="new-alert" title="New alert" aria-label="New alert">+</button></div>
     <div class="alert-list" id="alert-list"></div>
     <div class="side-foot"><div id="side-foot"></div><div class="user-chip" id="user-chip" hidden><span id="user-email" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0"></span><button type="button" id="logout">Log out</button></div></div>
   </aside>
 
   <main>
+    <div class="listen-note" id="listen-note" hidden></div>
     <div class="topbar">
       <select class="select" id="alert-select" aria-label="Alert"></select>
       <div class="srcs" id="src-toggles" aria-label="Sources"></div>
@@ -686,6 +708,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 
     <!-- SOCIAL MEDIA ANALYTICS -->
     <section class="content" id="v-sma" hidden><div id="sma-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
+    <section class="content" id="v-publish" hidden><div id="pub-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
     <section class="content" id="v-competitors" hidden><div id="cmp-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
 
     <!-- SOURCES -->
@@ -1284,7 +1307,7 @@ const signed=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
 /* ---------- Render: chrome ---------- */
 function renderChrome(){
   const al=activeAlert();
-  const brands=alertBrands(),loose=S.alerts.filter(a=>!(a.brand||"").trim());
+  const cb=curBrandName();const brands=alertBrands().filter(n=>!cb||n.toLowerCase()===cb.toLowerCase()),loose=S.alerts.filter(a=>!(a.brand||"").trim());
   $("alert-select").innerHTML=brands.map(bn=>`<optgroup label="${esc(bn)}"><option value="brand:${esc(bn)}" ${al.id==="brand:"+bn?"selected":""}>${esc(bn)}: all sections</option>${S.alerts.filter(a=>(a.brand||"").trim()===bn).map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(bn)}: ${esc(a.name)}</option>`).join("")}</optgroup>`).join("")
     +(loose.length?`<optgroup label="Other alerts">${loose.map(a=>`<option value="${a.id}" ${a.id===al.id?"selected":""}>${esc(a.name)}</option>`).join("")}</optgroup>`:"");
   const p=periods();const inP=MENTIONS.filter(m=>m.day>=p.start&&m.day<=p.end);
@@ -1292,7 +1315,8 @@ function renderChrome(){
   const row=(a,sub)=>{const n=inP.filter(m=>matches(m,a)).length;const on=a.id===al.id;return `<div class="alert-row${on?" on":""}${sub?" sub":""}"><button class="alert-link" data-id="${esc(a.id)}" aria-current="${on}"><span>${sub&&secLabel(a.section)?`<em class="sec-tag">${esc(secLabel(a.section))}</em>`:""}${esc(a.name)}</span><span class="count">${n>999?"999+":n}</span></button>${a.virtual?`<button class="gear" data-addsec="${esc(a.brand)}" title="Add a section to ${esc(a.brand)}" aria-label="Add a section to ${esc(a.brand)}">+</button>`:gear(a)}</div>`;};
   const order=a=>secLabel(a.section)?0:1;
   const coll=S.collapsed||{};
-  $("alert-list").innerHTML=brands.map(bn=>{const v=brandAlert(bn);const shut=!!coll[bn];
+  const emptyB=cb&&!brands.length?`<div class="alert-empty">No listening alerts for ${esc(cb)} yet.<button class="btn" type="button" data-addsec="${esc(cb)}">Add an alert for ${esc(cb)}</button></div>`:"";
+  $("alert-list").innerHTML=emptyB+brands.map(bn=>{const v=brandAlert(bn);const shut=!!coll[bn];
     const head=row(v,false).replace('<span>'+esc(v.name),'<span><b>'+esc(bn)+'</b>').replace('<button class="alert-link"',`<button class="grp-toggle" type="button" data-collapse="${esc(bn)}" aria-expanded="${!shut}" aria-label="${shut?"Expand":"Collapse"} ${esc(bn)}" title="${shut?"Show":"Hide"} sections"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5L7.5 6 4 9.5"/></svg></button><button class="alert-link"`);
     const kids=v.children.slice().sort((x,y)=>order(x)-order(y)||secLabel(x.section).localeCompare(secLabel(y.section))||x.name.localeCompare(y.name));
     return `<div class="alert-group${shut?" shut":""}">${head}${kids.filter(a=>!shut||a.id===al.id).map(a=>row(a,true)).join("")}</div>`;}).join("")
@@ -1578,7 +1602,7 @@ function copyOut(text,btn,label){const out=$("r-out");const fb=()=>{out.hidden=f
   try{navigator.clipboard.writeText(text).then(()=>{out.hidden=true;btn.textContent="Copied";setTimeout(()=>btn.textContent=label,1600);},fb);}catch(e){fb();}}
 
 /* ---------- Sources (server settings) ---------- */
-const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPoll=null,runArm=false,SRC_BRAND="";
+const ADM_KEY="sentimeter-admin-key";let admKey="",ADM=null,acctDraft=null,runPoll=null,runArm=false,SRC_BRAND="",SRC_AUTO=null;
 try{admKey=localStorage.getItem(ADM_KEY)||sessionStorage.getItem(ADM_KEY)||"";}catch(e){}
 const SOC=[["facebook","Facebook","Page URL or username, e.g. keralatourism"],["instagram","Instagram","Username, e.g. keralatourism"],["x","X","Handle, e.g. KeralaTourism"],["linkedin","LinkedIn","Company or profile URL"],["youtube","YouTube","Channel handle, e.g. @keralatourism"],["tiktok","TikTok","Username"],["snapchat","Snapchat","Username"]];
 const SOC_DEF={facebook:"apify~facebook-posts-scraper",instagram:"apify~instagram-post-scraper",x:"apidojo~tweet-scraper",linkedin:"harvestapi~linkedin-profile-posts",youtube:"youtube-data-api",tiktok:"clockworks~tiktok-scraper",snapchat:"parseforge~snapchat-scraper",x_search:"apidojo~tweet-scraper",instagram_hashtags:"apify~instagram-hashtag-scraper",facebook_search:"apify~facebook-search-scraper",linkedin_search:"harvestapi~linkedin-post-search",tiktok_hashtags:"clockworks~tiktok-scraper",snapchat_hashtags:"w3crawler~snapchat-hashtag-scraper"};
@@ -1618,6 +1642,7 @@ function renderSources(){
   if(!on){if(!$("adm-msg").textContent)admConnect(true);return;}
   const st=ADM.settings;const bsrc=st.brand_sources||{};
   const bnames=[...new Set([...alertBrands(),...Object.keys(bsrc),...((SMA.brands||[]).map(b=>b.name))])].sort((x,y)=>x.localeCompare(y));
+  if(SRC_AUTO!==CURB){SRC_AUTO=CURB;const cn=curBrandName();if(cn&&bnames.includes(cn)&&SRC_BRAND!==cn){SRC_BRAND=cn;acctDraft=null;}}
   if(SRC_BRAND&&!bnames.includes(SRC_BRAND))SRC_BRAND="";
   $("src-brand").innerHTML=`<option value="">Shared (all alerts)</option>`+bnames.map(n=>{const c=bsrc[n]?Object.values(bsrc[n].accounts||{}).reduce((a,l)=>a+l.length,0):0;return `<option value="${esc(n)}" ${n===SRC_BRAND?"selected":""}>${esc(n)}${c?` (${c} account${c>1?"s":""})`:""}</option>`;}).join("");
   $("src-brand-hint").textContent=SRC_BRAND?`Posts from these accounts appear only in alerts with the brand "${SRC_BRAND}". Actors, news, tokens and the monthly limit below are shared by all brands.`:"Posts from shared accounts appear in every alert that includes brand profiles. Pick a brand to give it its own accounts and search terms.";
@@ -1710,7 +1735,7 @@ async function renderCompetitors(){
   if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Competitor Analysis</h1><p class="sub">This section needs the Sentimeter server and a login.</p></div></div>`;return;}
   if(!SMA.brands){root.innerHTML=`<p class="hint">Loading brands…</p>`;try{SMA.brands=(await smaApi("/brands")).brands;}catch(e){root.innerHTML=`<p class="neg-c">${esc(e.message)}</p>`;return;}}
   if(!SMA.brands.length){root.innerHTML=`<div class="page-head"><div><h1>Competitor Analysis</h1><p class="sub">Add a brand in Social Media Analytics first, then list its competitors here.</p></div></div><a class="btn primary" href="#sma">Go to Social Media Analytics</a>`;return;}
-  if(!CMP.bid||!SMA.brands.find(b=>b.id===CMP.bid))CMP.bid=SMA.brands[0].id;
+  if(CURB&&SMA.brands.some(b=>b.id===CURB))CMP.bid=CURB;if(!CMP.bid||!SMA.brands.find(b=>b.id===CMP.bid))CMP.bid=SMA.brands[0].id;
   const b=SMA.brands.find(x=>x.id===CMP.bid);
   if(!SMA.extra[b.id]||SMA.extraFor[b.id]!==extraKey(b))await smaLoadExtra(b);
   const months=(((SMA.extra[b.id]||{}).competitors||{}).months)||{};const mks=Object.keys(months).sort().reverse();
@@ -1731,7 +1756,7 @@ async function renderCompetitors(){
   const hm=Object.keys(months).sort().slice(-12);
   root.innerHTML=`<div class="page-head"><div><h1>Competitor Analysis</h1><p class="sub">Monthly follower counts and growth on Facebook, Instagram, X, LinkedIn and YouTube, collected with Apify once a month.</p></div><span id="cmp-msg" class="hint" role="status"></span></div>
   <div class="toolbar">
-    <select class="select" id="cmp-brand" aria-label="Brand">${SMA.brands.map(x=>`<option value="${x.id}" ${x.id===b.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
+    <span class="pill neu" style="font-size:13px">${esc(b.name)}</span>
     <select class="select" id="cmp-month" aria-label="Month" ${mks.length?"":"disabled"}>${mks.length?mks.map(k=>`<option value="${k}" ${k===CMP.month?"selected":""}>${cmpMonthName(k)}</option>`).join(""):`<option>No data yet</option>`}</select>
     <span class="spacer" style="flex:1"></span>
     <button class="btn" type="button" id="cmp-edit">${CMP.edit?"Close editor":"Edit competitors & handles"}</button>
@@ -1808,7 +1833,7 @@ function cmpEditorHTML(b){
     </tbody></table></div>
     <div class="form-actions"><span class="hint">Up to 40 per group. Each handle costs one Apify lookup a month.</span><span class="spacer"></span><button class="btn primary" type="button" id="cmp-save">Save competitors</button></div></div></div>`;}
 function bindCompetitors(b,ctx){
-  $("cmp-brand").onchange=e=>{CMP.bid=e.target.value;CMP.month=null;CMP.draft=null;renderCompetitors();};
+
   if($("cmp-month"))$("cmp-month").onchange=e=>{CMP.month=e.target.value;renderCompetitors();};
   $("cmp-edit").onclick=()=>{CMP.edit=!CMP.edit;renderCompetitors();};
   if($("cmp-fix"))$("cmp-fix").onchange=e=>{CMP.fix=e.target.checked;renderCompetitors();};
@@ -1893,7 +1918,7 @@ function renderBrands(root){
 function brandHead(b,tab){
   const T=[["platform","Platform"],["report","Report"],["monthly","Report deck"],["source","Source"],["settings","Settings"]];
   return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
-  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):"",b.youtube.channel_id&&b.youtube.connected?"YouTube: "+esc(b.youtube.channel_title||""):""].filter(Boolean).join(" · ")||"No platform connected yet"}${smaBusy(b)?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
+  <div class="page-head"><div><h1>${esc(b.name)}</h1><p class="sub">${[b.linkedin.org_name?"LinkedIn: "+esc(b.linkedin.org_name):"",b.meta.page_connected?"Facebook: "+esc(b.meta.page_name||""):"",b.meta.page_connected&&b.meta.ig_username?"Instagram: @"+esc(b.meta.ig_username):"",b.youtube.channel_id&&b.youtube.connected?"YouTube: "+esc(b.youtube.channel_title||""):""].filter(Boolean).join(" · ")||(APK.some(k=>apOn(b,k))?"Public data via Apify: "+APK.filter(k=>apOn(b,k)).map(k=>MRP[k].n).join(", "):"No platform connected yet")}${smaBusy(b)?" · syncing…":""}</p></div><span id="sma-msg" class="hint" role="status"></span></div>
   <nav class="sma-tabs" aria-label="Brand sections">${T.map(([k,n])=>`<a href="#sma-${b.id}-${k}" aria-current="${k===tab?"page":"false"}">${n}</a>`).join("")}</nav>`;
 }
 function renderBrand(root,b,tab){
@@ -1902,28 +1927,32 @@ function renderBrand(root,b,tab){
   root.innerHTML=brandHead(b,tab)+body;
   bindBrand(b,tab);
 }
+const apOn=(b,k)=>!!((((b.extra||{}).config||{}).apify||{})[k]);
+function apCard(b,k){const e=b.extra||{},on=((e.config||{}).apify||{})[k],s=(e.apify||{})[k]||{};if(!on)return "";
+  return s.posts?`<div class="hint">Public data via Apify</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Posts saved</span><b>${fmtInt(s.posts)}</b></div><div><span class="hint">Last run</span><b style="font-size:15px">${relAgo(s.last_sync)}</b></div></div><div class="toolbar"><a class="btn primary" href="#sma-${b.id}-monthly">Open report deck</a><a class="btn" href="#sma-${b.id}-settings">Settings</a></div>${s.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(s.last_error)}</p>`:""}`
+    :`<p class="hint" style="margin:0">Apify is on for this platform. ${s.syncing?"First collection running…":"Waiting for the first collection (daily after 9:00, or Sync now in Settings)."}</p>${s.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(s.last_error)}</p>`:""}`;}
 function smaPlatform(b){
   const li=b.linkedin,s=b.linkedin_summary||{};const ok=li.connected&&li.org_urn;
   const yt=b.youtube,ysum=b.youtube_summary||{};const ytOk=yt.connected&&yt.channel_id;
-  const ytCard=`<div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--neg)">YT</span><b>YouTube</b><span class="pill ${ytOk?"pos":"neu"}" style="margin-left:auto">${ytOk?"Connected":"Not connected"}</span></div>
+  const ytCard=`<div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--neg)">YT</span><b>YouTube</b><span class="pill ${ytOk?"pos":"neu"}" style="margin-left:auto">${ytOk?"Connected":apOn(b,"youtube")?"Apify":"Not connected"}</span></div>
     ${ytOk&&ysum.views!=null?`<div class="hint">${esc(yt.channel_title||"")}${(yt.channels||[]).length>1?` (1 of ${yt.channels.length} channels)`:""} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Subscribers</span><b>${ysum.subscribers!=null?compact(ysum.subscribers):"Hidden"}</b></div><div><span class="hint">Views</span><b>${compact(ysum.views||0)}</b></div><div><span class="hint">Watch hours</span><b>${compact(Math.round(ysum.watch_hours||0))}</b></div></div>
       <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report" data-open-plat="youtube">Open report</a><button class="btn" type="button" data-sync-yt ${yt.syncing?"disabled":""}>${yt.syncing?"Syncing…":"Sync now"}</button></div>`
     :ytOk?`<p class="hint" style="margin:0">${yt.syncing?"First sync running…":"No data yet. Click Sync now."}</p><div class="toolbar"><button class="btn" type="button" data-sync-yt ${yt.syncing?"disabled":""}>Sync now</button></div>`
-    :`<p class="hint" style="margin:0">Connect the brand's YouTube channel to report views, watch time, subscribers, traffic sources and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
+    :apCard(b,"youtube")||`<p class="hint" style="margin:0">Connect the brand's YouTube channel to report views, watch time, subscribers, traffic sources and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
     ${yt.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(yt.last_error)}</p>`:""}</div>`;
   const mt=b.meta,ms=b.meta_summary||{};
-  const metaCard=(abbr,name,color,ok,sum,extra)=>`<div class="plat-card"><div class="plat-head"><span class="src" style="background:${color}">${abbr}</span><b>${name}</b><span class="pill ${ok?"pos":"neu"}" style="margin-left:auto">${ok?"Connected":mt.connected&&!mt.page_id?"Choose a Page":"Not connected"}</span></div>
+  const metaCard=(abbr,name,color,ok,sum,extra)=>`<div class="plat-card"><div class="plat-head"><span class="src" style="background:${color}">${abbr}</span><b>${name}</b><span class="pill ${ok?"pos":"neu"}" style="margin-left:auto">${ok?"Connected":mt.connected&&!mt.page_id?"Choose a Page":apOn(b,name.toLowerCase())?"Apify":"Not connected"}</span></div>
     ${ok&&sum?`<div class="hint">${extra} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${sum.followers!=null?compact(sum.followers):"–"}</b></div><div><span class="hint">Reach</span><b>${compact(sum.reach||0)}</b></div><div><span class="hint">Engagement</span><b>${pctf(sum.engagement_rate)}</b></div></div>
       <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report" data-open-plat="${name.toLowerCase()}">Open report</a><button class="btn" type="button" data-sync-meta ${mt.syncing?"disabled":""}>${mt.syncing?"Syncing…":"Sync now"}</button></div>`
     :ok?`<p class="hint" style="margin:0">${mt.syncing?"First sync running…":"No data yet. Click Sync now."}</p><div class="toolbar"><button class="btn" type="button" data-sync-meta ${mt.syncing?"disabled":""}>Sync now</button></div>`
     :name==="Instagram"&&mt.page_connected?`<p class="hint" style="margin:0">No Instagram professional account is linked to the Facebook Page ${esc(mt.page_name||"")}. Link it in Instagram (Settings > Account type and tools) or in the Page settings, then reconnect.</p>`
-    :`<p class="hint" style="margin:0">Connect the brand's Facebook Page${name==="Instagram"?" and its linked Instagram professional account":""} to report followers, reach, views and engagement.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
+    :apCard(b,name.toLowerCase())||`<p class="hint" style="margin:0">Connect the brand's Facebook Page${name==="Instagram"?" and its linked Instagram professional account":""} to report followers, reach, views and engagement.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
     ${mt.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(mt.last_error)}</p>`:""}</div>`;
   return `<div class="plat-grid">
-    <div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--c8)">in</span><b>LinkedIn</b><span class="pill ${ok?"pos":li.connected?"neu":"neu"}" style="margin-left:auto">${ok?"Connected":li.connected?"Choose a page":"Not connected"}</span></div>
+    <div class="plat-card"><div class="plat-head"><span class="src" style="background:var(--c8)">in</span><b>LinkedIn</b><span class="pill ${ok?"pos":li.connected?"neu":"neu"}" style="margin-left:auto">${ok?"Connected":li.connected?"Choose a page":apOn(b,"linkedin")?"Apify":"Not connected"}</span></div>
       ${ok?`<div class="hint">${esc(li.org_name||"")} · last 30 days</div><div class="mini-kpis"><div><span class="hint">Followers</span><b>${s.followers!=null?compact(s.followers):"–"}</b></div><div><span class="hint">Impressions</span><b>${compact(s.impressions||0)}</b></div><div><span class="hint">Engagement</span><b>${pctf(s.engagement_rate)}</b></div></div>
         <div class="toolbar"><a class="btn primary" href="#sma-${b.id}-report">Open report</a><button class="btn" type="button" data-sync ${li.syncing?"disabled":""}>${li.syncing?"Syncing…":"Sync now"}</button></div>`
-      :`<p class="hint" style="margin:0">Connect the brand's LinkedIn company page to report followers, impressions, engagement, page views and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
+      :apCard(b,"linkedin")||`<p class="hint" style="margin:0">Connect the brand's LinkedIn company page to report followers, impressions, engagement, page views and audience.</p><a class="btn primary" href="#sma-${b.id}-settings">Set up in Settings</a>`}
       ${li.last_error?`<p class="neg-c" style="margin:0;font-size:13px">${esc(li.last_error)}</p>`:""}
     </div>
     ${metaCard("f","Facebook","var(--c1)",mt.page_connected,ms.facebook,esc(mt.page_name||""))}
@@ -2931,20 +2960,56 @@ function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIO
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["dashboard","mentions","reports","sma","competitors","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
+const VIEWS=["publish","dashboard","mentions","reports","sma","competitors","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
 function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";if(h==="sma"||h.startsWith("sma-"))return"sma";return VIEWS.includes(h)?h:"dashboard";}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
   const v=current();
-  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors");
+  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors"||v==="publish");
   VIEWS.concat(PUBLIC_VIEWS).forEach(x=>$("v-"+x).hidden=x!==v);
   if(pub){renderPublic(v);return;}
   $("user-chip").hidden=!AUTH;if(AUTH)$("user-email").textContent=AUTH.email;
-  document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.view===v?"page":"false"));
+  syncBrandFromHash();renderBrandNav(v);
+  {const ln=$("listen-note"),cb=curBrandName(),a=activeAlert(),ab=a?String(a.virtual?a.brand:(a.brand||"")).trim():"";
+   const show=["dashboard","mentions","reports","alert-setup"].includes(v)&&cb&&ab.toLowerCase()!==cb.toLowerCase()&&!brandAlert(cb);
+   ln.hidden=!show;if(show)ln.innerHTML=`${esc(cb)} has no listening alerts yet, so this shows ${ab?`<b>${esc(ab)}</b>'s alert`:"a stand-alone alert"} <b>${esc(a.name)}</b>. <button class="btn" type="button" data-addsec="${esc(cb)}">Add an alert for ${esc(cb)}</button>`;}
   renderChrome();
-  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="publish")renderPublish();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
 }
 function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
+/* ---------- Brand workspace: one brand selected in the sidebar drives every section ---------- */
+let CURB=(()=>{try{return localStorage.getItem("sentimeter-brand")||null;}catch(e){return null;}})(),BRLOAD=false;
+function curBrand(){const bs=SMA.brands||[];return bs.find(b=>b.id===CURB)||bs[0]||null;}
+const curBrandName=()=>{const b=curBrand();return b?b.name:"";};
+function setCurBrand(id){CURB=id;try{localStorage.setItem("sentimeter-brand",id);}catch(e){}CMP.bid=id;CMP.month=null;CMP.draft=null;
+  const b=curBrand();if(!b)return;const v=brandAlert(b.name);
+  const mine=a=>a&&(a.virtual?a.brand:(a.brand||"")).trim().toLowerCase()===b.name.trim().toLowerCase();
+  if(v){if(!mine(activeAlert()))S.active="brand:"+b.name;}
+  else{const a=activeAlert();if(a&&(a.virtual||(a.brand||"").trim())){const loose=S.alerts.find(x=>!(x.brand||"").trim());if(loose)S.active=loose.id;}}}
+function syncBrandFromHash(){const m=location.hash.match(/^#sma-(b[0-9a-f]{8})/);if(m&&m[1]!==CURB&&(SMA.brands||[]).some(b=>b.id===m[1]))setCurBrand(m[1]);}
+function ensureBrands(){if(AUTH_MODE!=="server"||!AUTH||SMA.brands||BRLOAD)return;BRLOAD=true;
+  smaApi("/brands").then(j=>{SMA.brands=j.brands;BRLOAD=false;if(!CURB||!SMA.brands.some(b=>b.id===CURB)){if(SMA.brands[0])setCurBrand(SMA.brands[0].id);}else setCurBrand(CURB);render();}).catch(()=>{BRLOAD=false;});}
+function navKey(v){const h=location.hash.slice(1);if(v!=="sma")return v;if(h==="sma")return "allbrands";const m=h.match(/^sma-b[0-9a-f]{8}-(\w+)$/);
+  return !m?"analytics":m[1]==="monthly"?"deck":m[1]==="settings"?"brandset":"analytics";}
+function renderBrandNav(v){ensureBrands();const b=curBrand(),sel=$("brand-switch");const bs=SMA.brands||[];
+  sel.innerHTML=bs.length?bs.map(x=>`<option value="${x.id}" ${b&&x.id===b.id?"selected":""}>${esc(x.name)}</option>`).join(""):`<option value="">${AUTH_MODE==="server"?(BRLOAD?"Loading…":"No brands yet"):"Needs the server"}</option>`;
+  sel.disabled=!bs.length;
+  document.querySelectorAll(".nav a[data-bhref]").forEach(a=>{a.href="#"+(b?a.dataset.bhref.replace("{b}",b.id):"sma");});
+  const k=navKey(v);document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.key===k?"page":"false"));
+  const ah=$("alerts-head");if(ah)ah.textContent=b?"Alerts · "+b.name:"Listening alerts";}
+$("brand-switch").onchange=e=>{const old=CURB,id=e.target.value;if(!id)return;setCurBrand(id);save();
+  const h=location.hash.slice(1),m=h.match(/^sma-(b[0-9a-f]{8})(-\w+)?$/);if(m)location.hash="sma-"+id+(m[2]||"-platform");else render();};
+function renderPublish(){const root=$("pub-root");const b=curBrand();
+  if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Publish</h1><p class="sub">This section needs the Sentimeter server and a login.</p></div></div>`;return;}
+  if(!b){root.innerHTML=`<div class="page-head"><div><h1>Publish</h1><p class="sub">Add a brand first in All brands.</p></div></div><a class="btn primary" href="#sma">Go to All brands</a>`;return;}
+  const acc=[["facebook","Facebook",b.meta.page_connected,b.meta.page_name],["instagram","Instagram",b.meta.page_connected&&!!b.meta.ig_id,b.meta.ig_username?"@"+b.meta.ig_username:""],
+    ["linkedin","LinkedIn",b.linkedin.connected&&!!b.linkedin.org_urn,b.linkedin.org_name],["youtube","YouTube",(b.youtube.channels||[]).some(c=>c.connected),b.youtube.channel_title],["x","X",false,""]];
+  root.innerHTML=`<div class="page-head"><div><h1>Publish · ${esc(b.name)}</h1><p class="sub">Create, approve and schedule posts for this brand's social media accounts.</p></div><span class="pill neu">Coming soon</span></div>
+  <div class="card"><div class="card-body"><p style="margin:0">Publishing is being set up. It will add a <b>composer</b> with previews for each platform, a <b>content calendar</b>, an <b>approval</b> step, and scheduled posting to the accounts below. Published posts will flow into Social analytics and the report deck automatically.</p></div></div>
+  <div class="plat-grid">${["Compose","Calendar","Approvals","History"].map((n,i)=>`<div class="plat-card off"><div class="plat-head"><span class="nav-n" style="background:var(--sunk);color:var(--ink);width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700">${i+1}</span><b>${n}</b><span class="pill neu" style="margin-left:auto">Coming soon</span></div><p class="hint" style="margin:0">${["Write once, adapt per platform, add images or video, and preview each post.","See scheduled and published posts by week or month, and move them around.","Send drafts for approval, comment, and approve before anything goes live.","Published and failed posts with links, errors and retry."][i]}</p></div>`).join("")}</div>
+  <div class="card"><div class="card-head"><h2>Accounts for ${esc(b.name)}</h2><a class="btn" href="#sma-${b.id}-settings">Brand settings</a></div><div class="card-body"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Platform</th><th>Account</th><th>Connected</th><th>Publishing permission</th></tr></thead><tbody>
+    ${acc.map(([k,n,ok,name])=>`<tr><td><span class="src" style="background:${MRP[k].c};margin-right:6px;color:#fff">${MRPX[k]}</span>${n}</td><td>${name?esc(name):"–"}</td><td>${ok?`<span class="pos-c">Connected (read)</span>`:`<span class="hint">Not connected</span>`}</td><td><span class="hint">To be requested</span></td></tr>`).join("")}</tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">The current connections can read analytics. Posting needs extra permissions from each platform (for example Meta's pages_manage_posts and instagram_content_publish), requested when publishing is set up.</p></div></div>`;}
 let lastView=null;window.addEventListener("hashchange",()=>{SMA.arm=null;const v=current();if(v!==lastView||window.innerWidth<=1050)window.scrollTo(0,0);lastView=v;arm=null;render();});
 
 /* ---------- Import ---------- */
@@ -2990,10 +3055,11 @@ $("clear-data").onclick=async()=>{if(SHARED){try{await fetch("api/import",{metho
 
 /* ---------- Events ---------- */
 $("alert-select").onchange=e=>{S.active=e.target.value;save();render();};
+$("listen-note").onclick=e=>{if(e.target.closest("[data-addsec]"))$("alert-list").onclick(e);};
 $("alert-list").onclick=e=>{const tg=e.target.closest("[data-collapse]");if(tg){const k=tg.dataset.collapse;S.collapsed=Object.assign({},S.collapsed);if(S.collapsed[k])delete S.collapsed[k];else S.collapsed[k]=true;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(_){}renderChrome();return;}
   const ad=e.target.closest("[data-addsec]");if(ad){const id="a"+Date.now();S.alerts.push({id,name:"New alert",brand:ad.dataset.addsec,section:"",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice(),srcV3:true,tracked:true});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);return;}
   const g=e.target.closest("[data-gear]");if(g){S.active=g.dataset.gear;save();go("alert-setup");return;}const b=e.target.closest(".alert-link");if(!b)return;S.active=b.dataset.id;save();if(current()==="alert-setup"||current()==="analyze")go("mentions");else if(current()==="reports"||current()==="sources")render();else if(selId())go("mentions");else render();};
-$("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
+$("new-alert").onclick=()=>{const id="a"+Date.now();S.alerts.push({id,name:"New alert",brand:curBrandName(),section:"",keywords:[],excluded:[],langs:[],locations:[],unknown:true,sources:PLATFORMS.slice()});S.active=id;save();go("alert-setup");setTimeout(()=>$("set-kw").querySelector("input").focus(),50);};
 $("src-toggles").onclick=e=>{const b=e.target.closest(".src-toggle");if(!b)return;const p=b.dataset.src;S.srcOff=S.srcOff.includes(p)?S.srcOff.filter(x=>x!==p):S.srcOff.concat(p);save();render();};
 $("range").onchange=e=>{const v=e.target.value;
   if(v==="custom"){const p=periods();S.rfrom=S.rfrom||p.start;S.rto=S.rto||p.end;if(!S.rfrom||S.rfrom==="9999"){S.rto=maxDay();S.rfrom=addDays(S.rto,-6);}S.range="custom";save();render();setTimeout(()=>$("range-from").focus(),30);return;}

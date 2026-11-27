@@ -4,6 +4,18 @@ Sentiment analysis and social listening for social media and digital platforms: 
 
 Live: https://sentimeter.starkpeople.in
 
+## How the tool is organised
+
+Pick a **brand** at the top of the sidebar; every section then works for that brand, in this order:
+
+1. **Publish**: create, approve and schedule posts (placeholder for now; to be set up).
+2. **Social analytics**: the brand's own accounts (official APIs, or Apify public data where an API is not connected).
+3. **Listening**: Dashboard, Mentions and Sentiment report for the brand's alerts (the sidebar shows only that brand's alerts).
+4. **Competitors**: domestic and international competitors, monthly followers, growth and charts.
+5. **Report deck**: weekly, monthly or quarterly deck, downloadable as PDF or PowerPoint.
+
+**Setup**: Brand settings (integrations, Apify, logo, report sections), All brands (overview and adding brands), Sources & keys (tracked profiles, search terms, monthly limit per brand, API keys) and Analyze text.
+
 ## Project layout
 
 | Path | What it is |
