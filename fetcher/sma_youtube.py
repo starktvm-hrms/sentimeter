@@ -25,7 +25,9 @@ TOKEN = os.environ.get("SENTIMETER_GOOGLE_TOKEN_URL", "https://oauth2.googleapis
 DATA_API = os.environ.get("SENTIMETER_YT_DATA_BASE", "https://www.googleapis.com/youtube/v3").rstrip("/")
 ANALYTICS = os.environ.get("SENTIMETER_YT_ANALYTICS_BASE", "https://youtubeanalytics.googleapis.com/v2").rstrip("/")
 REDIRECT_PATH = "/api/sma/youtube/callback"
-SCOPES = "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly"
+UPLOAD_API = os.environ.get("SENTIMETER_YT_UPLOAD_BASE", "https://www.googleapis.com/upload/youtube/v3").rstrip("/")
+UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
+SCOPES = "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly " + UPLOAD_SCOPE
 STATES = {}
 DAILY_METRICS = ["views", "estimatedMinutesWatched", "averageViewDuration", "averageViewPercentage", "subscribersGained",
                  "subscribersLost", "likes", "comments", "shares"]
@@ -147,6 +149,7 @@ def public(b):
               "channel_error": a.get("last_error", ""), "has_client_secret": bool(sec.get("yt_client_secret")),
               "syncing": busy(b["id"]), "redirect_uri": redirect_uri()})
     y["last_error"] = y.get("last_error") or a.get("last_error", "")
+    y["can_post"] = bool(a.get("connected")) and UPLOAD_SCOPE in str(a.get("granted_scopes") or "").split()
     return y
 
 
@@ -509,3 +512,59 @@ def daily_due(today):
                     and key(b["id"], c["id"]) not in sma.SYNCING:
                 update_channel(b["id"], c["id"], last_attempt_date=today)
                 sync_async(b["id"], cid=c["id"])
+
+
+# ---------------- publishing (videos.insert, resumable upload) ----------------
+
+def publish(bid, title, description, video_path, ctype="video/mp4", privacy="public", tags=None):
+    """Upload a video to the brand's active channel. Returns (video_id, url).
+    Videos from Google Cloud projects that have not passed YouTube's API audit are locked to private by YouTube."""
+    b = sma.get_brand(bid)
+    cid = active(b)
+    if not cid:
+        raise RuntimeError("No YouTube channel is connected for this brand.")
+    tok = access_token(bid, cid)
+    meta = {"snippet": {"title": (title or "Untitled")[:100], "description": (description or "")[:5000], "categoryId": "19"},
+            "status": {"privacyStatus": privacy if privacy in ("public", "unlisted", "private") else "public", "selfDeclaredMadeForKids": False}}
+    if tags:
+        meta["snippet"]["tags"] = tags[:30]
+    size = os.path.getsize(video_path)
+    req = urllib.request.Request(f"{UPLOAD_API}/videos?uploadType=resumable&part=snippet,status", data=json.dumps(meta).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json; charset=UTF-8",
+                                          "X-Upload-Content-Type": ctype, "X-Upload-Content-Length": str(size)})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            loc = r.headers.get("Location")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(_yt_err(e))
+    if not loc:
+        raise RuntimeError("YouTube did not start the upload.")
+    with open(video_path, "rb") as f:
+        up = urllib.request.Request(loc, data=f, method="PUT", headers={"Content-Type": ctype, "Content-Length": str(size)})
+        try:
+            with urllib.request.urlopen(up, timeout=1800) as r:
+                v = json.loads(r.read() or b"{}")
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(_yt_err(e))
+    vid = v.get("id")
+    if not vid:
+        raise RuntimeError("YouTube did not confirm the upload.")
+    return vid, f"https://youtu.be/{vid}"
+
+
+def _yt_err(e):
+    body = e.read().decode(errors="replace")[:4000]
+    try:
+        err = json.loads(body).get("error") or {}
+        reason = ((err.get("errors") or [{}])[0]).get("reason", "")
+        body = (err.get("message") or body[:300]) + (f" ({reason})" if reason else "")
+    except Exception:
+        body = body[:300]
+    low = body.lower()
+    if "quota" in low:
+        return "YouTube's daily API quota is used up (each upload costs about 1,600 of the 10,000 daily units). Try again tomorrow."
+    if "uploadlimitexceeded" in low:
+        return "This YouTube channel has reached its upload limit for now. Try again later."
+    if "insufficient" in low or "forbidden" in low and "scope" in low:
+        return "This channel was connected without upload permission. Click Add or reconnect channel in Brand settings and allow all access."
+    return friendly(body)

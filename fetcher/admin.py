@@ -22,6 +22,8 @@ are rate limited per visitor.
   GET  /api/sma/meta/start?brand=<id>  -> Facebook Login;  GET /api/sma/meta/callback
   GET  /api/sma/brands/<id>/youtube, POST /api/sma/brands/<id>/youtube/{sync,disconnect}
   GET  /api/sma/youtube/start?brand=<id>  -> Google sign-in;  GET /api/sma/youtube/callback
+  GET  /api/sma/x/start?brand=<id>  -> X sign-in (posting);  GET /api/sma/x/callback;  POST /api/sma/brands/<id>/x/disconnect
+  POST /api/upload/sma/<id>/video   (raw video body, streamed to disk; nginx allows large bodies only here)
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
   POST /api/keys       set the Apify tokens (default, meta, x_linkedin, other) and YOUTUBE_API_KEY (write-only)
@@ -43,6 +45,7 @@ import sma  # noqa: E402  (Social Media Analytics: brands, LinkedIn)
 import sma_meta  # noqa: E402  (Social Media Analytics: Facebook and Instagram)
 import sma_youtube  # noqa: E402  (Social Media Analytics: YouTube)
 import sma_extra  # noqa: E402  (report settings, X and competitors via Apify)
+import sma_x  # noqa: E402  (publishing to X)
 
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
@@ -440,6 +443,7 @@ class H(BaseHTTPRequestHandler):
         if counts and out["meta"]["page_connected"]:
             out["meta_summary"] = sma_meta.summary(sma_meta.data(b["id"]))
         out["youtube"] = sma_youtube.public(b)
+        out["xpub"] = sma_x.public(b)
         out["extra"] = sma_extra.public(b)
         if counts and out["youtube"].get("channel_id"):
             out["youtube_summary"] = sma_youtube.summary(sma_youtube.data(b["id"]))
@@ -492,6 +496,21 @@ class H(BaseHTTPRequestHandler):
                 if bid and cid and not err:
                     sma_youtube.sync_async(bid, full=True, cid=cid)
                 return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            if path == "/api/sma/x/start" and m == "GET":
+                try:
+                    return self.redirect(sma_x.start(q.get("brand", ""), email)) or True
+                except (ValueError, KeyError) as e:
+                    sma.update_brand_record(q.get("brand", ""), lambda r: r.setdefault("xpub", {}).update({"last_error": str(e)}))
+                    return self.redirect(f"/#sma-{q.get('brand', '')}-settings") or True
+            if path == "/api/sma/x/callback" and m == "GET":
+                bid, err = sma_x.callback(q, email)
+                return self.redirect(f"/#sma-{bid}-settings" if bid else "/#sma") or True
+            xd = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/xpub/disconnect", path)
+            if xd and m == "POST":
+                if not sma.get_brand(xd.group(1)):
+                    return self.send(404, {"error": "Brand not found"}) or True
+                sma_x.disconnect(xd.group(1))
+                return self.send(200, {"brand": self.pub_brand(sma.get_brand(xd.group(1)), False)}) or True
             yt = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/youtube(?:/(sync|disconnect|select|remove))?", path)
             if yt:
                 bid, action = yt.group(1), yt.group(2)
@@ -626,6 +645,7 @@ class H(BaseHTTPRequestHandler):
                     sma.update_brand(bid, body)
                     sma_meta.update(bid, body)
                     sma_youtube.update(bid, body)
+                    sma_x.update(bid, body)
                     sma_extra.update(bid, body)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid))}) or True
                 if m == "DELETE":
@@ -677,7 +697,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.auth_routes():
             return
-        if re.match(r"/api/sma/(linkedin|meta|youtube)/callback", self.path) and not session_user(self.token()):
+        if re.match(r"/api/sma/(linkedin|meta|youtube|x)/callback", self.path) and not session_user(self.token()):
             return self.redirect("/#login")
         pm = re.fullmatch(r"/api/public/media/(b[0-9a-f]{8})/(m[0-9a-f]{12})/([0-9a-f]{40})\.jpg", self.path.split("?")[0])
         if pm:  # post images for Meta to fetch: unguessable signed link, no login
@@ -774,7 +794,25 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"ok": True})
         self.send(404, {"error": "Not found"})
 
+    def upload_video(self):
+        """POST /api/upload/sma/<brand>/video with the raw file as the body. Returns True when handled."""
+        um = re.fullmatch(r"/api/upload/sma/(b[0-9a-f]{8})/video", self.path.split("?")[0])
+        if not um:
+            return False
+        self.close_connection = True
+        if not self.authed() or self.limited(240):
+            return True
+        if not sma.get_brand(um.group(1)):
+            return self.send(404, {"error": "Brand not found"}) or True
+        try:
+            vid, size = sma_extra.save_video(um.group(1), self.rfile, int(self.headers.get("Content-Length") or 0), self.headers.get("Content-Type"))
+        except ValueError as e:
+            return self.send(400, {"error": str(e)}) or True
+        return self.send(200, {"id": vid, "size": size}) or True
+
     def do_POST(self):
+        if self.upload_video():
+            return
         if self.auth_routes() or not self.authed() or self.limited(240) or self.sma_routes():
             return
         if self.path == "/api/shared/edits":
@@ -892,7 +930,35 @@ def scheduler():
         time.sleep(30)
 
 
+def ensure_nginx_snippet():
+    """Keep /etc/nginx/snippets/sentimeter-api.conf in step with deploy/ after an auto-update (git pull does not touch nginx).
+    Only replaces the snippet setup-sources.sh installed; tests the config and puts the old file back if nginx rejects it."""
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "deploy", "nginx-sentimeter-api.conf")
+    dst = os.environ.get("SENTIMETER_NGINX_SNIPPET", "/etc/nginx/snippets/sentimeter-api.conf")
+    try:
+        import shutil
+        if os.geteuid() != 0 or not os.path.exists(dst) or not os.path.exists(src) or not shutil.which("nginx"):
+            return
+        new, old = open(src).read(), open(dst).read()
+        if new == old:
+            return
+        open(dst, "w").write(new)
+        try:
+            ok = subprocess.run(["nginx", "-t"], capture_output=True, timeout=30).returncode == 0
+        except Exception:
+            ok = False
+        if not ok:
+            open(dst, "w").write(old)
+            sys.stderr.write("nginx: updated snippet rejected by nginx -t; kept the old one\n")
+            return
+        subprocess.run(["systemctl", "reload", "nginx"], capture_output=True, timeout=30)
+        sys.stderr.write("nginx: snippet updated and reloaded\n")
+    except Exception as e:
+        sys.stderr.write(f"nginx snippet: {e}\n")
+
+
 if __name__ == "__main__":
+    ensure_nginx_snippet()
     migrate_public_data()
     try:
         sma_extra.apply_seeds()

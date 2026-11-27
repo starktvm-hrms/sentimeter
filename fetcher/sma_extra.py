@@ -701,12 +701,17 @@ def save_post(bid, body, user):
             raise ValueError("Choose a date and time to schedule the post.")
         if not plats:
             raise ValueError("Choose at least one platform.")
-    if status != "draft" and not text.strip() and not body.get("media"):
+    if status != "draft" and not text.strip() and not body.get("media") and not body.get("video"):
         raise ValueError("Write a caption or add media first.")
     media = [m for m in (body.get("media") or []) if re.fullmatch(r"m[0-9a-f]{12}", str(m))][:10]
+    video = str(body.get("video") or "")
+    video = video if re.fullmatch(r"v[0-9a-f]{12}", video) and video_path(bid, video) else ""
+    if status != "draft" and "youtube" in plats and not video:
+        raise ValueError("YouTube needs a video: upload one, or remove YouTube from this post.")
+    yt_privacy = body.get("yt_privacy") if body.get("yt_privacy") in ("public", "unlisted", "private") else "public"
     now = sma.iso()
     rec = cur or {"id": "p" + _s.token_hex(5), "created": now, "created_by": user}
-    rec.update({"platforms": plats, "text": text, "title": str(body.get("title") or "")[:100], "media": media, "status": status,
+    rec.update({"platforms": plats, "text": text, "title": str(body.get("title") or "")[:100], "media": media, "video": video, "yt_privacy": yt_privacy, "status": status,
                 "when": when if status == "scheduled" else "", "tz": str(body.get("tz") or "Asia/Kolkata")[:40], "updated": now, "updated_by": user})
     rec.pop("results", None) if not cur or cur.get("status") in ("draft", "scheduled", "queued") else None
     if not cur:
@@ -720,8 +725,105 @@ def save_post(bid, body, user):
 
 def delete_post(bid, pid):
     d = load(bid, "posts.json")
+    gone = [p for p in d.get("posts") or [] if p["id"] == pid]
     d["posts"] = [p for p in d.get("posts") or [] if p["id"] != pid]
     save(bid, "posts.json", d)
+    for p in gone:
+        if p.get("video") and p.get("status") != "publishing":
+            _drop_video(bid, p["video"])
+
+
+# ---- videos: streamed to disk by a separate upload route (nginx allows large bodies only on /api/upload/) ----
+VIDEO_TYPES = {"video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "video/x-m4v": ".m4v"}
+MAX_VIDEO = int(os.environ.get("SENTIMETER_MAX_VIDEO_MB", "1024")) * 1024 * 1024
+
+
+def video_path(bid, vid):
+    if not re.fullmatch(r"v[0-9a-f]{12}", vid or ""):
+        return None
+    d = sma._p(bid, "media")
+    for ext in VIDEO_TYPES.values():
+        f = os.path.join(d, vid + ext)
+        if os.path.exists(f):
+            return f
+    return None
+
+
+def video_type(path):
+    ext = os.path.splitext(path or "")[1]
+    return next((k for k, v in VIDEO_TYPES.items() if v == ext), "video/mp4")
+
+
+def save_video(bid, stream, length, ctype):
+    import secrets as _s, shutil
+    ctype = (ctype or "").split(";")[0].strip().lower()
+    if ctype not in VIDEO_TYPES:
+        raise ValueError("Upload an MP4, MOV or WebM video.")
+    if length <= 0:
+        raise ValueError("The video is empty.")
+    if length > MAX_VIDEO:
+        raise ValueError(f"The video is larger than {MAX_VIDEO // 1048576} MB.")
+    d = sma._p(bid, "media")
+    os.makedirs(d, exist_ok=True)
+    if shutil.disk_usage(d).free - length < 1024 ** 3:
+        raise ValueError("The server is short of disk space for this video. Delete old posts' videos or use a smaller file.")
+    vid = "v" + _s.token_hex(6)
+    path = os.path.join(d, vid + VIDEO_TYPES[ctype])
+    left, head = length, b""
+    try:
+        with open(path + ".part", "wb") as f:
+            while left > 0:
+                chunk = stream.read(min(1048576, left))
+                if not chunk:
+                    raise ValueError("The upload was interrupted. Try again.")
+                if not head:
+                    head = chunk[:16]
+                f.write(chunk)
+                left -= len(chunk)
+        if not (head[4:8] == b"ftyp" or head.startswith(b"\x1aE\xdf\xa3")):
+            raise ValueError("That file is not a valid MP4, MOV or WebM video.")
+        os.replace(path + ".part", path)
+    except BaseException:
+        try:
+            os.remove(path + ".part")
+        except FileNotFoundError:
+            pass
+        raise
+    return vid, length
+
+
+def _drop_video(bid, vid):
+    f = video_path(bid, vid)
+    if f:
+        try:
+            os.remove(f)
+        except FileNotFoundError:
+            pass
+
+
+def cleanup_videos(bid, d):
+    """Remove videos no post needs any more: unused or already-sent videos after 2-3 days; failed or partly sent posts keep theirs for 7 days."""
+    md = sma._p(bid, "media")
+    if not os.path.isdir(md):
+        return
+    keep = {}
+    for p in d.get("posts") or []:
+        if p.get("video"):
+            st = p.get("status")
+            live = st in ("draft", "scheduled", "queued", "publishing") or (st in ("partial", "failed") and (p.get("updated") or "") > sma.iso(time.time() - 7 * 86400))
+            keep[p["video"]] = keep.get(p["video"], False) or live
+    cut = time.time() - 2 * 86400
+    for name in os.listdir(md):
+        vid, ext = os.path.splitext(name)
+        if not re.fullmatch(r"v[0-9a-f]{12}", vid) or ext not in VIDEO_TYPES.values() and not name.endswith(".part"):
+            continue
+        f = os.path.join(md, name)
+        age_cut = cut - (86400 if vid in keep else 0)
+        if (not keep.get(vid)) and os.path.getmtime(f) < age_cut:
+            try:
+                os.remove(f)
+            except FileNotFoundError:
+                pass
 
 
 def save_media(bid, data_url):
@@ -771,8 +873,10 @@ def media_bytes(bid, mid):
     return raw, next((v for k, v in sma.LOGO_MAGIC.items() if raw.startswith(k)), "application/octet-stream")
 
 
-PUBLISHERS = {"linkedin", "facebook", "instagram"}   # platforms that can post today; the others follow as their permissions are granted
+PUBLISHERS = {"linkedin", "facebook", "instagram", "youtube", "x"}
 PUBLISH_LOCK = threading.Lock()
+CLEANED = {}
+NAMES = {"linkedin": "LinkedIn", "facebook": "Facebook", "instagram": "Instagram", "youtube": "YouTube", "x": "X"}
 
 
 def can_publish(b, platform):
@@ -783,29 +887,53 @@ def can_publish(b, platform):
         import sma_meta
         m = sma_meta.public(b)
         return bool(m.get("can_post_fb" if platform == "facebook" else "can_post_ig"))
+    if platform == "youtube":
+        import sma_youtube
+        return bool(sma_youtube.public(b).get("can_post"))
+    if platform == "x":
+        import sma_x
+        return bool(sma_x.public(b).get("can_post"))
     return False
 
 
 def _publish_one(bid, p):
     results = {}
-    images = [media_bytes(bid, m)[0] for m in p.get("media") or []]
-    images = [i for i in images if i]
+    imgs = [media_bytes(bid, m) for m in p.get("media") or []]
+    imgs = [i for i in imgs if i[0]]
+    images = [i[0] for i in imgs]
     b = sma.get_brand(bid)
+    text = p.get("text") or ""
     for k in p.get("platforms") or []:
         try:
-            if k == "linkedin" and can_publish(b, k):
-                urn, url = sma.li_publish(bid, p.get("text") or "", images)
+            if k in PUBLISHERS and not can_publish(b, k):
+                results[k] = {"ok": False, "error": f"{NAMES[k]} is not connected with posting permission for this brand. Reconnect it in Brand settings.", "at": sma.iso()}
+            elif k == "linkedin":
+                urn, url = sma.li_publish(bid, text, images)
                 results[k] = {"ok": True, "id": urn, "url": url, "at": sma.iso()}
-            elif k in ("facebook", "instagram") and can_publish(b, k):
+            elif k in ("facebook", "instagram"):
                 import sma_meta
                 urls = [public_media_url(bid, m) for m in p.get("media") or [] if media_bytes(bid, m)[0]]
-                pid, url = (sma_meta.fb_publish if k == "facebook" else sma_meta.ig_publish)(bid, p.get("text") or "", urls)
+                pid, url = (sma_meta.fb_publish if k == "facebook" else sma_meta.ig_publish)(bid, text, urls)
                 results[k] = {"ok": True, "id": pid, "url": url, "at": sma.iso()}
-            elif k in PUBLISHERS:
-                who = {"linkedin": "LinkedIn", "facebook": "Facebook", "instagram": "Instagram"}[k]
-                results[k] = {"ok": False, "error": f"{who} is not connected with posting permission for this brand. Reconnect it in Brand settings.", "at": sma.iso()}
+            elif k == "youtube":
+                import sma_youtube
+                vp = video_path(bid, p.get("video"))
+                if not vp:
+                    raise RuntimeError("The video for this post is missing; upload it again.")
+                title = (p.get("title") or "").strip() or (text.strip().splitlines() or ["Untitled"])[0]
+                tags = [t.lstrip("#") for t in re.findall(r"#\w+", text)]
+                vid, url = sma_youtube.publish(bid, title[:100], text, vp, video_type(vp), p.get("yt_privacy") or "public", tags)
+                results[k] = {"ok": True, "id": vid, "url": url, "at": sma.iso()}
+            elif k == "x":
+                import sma_x
+                if not text.strip() and not imgs:
+                    raise RuntimeError("X needs text or an image (video posts to X are not supported yet).")
+                if sma_x.weighted_len(text) > 280:
+                    raise RuntimeError(f"The caption is {sma_x.weighted_len(text)} characters; X allows 280. Shorten it for X.")
+                tid, url = sma_x.publish(bid, text, imgs)
+                results[k] = {"ok": True, "id": tid, "url": url, "at": sma.iso()}
             else:
-                results[k] = {"ok": False, "pending": True, "error": f"Posting to {k.title() if k != 'x' else 'X'} isn't connected yet.", "at": sma.iso()}
+                results[k] = {"ok": False, "pending": True, "error": f"Posting to {k.title()} isn't connected yet.", "at": sma.iso()}
         except Exception as e:
             results[k] = {"ok": False, "error": str(e)[:300], "at": sma.iso()}
             sma.log(f"publish {bid} {p['id']} {k}: {e}")
@@ -822,7 +950,10 @@ def publish_due():
             bid = b["id"]
             d = load(bid, "posts.json")
             due = [p for p in d.get("posts") or [] if p.get("status") == "scheduled" and p.get("when") and _utc(p["when"]) <= now]
-            stale = [p for p in d.get("posts") or [] if p.get("status") == "publishing" and (p.get("publishing_at") or "") < sma.iso(time.time() - 900)]
+            stale = [p for p in d.get("posts") or [] if p.get("status") == "publishing" and (p.get("publishing_at") or "") < sma.iso(time.time() - (3600 if p.get("video") else 900))]
+            if time.time() - CLEANED.get(bid, 0) > 3600:
+                CLEANED[bid] = time.time()
+                cleanup_videos(bid, d)
             if not due and not stale:
                 continue
             for p in stale:  # interrupted mid-way: don't risk a duplicate post
