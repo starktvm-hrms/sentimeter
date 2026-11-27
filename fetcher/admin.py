@@ -514,6 +514,33 @@ class H(BaseHTTPRequestHandler):
                     sma_youtube.disconnect(bid)
                     return self.send(200, {"brand": self.pub_brand(sma.get_brand(bid), False)}) or True
                 return self.send(405, {"error": "Method not allowed"}) or True
+            ps = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(posts|posts/(p[0-9a-f]{10})|posts/media|media/(m[0-9a-f]{12}))", path)
+            if ps:
+                bid = ps.group(1)
+                if not sma.get_brand(bid):
+                    return self.send(404, {"error": "Brand not found"}) or True
+                if ps.group(2) == "posts" and m == "GET":
+                    return self.send(200, {"posts": sma_extra.posts(bid)}) or True
+                if ps.group(2) == "posts" and m == "POST":
+                    return self.send(200, {"post": sma_extra.save_post(bid, self.body(), email)}) or True
+                if ps.group(3) and m == "DELETE":
+                    sma_extra.delete_post(bid, ps.group(3))
+                    return self.send(200, {"ok": True}) or True
+                if ps.group(2) == "posts/media" and m == "POST":
+                    return self.send(200, {"id": sma_extra.save_media(bid, self.body().get("data_url"))}) or True
+                if ps.group(4) and m == "GET":
+                    raw, ctype = sma_extra.media_bytes(bid, ps.group(4))
+                    if not raw:
+                        return self.send(404, {"error": "Not found"}) or True
+                    self.send_response(200)
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Cache-Control", "private, max-age=86400")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.send_header("Content-Length", str(len(raw)))
+                    self.end_headers()
+                    self.wfile.write(raw)
+                    return True
+                return self.send(405, {"error": "Method not allowed"}) or True
             ex = re.fullmatch(r"/api/sma/brands/(b[0-9a-f]{8})/(extra|x/sync|competitors/sync|competitors/manual|apify/(facebook|instagram|x|linkedin|youtube|tiktok)/sync)", path)
             if ex:
                 bid, what = ex.group(1), ex.group(2)

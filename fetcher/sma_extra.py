@@ -663,3 +663,79 @@ def _seed_brand(b, s):
                         cur[f] = h
     sma.update_brand_record(b["id"], lambda r: r.update({"report": cfg}))
 
+
+
+# ---------------- Publish & Schedule: posts and media (publishing itself is set up later) ----------------
+
+POST_PLATFORMS = ("facebook", "instagram", "youtube", "x", "linkedin")
+POST_STATUS = ("draft", "scheduled", "queued", "published", "failed")
+
+
+def posts(bid):
+    return load(bid, "posts.json").get("posts") or []
+
+
+def save_post(bid, body, user):
+    import secrets as _s
+    d = load(bid, "posts.json")
+    lst = d.get("posts") or []
+    pid = str(body.get("id") or "")
+    if pid and not re.fullmatch(r"p[0-9a-f]{10}", pid):
+        raise ValueError("Unknown post.")
+    cur = next((p for p in lst if p["id"] == pid), None) if pid else None
+    if pid and not cur:
+        raise KeyError("Post not found")
+    plats = [p for p in body.get("platforms") or [] if p in POST_PLATFORMS]
+    text = str(body.get("text") or "")[:63000]
+    status = body.get("status") or "draft"
+    if status not in ("draft", "scheduled", "queued"):
+        raise ValueError("A post can be saved as a draft, scheduled or queued.")
+    when = str(body.get("when") or "")
+    if status == "scheduled":
+        if not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d)?(Z|[+-]\d\d:\d\d)", when):
+            raise ValueError("Choose a date and time to schedule the post.")
+        if not plats:
+            raise ValueError("Choose at least one platform.")
+    if status != "draft" and not text.strip() and not body.get("media"):
+        raise ValueError("Write a caption or add media first.")
+    media = [m for m in (body.get("media") or []) if re.fullmatch(r"m[0-9a-f]{12}", str(m))][:10]
+    now = sma.iso()
+    rec = cur or {"id": "p" + _s.token_hex(5), "created": now, "created_by": user}
+    rec.update({"platforms": plats, "text": text, "title": str(body.get("title") or "")[:100], "media": media, "status": status,
+                "when": when if status == "scheduled" else "", "tz": str(body.get("tz") or "Asia/Kolkata")[:40], "updated": now, "updated_by": user})
+    if not cur:
+        lst.append(rec)
+    d["posts"] = lst[-2000:]
+    save(bid, "posts.json", d)
+    return rec
+
+
+def delete_post(bid, pid):
+    d = load(bid, "posts.json")
+    d["posts"] = [p for p in d.get("posts") or [] if p["id"] != pid]
+    save(bid, "posts.json", d)
+
+
+def save_media(bid, data_url):
+    import base64, secrets as _s
+    m = re.fullmatch(r"data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)", str(data_url or ""))
+    if not m:
+        raise ValueError("Upload a JPG, PNG or WebP image.")
+    raw = base64.b64decode(m.group(2))
+    if len(raw) > 60000 or not any(raw.startswith(k) for k in sma.LOGO_MAGIC):
+        raise ValueError("The image is too large or not a valid image.")
+    mid = "m" + _s.token_hex(6)
+    p = sma._p(bid, "media", mid + ".img")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "wb").write(raw)
+    return mid
+
+
+def media_bytes(bid, mid):
+    if not re.fullmatch(r"m[0-9a-f]{12}", mid or ""):
+        return None, None
+    try:
+        raw = open(sma._p(bid, "media", mid + ".img"), "rb").read()
+    except FileNotFoundError:
+        return None, None
+    return raw, next((v for k, v in sma.LOGO_MAGIC.items() if raw.startswith(k)), "application/octet-stream")

@@ -6,15 +6,16 @@ Live: https://sentimeter.starkpeople.in
 
 ## How the tool is organised
 
-Pick a **brand** at the top of the sidebar; every section then works for that brand, in this order:
+Pick a **brand** at the top of the sidebar; every page works for that brand:
 
-1. **Publish**: create, approve and schedule posts (placeholder for now; to be set up).
-2. **Social analytics**: the brand's own accounts (official APIs, or Apify public data where an API is not connected).
-3. **Listening**: Dashboard, Mentions and Sentiment report for the brand's alerts (the sidebar shows only that brand's alerts).
-4. **Competitors**: domestic and international competitors, monthly followers, growth and charts.
-5. **Report deck**: weekly, monthly or quarterly deck, downloadable as PDF or PowerPoint.
-
-**Setup**: Brand settings (integrations, Apify, logo, report sections), All brands (overview and adding brands), Sources & keys (tracked profiles, search terms, monthly limit per brand, API keys) and Analyze text.
+- **Dashboard** (home): reach, engagements, mentions and positive sentiment with change vs the previous period, performance chart, sentiment donut, upcoming posts, competitor table and recent mentions.
+- **Publish & Schedule**: write a post once for Facebook, Instagram, YouTube, X and LinkedIn, add images, preview it per platform (desktop or mobile), see the brand's best time to publish (from its past posts), then save as a draft, schedule or queue it. Posts and images are saved on the server; actual posting starts once each platform grants publishing permission (until then "Publish now" is disabled and scheduled posts are not sent).
+- **Content Calendar**: scheduled posts and what went live, by month.
+- **Analytics** (+ Platform reports): the brand's own accounts (official APIs, or Apify public data).
+- **Sentiment Analysis**, **Listening & Mentions**: the brand's listening alerts (the alert list shows on these pages).
+- **Competitor Analysis**: domestic and international competitors, monthly followers, growth and charts.
+- **Reports**: the weekly, monthly or quarterly deck (PDF or PowerPoint) and the sentiment report.
+- **Workspace**: all brands, brand settings, sources & keys, analyze text.
 
 ## Project layout
 
