@@ -409,6 +409,10 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 .brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px}
 .brand-card{display:flex;flex-direction:column;gap:12px;padding:18px;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
 .brand-card:hover{border-color:var(--accent)}
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:10px}
+.app-box{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:12px;min-width:0}
+.app-box .app-h{display:flex;align-items:center;gap:6px}.app-box .app-h b{flex:1}.app-box .code{word-break:break-all}
+.app-line{font-size:13.5px}
 .brand-card .name{font-size:17px;font-weight:650;letter-spacing:-.01em}
 .mini-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .mini-kpis div{background:var(--sunk);border-radius:10px;padding:8px 10px;min-width:0}
@@ -2061,6 +2065,7 @@ function renderBrands(root){
         return `<div class="mini-kpis"><div><span class="hint">${src&&src[5]||"Followers"}</span><b>${src&&src[1]!=null?compact(src[1]):"–"}</b></div><div><span class="hint">${src?src[3]:"Impressions"}</span><b>${src?compact(src[2]||0):"–"}</b></div><div><span class="hint">${src&&src[6]||"Engagement"}</span><b>${src?(src[7]!=null?src[7]:pctf(src[4])):"–"}</b></div></div>
         <div class="hint" style="margin-top:-6px">${src?src[0]+", last 30 days":"Connect a platform in Settings"}${others.length?" · "+others.join(" · "):""}</div>`;})()}<div class="plats"><span class="src" style="background:${ok?"var(--c8)":"var(--neu)"}">in</span><span class="src" style="background:${fbOk?"var(--c1)":"var(--neu)"}">f</span><span class="src" style="background:${igOk?"var(--c5)":"var(--neu)"}">IG</span><span class="src" style="background:var(--neu)">X</span><span class="src" style="background:${ytOk?"var(--neg)":"var(--neu)"}">YT</span><span class="hint" style="margin-left:auto">${(li.last_sync||b.meta.last_sync||b.youtube.last_sync)?"Synced "+relAgo([li.last_sync,b.meta.last_sync,b.youtube.last_sync].filter(Boolean).sort().pop()):"Never synced"}</span></div></a>`;}).join("")}</div>`
   :`<div class="card"><p class="empty">No brands yet. Add your first brand above, then connect its LinkedIn page in the brand's Settings.</p></div>`}
+  <div class="eyebrow" style="margin-top:8px">Platform apps (shared by all brands)</div><div id="apps-card">${appsCardHTML()}</div>
   ${SMA.brands.length?(()=>{const tk=(SMA.brands[0].extra||{}).has_token||{};const items=SMA.brands.reduce((a,b)=>a+Object.values((b.extra||{}).apify||{}).reduce((x,s)=>x+(s.items_month||0),0),0);
     const on=SMA.brands.reduce((a,b)=>a+Object.values(((b.extra||{}).config||{}).apify||{}).filter(Boolean).length,0);
     return `<div class="eyebrow" style="margin-top:8px">Apify integration (shared by all brands)</div><div class="card"><div class="card-body"><div class="toolbar" style="gap:18px;flex-wrap:wrap">
@@ -2070,7 +2075,33 @@ function renderBrands(root){
   const add=async()=>{const n=$("sma-new").value.trim();if(!n){smaMsg("Type a brand name first.",true);return;}
     try{const j=await smaApi("/brands",{method:"POST",body:JSON.stringify({name:n})});SMA.brands=null;location.hash=`sma-${j.brand.id}-settings`;}catch(e){smaMsg(e.message,true);}};
   $("sma-add").onclick=add;$("sma-new").onkeydown=e=>{if(e.key==="Enter")add();};
+  bindApps();
 }
+const APPS_INFO={
+  linkedin:{name:"LinkedIn",badge:`<span class="src" style="background:var(--c8)">in</span>`,idl:"Client ID",secl:"Client Secret",
+    steps:`Create one app at <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer">linkedin.com/developers/apps</a>, request the <b>Community Management API</b> (Products tab), and add the redirect URL below in the Auth tab. Any page admin can then connect their brand's company page with it.`},
+  meta:{name:"Facebook & Instagram (Meta)",badge:`<span class="src" style="background:var(--c1)">f</span><span class="src" style="background:var(--c5)">IG</span>`,idl:"App ID",secl:"App Secret",
+    steps:`Create one <b>Business</b> app at <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer">developers.facebook.com/apps</a> with <b>Facebook Login for Business</b>, and add the redirect URL below as a Valid OAuth Redirect URI. App ID and Secret are under App settings > Basic. In development mode, people who connect Pages need a role on the app.`},
+  youtube:{name:"YouTube (Google)",badge:`<span class="src" style="background:var(--neg)">YT</span>`,idl:"Client ID",secl:"Client Secret",
+    steps:`In one <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud</a> project, enable the <b>YouTube Data API v3</b> and <b>YouTube Analytics API</b>, set up the OAuth consent screen, and create an OAuth client of type <b>Web application</b> with the redirect URI below. While the app is in Testing, add each channel's Google account as a test user (connections then last 7 days); publish the app for lasting connections.`}};
+function appsCardHTML(){const A=SMA.apps;if(!A)return `<div class="card"><div class="card-body"><p class="hint" style="margin:0">Loading…</p></div></div>`;
+  return `<div class="card"><div class="card-body"><p class="hint" style="margin:0 0 4px">One app per platform serves every brand, now and in future. Each brand then connects its own page or channel in its Brand settings. Secrets stay on the server and are never shown again.</p>
+    <div class="apps-grid">${Object.entries(APPS_INFO).map(([k,I])=>{const a=A[k]||{};const ok=a.id&&a.has_secret;return `<div class="app-box">
+      <div class="app-h">${I.badge}<b>${I.name}</b><span class="pill ${ok?"pos":"neg"}">${ok?"Ready":"Not set"}</span></div>
+      <p class="hint" style="margin:0">${I.steps}</p>
+      <div class="hint">Redirect URL: <span class="code">${esc(a.redirect_uri||"")}</span> <button class="btn" type="button" data-app-copy="${k}" style="padding:3px 8px;font-size:12px">Copy</button></div>
+      <label class="f" for="app-${k}-id">${I.idl}</label><input type="text" id="app-${k}-id" value="${esc(a.id||"")}" autocomplete="off" spellcheck="false">
+      <label class="f" for="app-${k}-sec">${I.secl}</label><div class="toolbar"><input type="password" id="app-${k}-sec" placeholder="${a.has_secret?"Saved. Paste a new one to replace it":"Paste the "+I.secl}" autocomplete="off" style="flex:1;min-width:160px"><span class="pill ${a.has_secret?"pos":"neu"}">${a.has_secret?"Saved":"Not set"}</span></div>
+      <div class="form-actions" style="margin-top:2px"><span class="hint">${a.updated?(a.updated_by==="moved from brand settings"?"Moved here from brand settings "+relAgo(a.updated):"Updated "+relAgo(a.updated)+(a.updated_by?" by "+esc(a.updated_by):"")):""}</span><span class="spacer"></span><button class="btn primary" type="button" data-app-save="${k}">Save</button></div>
+      <p class="hint" style="margin:0">Changing the app means each brand reconnects that platform once.</p></div>`;}).join("")}</div></div></div>`;}
+function bindApps(){const box=$("apps-card");if(!box)return;
+  if(!SMA.apps){smaApi("/apps").then(j=>{SMA.apps=j.apps;box.innerHTML=appsCardHTML();bindApps();}).catch(e=>{box.innerHTML=`<div class="card"><div class="card-body"><p class="neg-c" style="margin:0">${esc(e.message)}</p></div></div>`;});return;}
+  box.querySelectorAll("[data-app-copy]").forEach(btn=>btn.onclick=e=>copyOutTo(SMA.apps[btn.dataset.appCopy].redirect_uri,e.currentTarget,"Copy",null));
+  box.querySelectorAll("[data-app-save]").forEach(btn=>btn.onclick=async()=>{const k=btn.dataset.appSave;const body={[k]:{id:$(`app-${k}-id`).value.trim()}};const sec=$(`app-${k}-sec`).value.trim();if(sec)body[k].secret=sec;
+    try{const j=await smaApi("/apps",{method:"PUT",body:JSON.stringify(body)});SMA.apps=j.apps;await smaRefresh();smaMsg(APPS_INFO[k].name+" app saved for all brands.");}catch(e){smaMsg(e.message,true);}});}
+function appLine(k,id,hasSec,mismatch,connectLabel){const I=APPS_INFO[k];const ok=id&&hasSec;
+  return `<div class="app-line ${ok?"":"neg-c"}">${ok?`Uses the workspace ${esc(I.name)} app (${esc(I.idl)} ${esc(String(id).slice(0,8))}…).`:`The workspace ${esc(I.name)} app isn't set up yet.`} <a href="#sma">${ok?"Change it in Workspace › Platform apps":"Set it up in Workspace › Platform apps"}</a></div>
+    ${mismatch?`<p class="neg-c" style="margin:0">This brand was connected with a different app. Click <b>${connectLabel}</b> once to move it to the workspace app.</p>`:""}`;}
 function brandHead(b,tab){
   const T=[["platform","Platform"],["report","Report"],["monthly","Report deck"],["source","Source"],["settings","Settings"]];
   return `<div class="crumbs no-print"><a href="#sma">Brands</a><span>/</span><span>${esc(b.name)}</span></div>
@@ -2831,22 +2862,16 @@ function smaSettings(b){
         <span class="hint">PNG, JPG, WebP or SVG. The monthly report cover is black, so a white or light logo with a transparent background looks best.</span></div></div>
       <div class="form-actions"><span class="spacer"></span><button class="btn danger" type="button" id="br-delete">Delete brand</button></div></div></div>
     <div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c8);margin-right:8px">in</span>LinkedIn API integration</h2><span class="pill ${li.connected&&li.org_urn?"pos":li.connected?"neu":configured?"neu":"neg"}">${li.connected&&li.org_urn?"Connected":li.connected?"Choose a page":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
-      <ol class="steps">
-        <li>Open <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noopener noreferrer">linkedin.com/developers/apps</a> and create an app linked to the brand's LinkedIn company page. A page admin has to verify the link.</li>
-        <li>In the app's <b>Products</b> tab, request the <b>Community Management API</b>. LinkedIn reviews this; it can take several days.</li>
-        <li>In the <b>Auth</b> tab, add this authorized redirect URL: <span class="code" id="li-redirect">${esc(li.redirect_uri)}</span> <button class="btn" type="button" id="li-copy-redirect" style="padding:3px 8px;font-size:12px">Copy</button></li>
-        <li>Copy the app's <b>Client ID</b> and <b>Client Secret</b> below, save, then click <b>Connect LinkedIn</b> and sign in as a page admin.</li>
-      </ol>
+      ${appLine("linkedin",li.client_id,li.has_client_secret,li.app_mismatch,"Reconnect LinkedIn")}
+      <ol class="steps"><li>Click <b>Connect LinkedIn</b> and sign in as a <b>Super or Content admin</b> of this brand's LinkedIn company page.</li><li>If you administer several pages, choose this brand's page after signing in.</li></ol>
       <div class="form">
-        <label class="f" for="li-cid">Client ID</label><input type="text" id="li-cid" value="${esc(li.client_id||"")}" autocomplete="off" spellcheck="false">
-        <label class="f" for="li-secret">Client Secret</label><div class="toolbar"><input type="password" id="li-secret" placeholder="${li.has_client_secret?"Saved. Paste a new one to replace it":"Paste the Client Secret"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${li.has_client_secret?"pos":"neu"}">${li.has_client_secret?"Saved":"Not set"}</span></div>
         <label class="f" for="li-scopes">Permissions (scopes)</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="li-scopes" value="${esc(li.scopes||"")}" spellcheck="false"><span class="hint">Default reads page posts, statistics and followers. Change only if LinkedIn granted your app different scopes.</span></div>
         <label class="f" for="li-version">API version</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="li-version" value="${esc(li.version||"")}" placeholder="${esc(li.default_version)} (automatic)" style="max-width:220px"><span class="hint">YYYYMM. Leave empty to use a recent supported version automatically.</span></div>
       </div>
       ${li.last_error?`<p class="neg-c" style="margin:0">${esc(li.last_error)}</p>`:""}
       ${li.connected&&(li.orgs||[]).length>1?`<div class="form"><label class="f" for="li-org">Company page</label><div class="toolbar"><select class="select" id="li-org">${li.orgs.map(o=>`<option value="${esc(o.urn)}" ${o.urn===li.org_urn?"selected":""}>${esc(o.name)}</option>`).join("")}</select><button class="btn" type="button" id="li-org-save">Use this page</button></div></div>`:""}
       <div class="form-actions"><span class="hint">${li.connected?`Connected by ${esc(li.connected_by||"")}${li.org_name?" · page: "+esc(li.org_name):""}`:""}</span><span class="spacer"></span>
-        <button class="btn" type="button" id="li-save">Save integration</button>
+        <button class="btn" type="button" id="li-save">Save settings</button>
         <a class="btn primary" id="li-connect" href="api/sma/linkedin/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${li.connected?"Reconnect LinkedIn":"Connect LinkedIn"}</a></div>
     </div></div>
     ${smaSettingsMeta(b)}
@@ -2954,16 +2979,11 @@ function smaSettingsX(b){
 function smaSettingsYT(b){
   const yt=b.youtube;const configured=yt.client_id&&yt.has_client_secret;const ok=yt.connected&&yt.channel_id;
   return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--neg);margin-right:8px">YT</span>YouTube API integration</h2><span class="pill ${ok?"pos":configured?"neu":"neg"}">${ok?((yt.channels||[]).length>1?yt.channels.length+" channels":"Connected"):configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
+    ${appLine("youtube",yt.client_id,yt.has_client_secret,yt.app_mismatch,"Add another channel")}
     <ol class="steps">
-      <li>Open <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> and pick a project (the one with your YouTube API key works). Under APIs &amp; Services > Library, enable <b>YouTube Data API v3</b> and <b>YouTube Analytics API</b>.</li>
-      <li>Under Google Auth Platform (OAuth consent screen), set the app name and choose the audience: <b>Internal</b> if the channel's Google account is in your Google Workspace, otherwise <b>External</b>. For External, add the channel's Google account as a test user. While the publishing status is <b>Testing</b>, Google ends connections after 7 days, so publish the app when ready.</li>
-      <li>Under Clients (Credentials), create an <b>OAuth client ID</b> of type <b>Web application</b> with this authorized redirect URI: <span class="code" id="yt-redirect">${esc(yt.redirect_uri)}</span> <button class="btn" type="button" id="yt-copy-redirect" style="padding:3px 8px;font-size:12px">Copy</button></li>
-      <li>Paste the <b>Client ID</b> and <b>Client Secret</b> below, save, click <b>Connect YouTube</b>, and in Google's account chooser pick the channel's account (or its Brand Account).</li>
+      <li>While the workspace Google app is in <b>Testing</b>, add this channel's Google account as a test user (Google Auth Platform > Audience).</li>
+      <li>Click <b>Connect YouTube</b> and, in Google's account chooser, pick the channel's account (or its Brand Account). Repeat to add more channels.</li>
     </ol>
-    <div class="form">
-      <label class="f" for="yt-cid">Client ID</label><input type="text" id="yt-cid" value="${esc(yt.client_id||"")}" autocomplete="off" spellcheck="false" placeholder="123456789012-abc….apps.googleusercontent.com">
-      <label class="f" for="yt-secret">Client Secret</label><div class="toolbar"><input type="password" id="yt-secret" placeholder="${yt.has_client_secret?"Saved. Paste a new one to replace it":"GOCSPX-…"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${yt.has_client_secret?"pos":"neu"}">${yt.has_client_secret?"Saved":"Not set"}</span></div>
-    </div>
     ${yt.last_error?`<p class="neg-c" style="margin:0">${esc(yt.last_error)}</p>`:""}
     ${yt.connected&&!yt.can_post?`<p class="hint" style="margin:0"><b>Posting:</b> this channel was connected before video uploads were added. Click <b>Add another channel</b> and pick the same channel to allow uploads.</p>`:yt.can_post?`<p class="hint" style="margin:0"><b>Posting:</b> uploads are on for the channel used in reports. Until Google approves the project in YouTube's API audit, YouTube keeps API uploads private; each upload also uses about 1,600 of the 10,000 daily quota units.</p>`:""}
     <div><div class="eyebrow" style="margin-bottom:8px">Channels</div>
@@ -2975,30 +2995,25 @@ function smaSettingsYT(b){
       <p class="hint" style="margin:8px 0 0">Each Google sign-in adds the channel picked in Google's account chooser. To add another channel, click Add another channel and pick that channel's account or Brand Account.</p>`
     :`<p class="hint" style="margin:0">No channel connected yet.</p>`}</div>
     <div class="form-actions"><span class="spacer"></span>
-      <button class="btn" type="button" id="yt-save">Save integration</button>
       <a class="btn primary" href="api/sma/youtube/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${(yt.channels||[]).length?"Add another channel":"Connect YouTube"}</a></div>
   </div></div>`;
 }
 function smaSettingsMeta(b){
   const mt=b.meta;const configured=mt.app_id&&mt.has_app_secret;
   return `<div class="card"><div class="card-head"><h2><span class="src" style="background:var(--c1);margin-right:4px">f</span><span class="src" style="background:var(--c5);margin-right:8px">IG</span>Facebook &amp; Instagram API integration</h2><span class="pill ${mt.page_connected?"pos":mt.connected?"neu":configured?"neu":"neg"}">${mt.page_connected?"Connected":mt.connected?"Choose a Page":configured?"Ready to connect":"Not set up"}</span></div><div class="card-body">
+    ${appLine("meta",mt.app_id,mt.has_app_secret,mt.app_mismatch,"Reconnect Facebook & Instagram")}
     <ol class="steps">
       <li>Make sure the brand's Instagram is a <b>Professional</b> account (Business or Creator) and is <b>linked to its Facebook Page</b>.</li>
-      <li>Open <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer">developers.facebook.com/apps</a>, create an app of type <b>Business</b>, and add the <b>Facebook Login for Business</b> product.</li>
-      <li>In Facebook Login > Settings, add this <b>Valid OAuth Redirect URI</b>: <span class="code" id="meta-redirect">${esc(mt.redirect_uri)}</span> <button class="btn" type="button" id="meta-copy-redirect" style="padding:3px 8px;font-size:12px">Copy</button></li>
-      <li>Add everyone who will connect Pages as an <b>admin or developer</b> of the app (App roles). While the app is in development mode, only they can connect, and no app review is needed for your own Pages.</li>
-      <li>Copy the <b>App ID</b> and <b>App Secret</b> from App settings > Basic below, save, then click <b>Connect Facebook &amp; Instagram</b> and choose the Page (and its business) when Facebook asks.</li>
+      <li>Click <b>Connect Facebook &amp; Instagram</b>, sign in as someone who manages the Page (with a role on the workspace Meta app while it is in development mode), and choose the Page (and its business) when Facebook asks.</li>
     </ol>
     <div class="form">
-      <label class="f" for="meta-appid">App ID</label><input type="text" id="meta-appid" value="${esc(mt.app_id||"")}" autocomplete="off" inputmode="numeric" spellcheck="false">
-      <label class="f" for="meta-secret">App Secret</label><div class="toolbar"><input type="password" id="meta-secret" placeholder="${mt.has_app_secret?"Saved. Paste a new one to replace it":"Paste the App Secret"}" autocomplete="off" style="flex:1;min-width:200px"><span class="pill ${mt.has_app_secret?"pos":"neu"}">${mt.has_app_secret?"Saved":"Not set"}</span></div>
       <label class="f" for="meta-scopes">Permissions</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="meta-scopes" value="${esc(mt.scopes||"")}" spellcheck="false"><span class="hint">Default reads Pages, Page and Instagram insights and posts. Remove business_management if your Pages are not in a Meta Business portfolio.</span></div>
       <label class="f" for="meta-version">Graph API version</label><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><input type="text" id="meta-version" value="${esc(mt.version||"")}" placeholder="${esc(mt.default_version)} (automatic)" style="max-width:220px"><span class="hint">Like v23.0. Leave empty for the default.</span></div>
     </div>
     ${mt.last_error?`<p class="neg-c" style="margin:0">${esc(mt.last_error)}</p>`:""}
     ${mt.connected&&(mt.pages||[]).length>1?`<div class="form"><label class="f" for="meta-page">Facebook Page</label><div class="toolbar"><select class="select" id="meta-page">${mt.pages.map(p=>`<option value="${esc(p.id)}" ${p.id===mt.page_id?"selected":""}>${esc(p.name)}${p.ig_username?" · Instagram @"+esc(p.ig_username):" · no Instagram linked"}</option>`).join("")}</select><button class="btn" type="button" id="meta-page-save">Use this Page</button></div></div>`:""}
     <div class="form-actions"><span class="hint">${mt.connected?`Connected by ${esc(mt.connected_by||"")}${mt.page_name?" · Page: "+esc(mt.page_name):""}${mt.ig_username?" · Instagram: @"+esc(mt.ig_username):""}`:""}</span><span class="spacer"></span>
-      <button class="btn" type="button" id="meta-save">Save integration</button>
+      <button class="btn" type="button" id="meta-save">Save settings</button>
       <a class="btn primary" href="api/sma/meta/start?brand=${b.id}" ${configured?"":`aria-disabled="true" style="pointer-events:none;opacity:.5"`}>${mt.connected?"Reconnect Facebook & Instagram":"Connect Facebook & Instagram"}</a></div>
   </div></div>`;
 }
@@ -3017,14 +3032,11 @@ function bindBrand(b,tab){
   if(tab==="source"&&$("yt-disconnect")){$("yt-disconnect").onclick=async e=>{if(SMA.arm!=="ydisc"){SMA.arm="ydisc";e.currentTarget.textContent="Click again to remove this channel";return;}SMA.arm=null;
     try{await smaApi(`/brands/${b.id}/youtube/remove`,{method:"POST",body:JSON.stringify({channel_id:b.youtube.channel_id})});delete SMA.yt[b.id];await smaRefresh();smaMsg("Channel removed.");}catch(err){smaMsg(err.message,true);}};}
   if(tab==="settings"){
-    $("yt-copy-redirect").onclick=e=>copyOutTo(b.youtube.redirect_uri,e.currentTarget,"Copy",null);
     $("x-copy-redirect").onclick=e=>copyOutTo(b.xpub.redirect_uri,e.currentTarget,"Copy",null);
     $("x-save").onclick=async()=>{const body={xpub:{client_id:$("x-cid").value.trim()}};const s=$("x-secret").value.trim();if(s)body.xpub.client_secret=s;
       try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("x-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect X.");}catch(e){smaMsg(e.message,true);}};
     if($("x-disconnect"))$("x-disconnect").onclick=async e=>{if(SMA.arm!=="xdisc"){SMA.arm="xdisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
       try{await smaApi(`/brands/${b.id}/xpub/disconnect`,{method:"POST"});await smaRefresh();smaMsg("X disconnected.");}catch(err){smaMsg(err.message,true);}};
-    $("yt-save").onclick=async()=>{const body={youtube:{client_id:$("yt-cid").value.trim()}};const s=$("yt-secret").value.trim();if(s)body.youtube.client_secret=s;
-      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("yt-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect YouTube.");}catch(e){smaMsg(e.message,true);}};
   }
   if(tab==="monthly"){
     if($("mr-month"))$("mr-month").onchange=e=>{SMA.month=e.target.value;renderSMA();};
@@ -3047,9 +3059,8 @@ function bindBrand(b,tab){
   if(tab==="source"&&$("meta-disconnect")){$("meta-disconnect").onclick=async e=>{if(SMA.arm!=="mdisc"){SMA.arm="mdisc";e.currentTarget.textContent="Click again to disconnect";return;}SMA.arm=null;
     try{await smaApi(`/brands/${b.id}/meta/disconnect`,{method:"POST"});await smaRefresh();smaMsg("Facebook & Instagram disconnected. Stored data is kept.");}catch(err){smaMsg(err.message,true);}};}
   if(tab==="settings"){
-    $("meta-copy-redirect").onclick=e=>copyOutTo(b.meta.redirect_uri,e.currentTarget,"Copy",null);
-    $("meta-save").onclick=async()=>{const body={meta:{app_id:$("meta-appid").value.trim(),scopes:$("meta-scopes").value.trim(),version:$("meta-version").value.trim()}};const s=$("meta-secret").value.trim();if(s)body.meta.app_secret=s;
-      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("meta-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect Facebook & Instagram.");}catch(e){smaMsg(e.message,true);}};
+    $("meta-save").onclick=async()=>{const body={meta:{scopes:$("meta-scopes").value.trim(),version:$("meta-version").value.trim()}};
+      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});await smaRefresh();smaMsg("Saved.");}catch(e){smaMsg(e.message,true);}};
     if($("meta-page-save"))$("meta-page-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}/meta/page`,{method:"POST",body:JSON.stringify({page_id:$("meta-page").value})});delete SMA.meta[b.id];await smaRefresh();smaMsg("Page saved. Syncing its data now.");}catch(e){smaMsg(e.message,true);}};
   }
   if(tab==="report"&&$("li-range")){
@@ -3082,9 +3093,8 @@ function bindBrand(b,tab){
     $("br-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify({name:$("br-name").value})});await smaRefresh();smaMsg("Saved.");}catch(e){smaMsg(e.message,true);}};
     $("br-delete").onclick=async e=>{if(SMA.arm!=="del"){SMA.arm="del";e.currentTarget.textContent="Click again to delete "+b.name;return;}SMA.arm=null;
       try{await smaApi(`/brands/${b.id}`,{method:"DELETE"});SMA.brands=null;delete SMA.data[b.id];go("sma");}catch(err){smaMsg(err.message,true);}};
-    $("li-copy-redirect").onclick=e=>copyOutTo(b.linkedin.redirect_uri,e.currentTarget,"Copy",null);
-    $("li-save").onclick=async()=>{const body={linkedin:{client_id:$("li-cid").value.trim(),scopes:$("li-scopes").value.trim(),version:$("li-version").value.trim()}};const s=$("li-secret").value.trim();if(s)body.linkedin.client_secret=s;
-      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});$("li-secret").value="";await smaRefresh();smaMsg("Saved. You can now connect LinkedIn.");}catch(e){smaMsg(e.message,true);}};
+    $("li-save").onclick=async()=>{const body={linkedin:{scopes:$("li-scopes").value.trim(),version:$("li-version").value.trim()}};
+      try{await smaApi(`/brands/${b.id}`,{method:"PUT",body:JSON.stringify(body)});await smaRefresh();smaMsg("Saved.");}catch(e){smaMsg(e.message,true);}};
     if($("li-org-save"))$("li-org-save").onclick=async()=>{try{await smaApi(`/brands/${b.id}/linkedin/org`,{method:"POST",body:JSON.stringify({urn:$("li-org").value})});delete SMA.data[b.id];await smaRefresh();smaMsg("Page saved. Syncing its data now.");}catch(e){smaMsg(e.message,true);}};
   }
 }

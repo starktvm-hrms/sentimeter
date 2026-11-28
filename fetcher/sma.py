@@ -111,6 +111,91 @@ def set_secrets(bid, **kv):
         _save(_p("secrets.json"), s)
 
 
+# ---------------- workspace platform apps: one app per platform, shared by every brand ----------------
+# Non-secret ids in apps.json; secrets in secrets.json under "_apps". Each brand still signs in to its own page or channel.
+APP_FIELDS = {"linkedin": ("client_id", "li_client_secret"), "meta": ("app_id", "fb_app_secret"), "youtube": ("client_id", "yt_client_secret")}
+APP_RULES = {
+    "linkedin": (r"[A-Za-z0-9]{6,40}", "LinkedIn Client ID: letters and digits, from the app's Auth tab.",
+                 r"[A-Za-z0-9_.=+\-/]{8,200}", "LinkedIn Client Secret has unexpected characters."),
+    "meta": (r"\d{6,20}", "Meta App ID is a number, shown at the top of the app dashboard.",
+             r"[a-f0-9]{32}", "Meta App Secret is 32 letters and digits (a-f, 0-9), from App settings > Basic."),
+    "youtube": (r"[0-9]{6,20}-[a-z0-9]{10,64}\.apps\.googleusercontent\.com", "Google Client ID looks like 123456789012-abc...xyz.apps.googleusercontent.com.",
+                r"[A-Za-z0-9_\-]{20,80}", "Google Client Secret has unexpected characters (it usually starts with GOCSPX-)."),
+}
+
+
+def apps():
+    return _load(_p("apps.json"), {})
+
+
+def app_id(kind):
+    return (apps().get(kind) or {}).get("id", "")
+
+
+def app_secret(kind):
+    return (secrets_all().get("_apps") or {}).get(APP_FIELDS[kind][1])
+
+
+def set_app(kind, cid=None, sec=None, who=""):
+    if kind not in APP_FIELDS:
+        raise KeyError("Unknown platform")
+    id_re, id_msg, sec_re, sec_msg = APP_RULES[kind]
+    cid = None if cid is None else str(cid).strip()
+    sec = str(sec or "").strip()
+    if cid and not re.fullmatch(id_re, cid):
+        raise ValueError(id_msg)
+    if sec and not re.fullmatch(sec_re, sec):
+        raise ValueError(sec_msg)
+    with LOCK:
+        a = apps()
+        if cid is not None:
+            a.setdefault(kind, {}).update({"id": cid, "updated": iso(), "updated_by": who})
+            _save(_p("apps.json"), a, 0o640)
+        if sec:
+            s = secrets_all()
+            s.setdefault("_apps", {})[APP_FIELDS[kind][1]] = sec
+            _save(_p("secrets.json"), s)
+
+
+def connected_app(kind, rec):
+    """The app a brand's current connection was made with (older connections: the brand's own app)."""
+    return (rec or {}).get("connected_app_id") or (rec or {}).get(APP_FIELDS[kind][0]) or ""
+
+
+def app_mismatch(kind, rec, connected):
+    cur = app_id(kind)
+    used = connected_app(kind, rec)
+    return bool(connected and cur and used and used != cur)
+
+
+def public_apps():
+    out = {}
+    for kind in APP_FIELDS:
+        a = apps().get(kind) or {}
+        uses = [b["name"] for b in brands()]
+        out[kind] = {"id": a.get("id", ""), "has_secret": bool(app_secret(kind)), "updated": a.get("updated"), "updated_by": a.get("updated_by"),
+                     "brands": len(uses)}
+    return out
+
+
+def migrate_apps():
+    """First run with shared apps: adopt the app most brands already use (with its secret) as the workspace app."""
+    sec_all = secrets_all()
+    for kind, (idf, secf) in APP_FIELDS.items():
+        if app_id(kind):
+            continue
+        seen = {}
+        for b in brands():
+            cid = ((b.get(kind) or {}).get(idf) or "").strip()
+            sec = (sec_all.get(b["id"]) or {}).get(secf)
+            if cid and sec:
+                seen.setdefault(cid, [0, sec])[0] += 1
+        if seen:
+            cid, (_, sec) = max(seen.items(), key=lambda kv: kv[1][0])
+            set_app(kind, cid, sec, "moved from brand settings")
+            log(f"shared {kind} app set from existing brands ({len(seen)} app(s) found)")
+
+
 def li_data(bid):
     return _load(_p(bid, "linkedin.json"), {})
 
@@ -208,8 +293,10 @@ def delete_logo(bid):
 def public_brand(b, with_counts=True):
     li = dict(b.get("linkedin") or {})
     sec = secrets_all().get(b["id"], {})
-    li["has_client_secret"] = bool(sec.get("li_client_secret"))
     li["connected"] = bool(sec.get("li_access_token"))
+    li["app_mismatch"] = app_mismatch("linkedin", li, li["connected"])
+    li["client_id"] = app_id("linkedin")
+    li["has_client_secret"] = bool(app_secret("linkedin"))
     li["refreshable"] = bool(sec.get("li_refresh_token"))
     li["syncing"] = b["id"] in SYNCING
     li["redirect_uri"] = redirect_uri()
@@ -245,11 +332,8 @@ def update_brand(bid, body):
         raise KeyError("Brand not found")
     li = body.get("linkedin") or {}
     errors, changes = [], {}
-    if "client_id" in li:
-        v = str(li["client_id"]).strip()
-        if v and not re.fullmatch(r"[A-Za-z0-9]{6,40}", v):
-            errors.append("LinkedIn Client ID looks wrong: use letters and digits only, as shown in the app's Auth tab.")
-        changes["client_id"] = v
+    if "client_id" in li or li.get("client_secret"):   # kept for older clients: these now set the shared app
+        set_app("linkedin", li.get("client_id"), li.get("client_secret"))
     if "scopes" in li:
         v = " ".join(str(li["scopes"]).replace(",", " ").split())
         if v and not re.fullmatch(r"[a-z_ ]{3,300}", v):
@@ -260,9 +344,6 @@ def update_brand(bid, body):
         if v and not re.fullmatch(r"20\d{4}", v):
             errors.append("LinkedIn API version is YYYYMM, for example 202609.")
         changes["version"] = v
-    sec = str(li.get("client_secret") or "").strip()
-    if sec and not re.fullmatch(r"[A-Za-z0-9_.=+\-/]{8,200}", sec):
-        errors.append("LinkedIn Client Secret has unexpected characters.")
     if errors:
         raise ValueError(" ".join(errors))
 
@@ -272,8 +353,6 @@ def update_brand(bid, body):
             rec["name"] = n
         rec.setdefault("linkedin", {}).update(changes)
     update_brand_record(bid, apply)
-    if sec:
-        set_secrets(bid, li_client_secret=sec)
     return get_brand(bid)
 
 
@@ -293,14 +372,14 @@ def li_start(bid, email):
     if not b:
         raise KeyError("Brand not found")
     li = b.get("linkedin") or {}
-    if not li.get("client_id") or not secret(bid, "li_client_secret"):
-        raise ValueError("Save the LinkedIn Client ID and Client Secret first.")
+    if not app_id("linkedin") or not app_secret("linkedin"):
+        raise ValueError("Save the workspace LinkedIn app (Client ID and Secret) under Workspace > Platform apps first.")
     state = secrets.token_urlsafe(24)
     now = time.time()
     for k in [k for k, v in STATES.items() if v["exp"] < now]:
         STATES.pop(k, None)
     STATES[state] = {"brand": bid, "email": email, "exp": now + 600}
-    q = urllib.parse.urlencode({"response_type": "code", "client_id": li["client_id"], "redirect_uri": redirect_uri(),
+    q = urllib.parse.urlencode({"response_type": "code", "client_id": app_id("linkedin"), "redirect_uri": redirect_uri(),
                                 "state": state, "scope": (DEFAULT_SCOPES if li.get("scopes") in OLD_DEFAULT_SCOPES else li.get("scopes")) or DEFAULT_SCOPES})
     return f"{LI_AUTH}/authorization?{q}"
 
@@ -362,9 +441,9 @@ def li_callback(params, email):
     b = get_brand(bid)
     try:
         tok = _token_request({"grant_type": "authorization_code", "code": params.get("code", ""), "redirect_uri": redirect_uri(),
-                              "client_id": b["linkedin"]["client_id"], "client_secret": secret(bid, "li_client_secret")})
+                              "client_id": app_id("linkedin"), "client_secret": app_secret("linkedin")})
         _store_tokens(bid, tok)
-        update_brand_record(bid, lambda r: r["linkedin"].update({"connected_at": iso(), "connected_by": email, "last_error": ""}))
+        update_brand_record(bid, lambda r: r["linkedin"].update({"connected_at": iso(), "connected_by": email, "last_error": "", "connected_app_id": app_id("linkedin")}))
         orgs = li_list_orgs(bid)
         update_brand_record(bid, lambda r: r["linkedin"].update({"orgs": orgs}))
         if len(orgs) == 1 or (orgs and not (get_brand(bid)["linkedin"].get("org_urn") in [o["urn"] for o in orgs])):
@@ -392,8 +471,10 @@ def li_refresh_if_needed(bid):
         if left < timedelta(0):
             raise RuntimeError("The LinkedIn connection expired. Click Connect LinkedIn again in Settings.")
         return
-    tok = _token_request({"grant_type": "refresh_token", "refresh_token": rt, "client_id": li["client_id"],
-                          "client_secret": secret(bid, "li_client_secret")})
+    if app_mismatch("linkedin", li, True):
+        raise RuntimeError("This brand's LinkedIn connection was made with a different app. Click Reconnect LinkedIn in Brand settings.")
+    tok = _token_request({"grant_type": "refresh_token", "refresh_token": rt, "client_id": app_id("linkedin"),
+                          "client_secret": app_secret("linkedin")})
     _store_tokens(bid, tok)
     log(f"{bid}: LinkedIn token refreshed")
 

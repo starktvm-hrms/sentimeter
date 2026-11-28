@@ -143,7 +143,11 @@ The **Social Media Analytics** tab holds **brands**. Each brand has four section
 - **Platform**: one card per platform with connection status and 30-day figures. LinkedIn, Facebook, Instagram and YouTube are live; X is next.
 - **Report**: LinkedIn page analytics for 7, 30, 90 or 365 days: followers and new followers, impressions, unique impressions, engagement rate, clicks, reactions, comments, reposts, page views, daily charts, top posts and follower demographics, compared with the previous period. Copy as CSV or print / save as PDF.
 - **Source**: the connected company page, who connected it and when, token expiry, granted permissions, API version, stored data range and sync history. Sync now, re-sync 12 months, or disconnect.
-- **Settings**: brand name, and the LinkedIn API integration (setup guide, redirect URL, Client ID, Client Secret, scopes, API version, Connect LinkedIn, page choice).
+- **Settings**: brand name and logo, Connect buttons for LinkedIn, Facebook & Instagram, YouTube and X, page or channel choice, scopes and API version.
+
+### Platform apps (shared by all brands)
+
+LinkedIn, Meta (Facebook & Instagram) and Google (YouTube) each use **one app for the whole workspace**: its Client ID / App ID and secret are saved once under **Workspace > Platform apps** and every brand, existing or new, uses it. Each brand still signs in to its own company page, Facebook Page or YouTube channel with Connect in its Brand settings. Ids are stored in `/var/lib/sentimeter/sma/apps.json`, secrets in `secrets.json` (mode 600, never sent to the browser). On the first start with shared apps, the app most brands already used is adopted automatically; a brand connected with a different app (or after the shared app is changed) shows a "connected with a different app" notice until it reconnects once. X keeps a per-brand app, since each X account usually has its own developer app.
 
 ### Facebook and Instagram setup (Meta Graph API)
 
@@ -151,7 +155,7 @@ The **Social Media Analytics** tab holds **brands**. Each brand has four section
 2. Create an app of type **Business** at https://developers.facebook.com/apps and add **Facebook Login for Business**.
 3. Under Facebook Login > Settings, add the Valid OAuth Redirect URI `https://sentimeter.starkpeople.in/api/sma/meta/callback`.
 4. Give everyone who will connect Pages an admin or developer role on the app (no app review is needed for your own Pages while the app is in development mode).
-5. Paste the App ID and App Secret (App settings > Basic) in the brand's Settings, save, click **Connect Facebook & Instagram**, and choose the Page.
+5. Paste the App ID and App Secret (App settings > Basic) once under Workspace > Platform apps; then, in each brand's Settings, click **Connect Facebook & Instagram** and choose the Page.
 
 Permissions requested: `pages_show_list pages_read_engagement read_insights business_management instagram_basic instagram_manage_insights`. The short-lived login is exchanged for a 60-day token and then a Page token, which does not expire while the admin keeps the app's permissions. Each statistic is requested on its own with the newer Meta name first (for example `page_media_view`, then `page_impressions`), so retired metrics show as unavailable instead of failing the sync. Facebook keeps up to 12 months of daily history on first sync; Instagram provides only the last 30 days, so its history grows from the first sync. Code: `fetcher/sma_meta.py`; data in `/var/lib/sentimeter/sma/<brand>/meta.json`.
 
@@ -160,7 +164,7 @@ Permissions requested: `pages_show_list pages_read_engagement read_insights busi
 1. In Google Cloud (console.cloud.google.com), enable **YouTube Data API v3** and **YouTube Analytics API** in a project.
 2. Configure the OAuth consent screen (Google Auth Platform): **Internal** if the channel's Google account is in your Google Workspace, otherwise **External** with the channel's account as a test user. While the publishing status is **Testing**, Google ends connections after 7 days; publish the app for a lasting connection.
 3. Create an **OAuth client ID** of type **Web application** with the redirect URI `https://sentimeter.starkpeople.in/api/sma/youtube/callback`.
-4. Paste the Client ID and Client Secret in the brand's Settings, save, click **Connect YouTube**, and pick the channel's account (or Brand Account) in Google's chooser.
+4. Paste the Client ID and Client Secret once under Workspace > Platform apps; then, in each brand's Settings, click **Connect YouTube** and pick the channel's account (or Brand Account) in Google's chooser.
 5. A brand can have several channels: **Add another channel** runs the Google sign-in again for the next channel. The Channels list shows each one with **Use for reports** and **Remove**; the Report and Source tabs have a channel selector, and every channel syncs daily.
 
 Scopes: `youtube.readonly` and `yt-analytics.readonly`. Sentimeter keeps a refresh token on the server and renews the hourly access token itself. It stores up to 12 months of daily views, watch time, average view duration and percentage, subscribers gained and lost, likes, comments and shares; 90-day traffic sources, countries, age, gender, devices and format (videos, Shorts, live); top videos for 28, 90 and 365 days; and recent uploads. YouTube Analytics runs about two days behind. Code: `fetcher/sma_youtube.py`; data in `/var/lib/sentimeter/sma/<brand>/youtube_<channel>.json` (one file per channel).
@@ -170,7 +174,7 @@ Scopes: `youtube.readonly` and `yt-analytics.readonly`. Sentimeter keeps a refre
 1. Create an app at https://www.linkedin.com/developers/apps linked to the brand's company page (a page admin verifies it).
 2. Request the **Community Management API** product for the app.
 3. Add the redirect URL `https://sentimeter.starkpeople.in/api/sma/linkedin/callback` in the app's Auth tab.
-4. Paste the Client ID and Client Secret in the brand's Settings, save, and click **Connect LinkedIn** as a page admin.
+4. Paste the Client ID and Client Secret once under Workspace > Platform apps; then, in each brand's Settings, click **Connect LinkedIn** as a page admin.
 
 The first connection pulls up to 12 months of daily statistics; after that the brand syncs daily at the Sources run time (and on demand). Access tokens last 60 days and renew automatically when LinkedIn issues a refresh token; otherwise the Source tab shows when to reconnect.
 

@@ -146,9 +146,14 @@ def public(b):
     y.update({"channels": chs, "channel_id": act, "channel_title": a.get("title", ""), "channel_handle": a.get("handle", ""),
               "connected": bool(a.get("connected")), "refreshable": bool(a.get("refreshable")), "connected_by": a.get("connected_by"),
               "connected_at": a.get("connected_at"), "granted_scopes": a.get("granted_scopes", ""), "last_sync": a.get("last_sync"),
-              "channel_error": a.get("last_error", ""), "has_client_secret": bool(sec.get("yt_client_secret")),
+              "channel_error": a.get("last_error", ""), "has_client_secret": bool(sma.app_secret("youtube")),
               "syncing": busy(b["id"]), "redirect_uri": redirect_uri()})
     y["last_error"] = y.get("last_error") or a.get("last_error", "")
+    y["client_id"] = sma.app_id("youtube")
+    legacy = cfg(b).get("client_id", "")
+    for c in chs:
+        c["app_mismatch"] = sma.app_mismatch("youtube", {"connected_app_id": c.get("connected_app_id") or legacy}, c.get("connected"))
+    y["app_mismatch"] = any(c["app_mismatch"] for c in chs)
     y["can_post"] = bool(a.get("connected")) and UPLOAD_SCOPE in str(a.get("granted_scopes") or "").split()
     return y
 
@@ -168,19 +173,8 @@ def update(bid, body):
     if not y:
         return
     errors, changes = [], {}
-    if "client_id" in y:
-        v = str(y["client_id"]).strip()
-        if v and not re.fullmatch(r"[0-9]{6,20}-[a-z0-9]{10,64}\.apps\.googleusercontent\.com", v):
-            errors.append("Google Client ID looks like 123456789012-abc...xyz.apps.googleusercontent.com (Credentials > OAuth 2.0 Client IDs).")
-        changes["client_id"] = v
-    sec = str(y.get("client_secret") or "").strip()
-    if sec and not re.fullmatch(r"[A-Za-z0-9_\-]{20,80}", sec):
-        errors.append("Google Client Secret has unexpected characters (it usually starts with GOCSPX-).")
-    if errors:
-        raise ValueError(" ".join(errors))
-    sma.update_brand_record(bid, lambda r: r.setdefault("youtube", {}).update(changes))
-    if sec:
-        sma.set_secrets(bid, yt_client_secret=sec)
+    if "client_id" in y or y.get("client_secret"):   # older clients: these now set the shared app
+        sma.set_app("youtube", y.get("client_id"), y.get("client_secret"))
 
 
 def friendly(msg):
@@ -208,14 +202,14 @@ def start(bid, email):
     if not b:
         raise KeyError("Brand not found")
     y = cfg(b)
-    if not y.get("client_id") or not sma.secret(bid, "yt_client_secret"):
-        raise ValueError("Save the Google Client ID and Client Secret first.")
+    if not sma.app_id("youtube") or not sma.app_secret("youtube"):
+        raise ValueError("Save the workspace Google app (Client ID and Secret) under Workspace > Platform apps first.")
     state = pysecrets.token_urlsafe(24)
     now = time.time()
     for k in [k for k, v in STATES.items() if v["exp"] < now]:
         STATES.pop(k, None)
     STATES[state] = {"brand": bid, "email": email, "exp": now + 600}
-    q = urllib.parse.urlencode({"client_id": y["client_id"], "redirect_uri": redirect_uri(), "response_type": "code", "scope": SCOPES,
+    q = urllib.parse.urlencode({"client_id": sma.app_id("youtube"), "redirect_uri": redirect_uri(), "response_type": "code", "scope": SCOPES,
                                 "access_type": "offline", "prompt": "consent select_account", "include_granted_scopes": "true", "state": state})
     return f"{AUTH}?{q}"
 
@@ -241,9 +235,8 @@ def access_token(bid, cid):
         return tk["access"]
     if not tk.get("refresh"):
         raise RuntimeError("The YouTube connection for this channel expired. Click Add or reconnect channel in Settings.")
-    y = cfg(sma.get_brand(bid))
-    tok = _token_post({"grant_type": "refresh_token", "refresh_token": tk["refresh"], "client_id": y["client_id"],
-                       "client_secret": sma.secret(bid, "yt_client_secret") or ""})
+    tok = _token_post({"grant_type": "refresh_token", "refresh_token": tk["refresh"], "client_id": sma.app_id("youtube"),
+                       "client_secret": sma.app_secret("youtube") or ""})
     set_tokens(bid, cid, access=tok["access_token"], expires=time.time() + int(tok.get("expires_in") or 3600) - 60)
     return tok["access_token"]
 
@@ -280,7 +273,7 @@ def callback(params, email):
     y = cfg(sma.get_brand(bid))
     try:
         tok = _token_post({"grant_type": "authorization_code", "code": params.get("code", ""), "redirect_uri": redirect_uri(),
-                           "client_id": y["client_id"], "client_secret": sma.secret(bid, "yt_client_secret")})
+                           "client_id": sma.app_id("youtube"), "client_secret": sma.app_secret("youtube")})
         ch = api(bid, f"{DATA_API}/channels", {"part": "snippet,statistics,contentDetails", "mine": "true"}, token=tok["access_token"])
         items = ch.get("items") or []
         if not items:
@@ -294,7 +287,8 @@ def callback(params, email):
         set_tokens(bid, cid, access=tok["access_token"], expires=time.time() + int(tok.get("expires_in") or 3600) - 60,
                    refresh=tok.get("refresh_token") or prev.get("refresh"))
         entry = {"id": cid, "title": (c.get("snippet") or {}).get("title", ""), "handle": (c.get("snippet") or {}).get("customUrl", ""),
-                 "connected_by": email, "connected_at": sma.iso(), "granted_scopes": tok.get("scope", ""), "last_error": ""}
+                 "connected_by": email, "connected_at": sma.iso(), "granted_scopes": tok.get("scope", ""), "last_error": "",
+                 "connected_app_id": sma.app_id("youtube")}
         if not tok.get("refresh_token") and not prev.get("refresh"):
             entry["last_error"] = ("Google did not issue a long-lived token, so this channel will stop after an hour. Remove Sentimeter at "
                                    "myaccount.google.com/permissions, then add the channel again.")

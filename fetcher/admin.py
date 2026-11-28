@@ -23,6 +23,7 @@ are rate limited per visitor.
   GET  /api/sma/brands/<id>/youtube, POST /api/sma/brands/<id>/youtube/{sync,disconnect}
   GET  /api/sma/youtube/start?brand=<id>  -> Google sign-in;  GET /api/sma/youtube/callback
   GET  /api/sma/x/start?brand=<id>  -> X sign-in (posting);  GET /api/sma/x/callback;  POST /api/sma/brands/<id>/x/disconnect
+  GET/PUT /api/sma/apps   shared LinkedIn / Meta / Google apps used by every brand (secrets write-only)
   POST /api/upload/sma/<id>/video   (raw video body, streamed to disk; nginx allows large bodies only here)
   GET  /api/settings   settings, which keys are set (never their values), usage
   PUT  /api/settings   save accounts, actors, keyword search toggles, monthly limit
@@ -437,6 +438,14 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
 
     @staticmethod
+    def pub_apps():
+        out = sma.public_apps()
+        out["linkedin"]["redirect_uri"] = sma.redirect_uri()
+        out["meta"]["redirect_uri"] = sma_meta.redirect_uri()
+        out["youtube"]["redirect_uri"] = sma_youtube.redirect_uri()
+        return out
+
+    @staticmethod
     def pub_brand(b, counts=True):
         out = sma.public_brand(b, counts)
         out["meta"] = sma_meta.public(b)
@@ -459,7 +468,16 @@ class H(BaseHTTPRequestHandler):
         email = (getattr(self, "user", None) or {}).get("email", "admin key")
         try:
             if path == "/api/sma/brands" and m == "GET":
-                return self.send(200, {"brands": [self.pub_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri()}) or True
+                return self.send(200, {"brands": [self.pub_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri(), "apps": self.pub_apps()}) or True
+            if path == "/api/sma/apps" and m == "GET":
+                return self.send(200, {"apps": self.pub_apps()}) or True
+            if path == "/api/sma/apps" and m == "PUT":
+                body = self.body()
+                for kind in ("linkedin", "meta", "youtube"):
+                    a = body.get(kind)
+                    if isinstance(a, dict):
+                        sma.set_app(kind, a.get("id") if "id" in a else None, a.get("secret"), email)
+                return self.send(200, {"apps": self.pub_apps()}) or True
             if path == "/api/sma/brands" and m == "POST":
                 b = sma.create_brand(self.body().get("name"))
                 return self.send(201, {"brand": self.pub_brand(b)}) or True
@@ -1015,6 +1033,10 @@ def ensure_nginx_snippet():
 if __name__ == "__main__":
     ensure_nginx_snippet()
     migrate_public_data()
+    try:
+        sma.migrate_apps()
+    except Exception as e:
+        sys.stderr.write(f"apps: {e}\n")
     try:
         sma_extra.apply_seeds()
     except Exception as e:

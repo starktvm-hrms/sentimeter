@@ -55,8 +55,10 @@ def version(b):
 def public(b):
     m = dict(cfg(b))
     sec = sma.secrets_all().get(b["id"], {})
-    m["has_app_secret"] = bool(sec.get("fb_app_secret"))
     m["connected"] = bool(sec.get("fb_user_token") or sec.get("fb_page_token"))
+    m["app_mismatch"] = sma.app_mismatch("meta", m, m["connected"])
+    m["app_id"] = sma.app_id("meta")
+    m["has_app_secret"] = bool(sma.app_secret("meta"))
     m["page_connected"] = bool(sec.get("fb_page_token")) and bool(m.get("page_id"))
     m["syncing"] = key(b["id"]) in sma.SYNCING
     m["redirect_uri"] = redirect_uri()
@@ -96,11 +98,8 @@ def update(bid, body):
     if not m:
         return
     errors, changes = [], {}
-    if "app_id" in m:
-        v = str(m["app_id"]).strip()
-        if v and not re.fullmatch(r"\d{6,20}", v):
-            errors.append("Meta App ID is a number, shown at the top of the app dashboard.")
-        changes["app_id"] = v
+    if "app_id" in m or m.get("app_secret"):   # older clients: these now set the shared app
+        sma.set_app("meta", m.get("app_id"), m.get("app_secret"))
     if "scopes" in m:
         v = " ".join(str(m["scopes"]).replace(",", " ").split())
         if v and not re.fullmatch(r"[a-z_ ]{3,500}", v):
@@ -111,14 +110,9 @@ def update(bid, body):
         if v and not re.fullmatch(r"v\d{2}\.\d", v):
             errors.append("Graph API version looks like v23.0.")
         changes["version"] = v
-    sec = str(m.get("app_secret") or "").strip()
-    if sec and not re.fullmatch(r"[a-f0-9]{32}", sec):
-        errors.append("Meta App Secret is 32 letters and digits (a-f, 0-9), from App settings > Basic.")
     if errors:
         raise ValueError(" ".join(errors))
     sma.update_brand_record(bid, lambda r: r.setdefault("meta", {}).update(changes))
-    if sec:
-        sma.set_secrets(bid, fb_app_secret=sec)
 
 
 # ---------------- OAuth ----------------
@@ -148,20 +142,20 @@ def start(bid, email):
     if not b:
         raise KeyError("Brand not found")
     m = cfg(b)
-    if not m.get("app_id") or not sma.secret(bid, "fb_app_secret"):
+    if not sma.app_id("meta") or not sma.app_secret("meta"):
         raise ValueError("Save the Meta App ID and App Secret first.")
     state = pysecrets.token_urlsafe(24)
     now = time.time()
     for k in [k for k, v in STATES.items() if v["exp"] < now]:
         STATES.pop(k, None)
     STATES[state] = {"brand": bid, "email": email, "exp": now + 600}
-    q = urllib.parse.urlencode({"client_id": m["app_id"], "redirect_uri": redirect_uri(), "state": state, "response_type": "code",
+    q = urllib.parse.urlencode({"client_id": sma.app_id("meta"), "redirect_uri": redirect_uri(), "state": state, "response_type": "code",
                                 "scope": ",".join((DEFAULT_SCOPES if " ".join((m.get("scopes") or "").split()) in OLD_DEFAULT_SCOPES else (m.get("scopes") or DEFAULT_SCOPES)).split())})
     return f"{DIALOG}/{version(b)}/dialog/oauth?{q}"
 
 
 def _proof(bid, token):
-    sec = sma.secret(bid, "fb_app_secret") or ""
+    sec = sma.app_secret("meta") or ""
     return hmac.new(sec.encode(), token.encode(), hashlib.sha256).hexdigest()
 
 
@@ -206,9 +200,9 @@ def callback(params, email):
     b = sma.get_brand(bid)
     m = cfg(b)
     try:
-        app_secret = sma.secret(bid, "fb_app_secret")
-        short = _token(bid, {"client_id": m["app_id"], "client_secret": app_secret, "redirect_uri": redirect_uri(), "code": params.get("code", "")})
-        long = _token(bid, {"grant_type": "fb_exchange_token", "client_id": m["app_id"], "client_secret": app_secret,
+        app_secret = sma.app_secret("meta")
+        short = _token(bid, {"client_id": sma.app_id("meta"), "client_secret": app_secret, "redirect_uri": redirect_uri(), "code": params.get("code", "")})
+        long = _token(bid, {"grant_type": "fb_exchange_token", "client_id": sma.app_id("meta"), "client_secret": app_secret,
                             "fb_exchange_token": short["access_token"]})
         exp = int(long.get("expires_in") or 60 * 86400)
         sma.set_secrets(bid, fb_user_token=long["access_token"], fb_page_token=None)
@@ -220,7 +214,7 @@ def callback(params, email):
         except Exception:
             pass
         sma.update_brand_record(bid, lambda r: r.setdefault("meta", {}).update({
-            "connected_at": sma.iso(), "connected_by": email, "user_token_expires": sma.iso(time.time() + exp),
+            "connected_at": sma.iso(), "connected_by": email, "connected_app_id": sma.app_id("meta"), "user_token_expires": sma.iso(time.time() + exp),
             "granted_scopes": " ".join(granted), "pages": [{k: p[k] for k in ("id", "name", "ig_id", "ig_username")} for p in pages],
             "last_error": "" if pages else "Connected, but this Facebook account does not manage any Pages the app can see. "
                                            "During sign-in, choose the Pages (and Business) to share with the app."}))
