@@ -24,6 +24,8 @@ are rate limited per visitor.
   GET  /api/sma/brands/<id>/youtube, POST /api/sma/brands/<id>/youtube/{sync,disconnect}
   GET  /api/sma/youtube/start?brand=<id>  -> Google sign-in;  GET /api/sma/youtube/callback
   GET  /api/sma/x/start?brand=<id>  -> X sign-in (posting);  GET /api/sma/x/callback;  POST /api/sma/brands/<id>/x/disconnect
+  GET /api/sma/rb/reports[/<id>], DELETE /api/sma/rb/reports/<id>, GET /api/sma/rb/assets/<file>   custom report builder
+  POST /api/upload/rb/reports/<id|new> (JSON document), POST /api/upload/rb/assets (raw image/video)
   GET/PUT /api/sma/groups  named brand groups for multi-brand reports
   GET/PUT /api/sma/apps   shared LinkedIn / Meta / Google apps used by every brand (secrets write-only)
   POST /api/upload/sma/<id>/video   (raw video body, streamed to disk; nginx allows large bodies only here)
@@ -49,6 +51,7 @@ import sma_meta  # noqa: E402  (Social Media Analytics: Facebook and Instagram)
 import sma_youtube  # noqa: E402  (Social Media Analytics: YouTube)
 import sma_extra  # noqa: E402  (report settings, X and competitors via Apify)
 import sma_x  # noqa: E402  (publishing to X)
+import sma_rb  # noqa: E402  (custom report builder)
 
 ENV_FILE = os.environ.get("SENTIMETER_ENV", "/etc/sentimeter.env")
 LOG_FILE = os.environ.get("SENTIMETER_LOG", "/var/log/sentimeter/fetch.log")
@@ -471,6 +474,18 @@ class H(BaseHTTPRequestHandler):
         try:
             if path == "/api/sma/brands" and m == "GET":
                 return self.send(200, {"brands": [self.pub_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri(), "apps": self.pub_apps()}) or True
+            if path == "/api/sma/rb/reports" and m == "GET":
+                return self.send(200, {"items": sma_rb.list_reports()}) or True
+            rr = re.fullmatch(r"/api/sma/rb/reports/(r[0-9a-f]{10})", path)
+            if rr and m == "GET":
+                return self.send(200, {"report": sma_rb.get_report(rr.group(1))}) or True
+            if rr and m == "DELETE":
+                sma_rb.delete_report(rr.group(1))
+                return self.send(200, {"ok": True}) or True
+            ra = re.fullmatch(r"/api/sma/rb/assets/(a[0-9a-f]{16}\.(?:png|jpg|webp|gif|mp4|webm|mov))", path)
+            if ra and m == "GET":
+                fp = sma_rb.asset_path(ra.group(1))
+                return self.send_file(fp, sma_rb.asset_type(fp) if fp else None, "private, max-age=604800") or True
             if path == "/api/sma/groups" and m == "GET":
                 return self.send(200, {"groups": sma.groups()}) or True
             if path == "/api/sma/groups" and m == "PUT":
@@ -699,7 +714,7 @@ class H(BaseHTTPRequestHandler):
         except RuntimeError as e:
             return self.send(502, {"error": str(e)}) or True
 
-    def send_file(self, path):
+    def send_file(self, path, ctype=None, cache="public, max-age=86400"):
         """Stream a stored video, with single-range support (media fetchers often ask for byte ranges)."""
         if not path:
             return self.send(404, {"error": "Not found"})
@@ -720,9 +735,9 @@ class H(BaseHTTPRequestHandler):
                 return
             code = 206
         self.send_response(code)
-        self.send_header("Content-Type", sma_extra.video_type(path))
+        self.send_header("Content-Type", ctype or sma_extra.video_type(path))
         self.send_header("Accept-Ranges", "bytes")
-        self.send_header("Cache-Control", "public, max-age=86400")
+        self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
         if code == 206:
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
@@ -876,6 +891,25 @@ class H(BaseHTTPRequestHandler):
     def upload_video(self):
         """POST /api/upload/sma/<brand>/video with the raw file as the body. Returns True when handled."""
         um = re.fullmatch(r"/api/upload/sma/(b[0-9a-f]{8})/video", self.path.split("?")[0])
+        rb = re.fullmatch(r"/api/upload/rb/(assets|reports/(new|r[0-9a-f]{10}))", self.path.split("?")[0])
+        if rb:
+            self.close_connection = True
+            if not self.authed() or self.limited(240):
+                return True
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                if rb.group(1) == "assets":
+                    name = sma_rb.save_asset(self.rfile, n, self.headers.get("Content-Type"))
+                    return self.send(200, {"id": name, "url": f"api/sma/rb/assets/{name}"}) or True
+                if n > sma_rb.MAX_DOC:
+                    raise ValueError("This report is too large to save (over 8 MB).")
+                who = (getattr(self, "user", None) or {}).get("email", "admin key")
+                doc = sma_rb.save_report(rb.group(2), self.rfile.read(n), who)
+                return self.send(200, {"id": doc["id"], "updated": doc["updated"], "updated_by": doc["updated_by"]}) or True
+            except ValueError as e:
+                return self.send(400, {"error": str(e)}) or True
+            except KeyError as e:
+                return self.send(404, {"error": str(e).strip("'")}) or True
         if not um:
             return False
         self.close_connection = True

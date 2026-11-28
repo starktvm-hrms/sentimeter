@@ -15,6 +15,15 @@ head = """<!doctype html>
 </head>
 <body>
 """
+# Custom Report Builder: separate script and stylesheet, loaded on first use.
+import hashlib
+rb_parts = ["core", "data", "charts", "widgets", "templates", "editor", "panels", "export", "list"]
+rb_js = "(()=>{\n\"use strict\";\n" + "\n".join((root / f"src/rb/{p}.js").read_text() for p in rb_parts) + "\n})();\n"
+rb_css = (root / "src/rb/rb.css").read_text()
+rbv = hashlib.sha256((rb_js + rb_css).encode()).hexdigest()[:10]
+(root / "public/rb.js").write_text(rb_js)
+(root / "public/rb.css").write_text(rb_css)
+body = body.replace("__RBV__", rbv)
 out = root / "public/index.html"
 out.parent.mkdir(exist_ok=True)
 out.write_text(head + body + "\n</body>\n</html>\n")

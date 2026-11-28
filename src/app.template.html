@@ -631,6 +631,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <a href="#competitors" data-view="competitors" data-key="competitors"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8v4a4 4 0 0 1-8 0z"/><path d="M6 5H3.5v1a3 3 0 0 0 3 3M14 5h2.5v1a3 3 0 0 1-3 3M10 11.5V14M7 16.5h6M8 14h4"/></svg>Competitor Analysis</a>
       <a href="#mentions" data-view="mentions" data-key="mentions"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="1.8"/><path d="M6.5 6.5a5 5 0 0 0 0 7M13.5 6.5a5 5 0 0 1 0 7M4 4a8.5 8.5 0 0 0 0 12M16 4a8.5 8.5 0 0 1 0 12"/></svg>Listening &amp; Mentions</a>
       <a href="#sma" data-view="sma" data-key="deck" data-bhref="sma-{b}-monthly"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h7l3.5 3.5v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/><path d="M12 2.5V6h3.5M7 10h6M7 13h6"/></svg>Reports<svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 3l4 4-4 4"/></svg></a>
+      <a href="#builder" data-view="builder" data-key="builder" class="nav-sub">Custom report</a>
       <a href="#groupreport" data-view="groupreport" data-key="groupreport" class="nav-sub">Group report</a>
       <a href="#reports" data-view="reports" data-key="reports" class="nav-sub">Sentiment report</a>
       <a href="#sma" data-view="sma" data-key="allbrands"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7" r="2.8"/><path d="M2.5 16.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4"/><path d="M13 4.6a2.6 2.6 0 0 1 0 5M14.5 12.7c1.5.5 2.6 1.8 3 3.8"/></svg>Workspace<svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 3l4 4-4 4"/></svg></a>
@@ -869,6 +870,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
     <section class="content" id="v-calendar" hidden><div id="cal-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
     <section class="content" id="v-publish" hidden><div id="pub-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
     <section class="content" id="v-competitors" hidden><div id="cmp-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
+    <section class="content rb-host" id="v-builder" hidden><div id="rb-root"></div></section>
     <section class="content" id="v-groupreport" hidden><div id="grp-root" class="mr-mode" style="display:flex;flex-direction:column;gap:14px"></div></section>
 
     <!-- SOURCES -->
@@ -2046,8 +2048,8 @@ function mrCollect(b,P){
   return {days,accts,posts,groups,plats:[...new Set(accts.map(a=>a.plat))]};}
 /* ----- Monthly report: data model shared by the on-screen deck, the PDF and the PowerPoint ----- */
 const SLC={ol:"93A93C",gr:"5BB542",bl:"4889B1",or:"EEA143",ink:"1B1F1C",mut:"6B726D",ln:"E4E8E4",card:"EFF3EF",line1:"2563EB",line2:"38BDF8",bar:"2563EB"};
-function mrModel(b){
-  const P=mrPeriod(b);const R=mrCollect(b,P);const mName=P.label;
+function mrModel(b,Pin){
+  const P=Pin||mrPeriod(b);const R=mrCollect(b,P);const mName=P.label;
   const today=localDay(new Date());const days=R.days.filter(d=>d<=today);const toDate=R.days[R.days.length-1]>today;
   const prevDays=P.prevDays.slice(0,days.length);
   const fd=k=>new Date(k+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
@@ -2401,6 +2403,17 @@ function smaMonthly(b){
   if(!M.plats.length&&!M.R.posts.length)return toolbar+`<div class="card"><p class="empty">No platform is connected for ${esc(b.name)} yet. Connect Facebook, Instagram, LinkedIn or YouTube in <a href="#sma-${b.id}-settings">Settings</a>, sync, and the monthly report fills in automatically.</p></div>`;
   return toolbar+`<p class="hint no-print" style="margin:-4px 0 12px">${M.slides.length} slides · ${esc(M.period)}${M.toDate?" (month to date)":""}. Statistics are as of the last sync.</p><div class="deck-wrap"><div class="deck" id="mr-deck">${M.slides.map(s=>slHTML(b,M,s)).join("")}</div></div>`;
 }
+/* ---------- Custom Report Builder (loaded on first use from rb.js / rb.css) ---------- */
+let RB_LOAD=null;
+function renderBuilder(){const root=$("rb-root");
+  if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Custom Report Builder</h1><p class="sub">This needs the Sentimeter server and a login.</p></div></div>`;return;}
+  if(window.RBX){window.RBX.render(root);return;}
+  root.innerHTML=`<p class="hint" style="padding:24px">Loading the report builder…</p>`;
+  RB_LOAD=RB_LOAD||Promise.all([new Promise((ok,bad)=>{const l=document.createElement("link");l.rel="stylesheet";l.href="rb.css?v=__RBV__";l.onload=ok;l.onerror=bad;document.head.appendChild(l);}),
+    fetch("rb.js?v=__RBV__",{cache:"force-cache"}).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(code=>{eval(code+"\n//# sourceURL=rb.js");})]);  // evaluated in the app's scope so the builder shares its live data
+  const mine=RB_LOAD;if(RB_LOAD.waiting)return;RB_LOAD.waiting=true;
+  mine.then(()=>{if(current()==="builder")window.RBX.render(root);}).catch(()=>{RB_LOAD=null;root.innerHTML=`<p class="neg-c" style="padding:24px">Could not load the report builder. Check the connection and reload.</p>`;});}
+
 /* ---------- Group report: several brands' reports, one after another ---------- */
 const GRP={groups:null,sel:null,edit:null,model:null,seq:0};
 async function grpLoad(b,fresh){const j=[];
@@ -3094,12 +3107,12 @@ function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIO
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["overview","publish","calendar","dashboard","mentions","reports","sma","competitors","groupreport","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
-function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";if(h==="sma"||h.startsWith("sma-"))return"sma";return VIEWS.includes(h)?h:(AUTH_MODE==="server"?"overview":"dashboard");}
+const VIEWS=["overview","publish","calendar","dashboard","mentions","reports","sma","competitors","groupreport","builder","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
+function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";if(h==="sma"||h.startsWith("sma-"))return"sma";if(h.startsWith("builder"))return"builder";return VIEWS.includes(h)?h:(AUTH_MODE==="server"?"overview":"dashboard");}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
   const v=current();
-  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors"||v==="groupreport"||v==="publish"||v==="overview"||v==="calendar");document.querySelector(".app").classList.toggle("new-view",["overview","publish","calendar"].includes(v));document.querySelector(".app").classList.toggle("listen-view",["dashboard","mentions","reports","alert-setup","analyze"].includes(v));
+  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors"||v==="groupreport"||v==="publish"||v==="overview"||v==="calendar");document.querySelector(".app").classList.toggle("new-view",["overview","publish","calendar","builder"].includes(v));document.querySelector(".app").classList.toggle("rb-view",v==="builder");document.querySelector(".app").classList.toggle("listen-view",["dashboard","mentions","reports","alert-setup","analyze"].includes(v));
   VIEWS.concat(PUBLIC_VIEWS).forEach(x=>$("v-"+x).hidden=x!==v);
   if(pub){renderPublic(v);return;}
   $("user-chip").hidden=!AUTH;if(AUTH)$("user-email").textContent=AUTH.email;
@@ -3108,7 +3121,7 @@ function render(){
    const show=["dashboard","mentions","reports","alert-setup"].includes(v)&&cb&&ab.toLowerCase()!==cb.toLowerCase()&&!brandAlert(cb);
    ln.hidden=!show;if(show)ln.innerHTML=`${esc(cb)} has no listening alerts yet, so this shows ${ab?`<b>${esc(ab)}</b>'s alert`:"a stand-alone alert"} <b>${esc(a.name)}</b>. <button class="btn" type="button" data-addsec="${esc(cb)}">Add an alert for ${esc(cb)}</button>`;}
   renderChrome();
-  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="groupreport")renderGroupReport();else if(v==="publish")renderPublish();else if(v==="overview")renderOverview();else if(v==="calendar")renderCalendar();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="groupreport")renderGroupReport();else if(v==="builder")renderBuilder();else if(v==="publish")renderPublish();else if(v==="overview")renderOverview();else if(v==="calendar")renderCalendar();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
 }
 function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
 /* ================= Brand dashboard (home), Publish & Schedule, Content Calendar ================= */
