@@ -915,7 +915,7 @@ def _publish_one(bid, p):
             if k in PUBLISHERS and not can_publish(b, k):
                 results[k] = {"ok": False, "error": f"{NAMES[k]} is not connected with posting permission for this brand. Reconnect it in Brand settings.", "at": sma.iso()}
             elif k == "linkedin":
-                urn, url = sma.li_publish(bid, text, images)
+                urn, url = sma.li_publish(bid, text, images, vp, p.get("title") or "")
                 results[k] = {"ok": True, "id": urn, "url": url, "at": sma.iso()}
             elif k in ("facebook", "instagram"):
                 import sma_meta

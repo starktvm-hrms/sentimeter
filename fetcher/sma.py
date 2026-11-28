@@ -434,7 +434,7 @@ def li_get(bid, path_and_query):
         raise RuntimeError(f"LinkedIn API error {e.code}: {body}")
 
 
-def li_call(bid, method, path, body=None, raw=None, ctype=None, url=None):
+def li_call(bid, method, path, body=None, raw=None, ctype=None, url=None, timeout=60):
     """LinkedIn write call. Returns (status, response headers, parsed body)."""
     b = get_brand(bid)
     li = b.get("linkedin") or {}
@@ -451,7 +451,7 @@ def li_call(bid, method, path, body=None, raw=None, ctype=None, url=None):
         h["Content-Type"] = ctype or "application/octet-stream"
     req = urllib.request.Request(url or f"{LI_API}/{path}", data=data, method=method, headers=h)
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             txt = r.read()
             return r.status, dict(r.headers), (json.loads(txt) if txt and txt[:1] in b"{[" else {})
     except urllib.error.HTTPError as e:
@@ -478,14 +478,53 @@ def li_commentary(text):
     return "".join(out)
 
 
-def li_publish(bid, text, images):
-    """Post as the brand's company page. images: list of bytes. Returns (post urn, url)."""
+LI_POLL_SECS = float(os.environ.get("SENTIMETER_POLL_SECS", "8"))
+
+
+def li_upload_video(bid, org, path, wait=900):
+    """Videos API: initializeUpload -> PUT each part LinkedIn asks for (keeping its ETag) -> finalizeUpload -> wait until AVAILABLE."""
+    size = os.path.getsize(path)
+    _, _, j = li_call(bid, "POST", "videos?action=initializeUpload", body={"initializeUploadRequest": {
+        "owner": org, "fileSizeBytes": size, "uploadCaptions": False, "uploadThumbnail": False}})
+    v = j.get("value") or {}
+    urn, parts = v.get("video"), v.get("uploadInstructions") or []
+    if not urn or not parts:
+        raise RuntimeError("LinkedIn did not return a video upload address.")
+    etags = []
+    with open(path, "rb") as f:
+        for ins in parts:
+            first, last = int(ins.get("firstByte", 0)), int(ins.get("lastByte", size - 1))
+            f.seek(first)
+            _, hdr, _ = li_call(bid, "PUT", "", raw=f.read(last - first + 1), ctype="application/octet-stream", url=ins["uploadUrl"], timeout=600)
+            etag = {k.lower(): x for k, x in hdr.items()}.get("etag")
+            if not etag:
+                raise RuntimeError("LinkedIn did not confirm a part of the video upload.")
+            etags.append(etag)
+    li_call(bid, "POST", "videos?action=finalizeUpload", body={"finalizeUploadRequest": {"video": urn, "uploadToken": v.get("uploadToken", ""), "uploadedPartIds": etags}})
+    end = time.time() + wait
+    while True:
+        st = (li_get(bid, f"videos/{enc(urn)}") or {}).get("status")
+        if st in (None, "AVAILABLE"):
+            return urn
+        if st == "PROCESSING_FAILED":
+            raise RuntimeError("LinkedIn could not process the video. LinkedIn takes MP4 videos from 3 seconds to 30 minutes, 75 KB to 500 MB.")
+        if time.time() > end:
+            raise RuntimeError("LinkedIn took too long to process the video.")
+        time.sleep(LI_POLL_SECS)
+
+
+def li_publish(bid, text, images, video=None, title=""):
+    """Post as the brand's company page. images: list of bytes; video: file path (then images are left out). Returns (post urn, url)."""
     li_refresh_if_needed(bid)
     org = (get_brand(bid).get("linkedin") or {}).get("org_urn")
     if not org:
         raise RuntimeError("Choose the brand's LinkedIn company page in Brand settings first.")
     ids = []
-    for raw in images[:9]:
+    if video:
+        if os.path.getsize(video) > 500 * 1024 * 1024:
+            raise RuntimeError("LinkedIn videos can be up to 500 MB.")
+        vurn = li_upload_video(bid, org, video)
+    for raw in ([] if video else images[:9]):
         _, _, j = li_call(bid, "POST", "images?action=initializeUpload", body={"initializeUploadRequest": {"owner": org}})
         v = j.get("value") or {}
         if not v.get("uploadUrl") or not v.get("image"):
@@ -494,7 +533,9 @@ def li_publish(bid, text, images):
         ids.append(v["image"])
     post = {"author": org, "commentary": li_commentary(text), "visibility": "PUBLIC", "lifecycleState": "PUBLISHED", "isReshareDisabledByAuthor": False,
             "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []}}
-    if len(ids) == 1:
+    if video:
+        post["content"] = {"media": {"id": vurn, **({"title": title[:200]} if title else {})}}
+    elif len(ids) == 1:
         post["content"] = {"media": {"id": ids[0]}}
     elif ids:
         post["content"] = {"multiImage": {"images": [{"id": i} for i in ids]}}
