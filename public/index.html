@@ -2583,8 +2583,8 @@ function renderBuilder(){const root=$("rb-root");
   if(AUTH_MODE!=="server"){root.innerHTML=`<div class="page-head"><div><h1>Custom Report Builder</h1><p class="sub">This needs the Sentimeter server and a login.</p></div></div>`;return;}
   if(window.RBX){window.RBX.render(root);return;}
   root.innerHTML=`<p class="hint" style="padding:24px">Loading the report builder…</p>`;
-  RB_LOAD=RB_LOAD||Promise.all([new Promise((ok,bad)=>{const l=document.createElement("link");l.rel="stylesheet";l.href="rb.css?v=a7a53738bf";l.onload=ok;l.onerror=bad;document.head.appendChild(l);}),
-    fetch("rb.js?v=a7a53738bf",{cache:"force-cache"}).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(code=>{eval(code+"\n//# sourceURL=rb.js");})]);  // evaluated in the app's scope so the builder shares its live data
+  RB_LOAD=RB_LOAD||Promise.all([new Promise((ok,bad)=>{const l=document.createElement("link");l.rel="stylesheet";l.href="rb.css?v=e1954030e1";l.onload=ok;l.onerror=bad;document.head.appendChild(l);}),
+    fetch("rb.js?v=e1954030e1",{cache:"force-cache"}).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(code=>{eval(code+"\n//# sourceURL=rb.js");})]);  // evaluated in the app's scope so the builder shares its live data
   const mine=RB_LOAD;if(RB_LOAD.waiting)return;RB_LOAD.waiting=true;
   mine.then(()=>{if(current()==="builder")window.RBX.render(root);}).catch(()=>{RB_LOAD=null;root.innerHTML=`<p class="neg-c" style="padding:24px">Could not load the report builder. Check the connection and reload.</p>`;});}
 
