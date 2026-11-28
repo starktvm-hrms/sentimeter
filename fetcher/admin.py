@@ -13,6 +13,7 @@ dollars (fetch.py), manual runs are limited to one per 30 minutes, and writes
 are rate limited per visitor.
 
   POST /api/auth/login | logout, GET /api/auth/me, POST /api/auth/setup (first admin only)
+  Forgotten password: on the server, python3 admin.py reset-password EMAIL  (see cli() below)
   GET  /api/data/mentions.json | imported.json   collected data (login only)
   Social Media Analytics (login only):
   GET/POST /api/sma/brands, PUT/DELETE /api/sma/brands/<id>, GET /api/sma/brands/<id>/linkedin
@@ -1030,7 +1031,72 @@ def ensure_nginx_snippet():
         sys.stderr.write(f"nginx snippet: {e}\n")
 
 
+def cli(argv):
+    """Account maintenance on the server (run as root):
+      python3 /var/www/sentimeter/fetcher/admin.py list-users
+      python3 /var/www/sentimeter/fetcher/admin.py reset-password EMAIL [--generate] [--create]
+    reset-password asks for the new password twice (or --generate prints a random one), and signs that account out everywhere.
+    --create adds the email as a new admin if it does not exist yet."""
+    import getpass
+    cmd, args = argv[0], argv[1:]
+    if cmd in ("-h", "--help", "help"):
+        print(cli.__doc__)
+        return 0
+    if cmd == "list-users":
+        us = users()
+        if not us:
+            print("No users yet.")
+        for u in us:
+            print(f"{u['email']}  ({u.get('role', 'admin')})")
+        return 0
+    if cmd != "reset-password":
+        print(f"Unknown command: {cmd}\n{cli.__doc__}", file=sys.stderr)
+        return 2
+    flags = {a for a in args if a.startswith("--")}
+    rest = [a for a in args if not a.startswith("--")]
+    if len(rest) != 1 or flags - {"--generate", "--create"}:
+        print("Usage: admin.py reset-password EMAIL [--generate] [--create]", file=sys.stderr)
+        return 2
+    email = rest[0].strip().lower()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        print("That doesn't look like an email address.", file=sys.stderr)
+        return 2
+    exists = any(u["email"] == email for u in users())
+    if not exists and "--create" not in flags:
+        known = ", ".join(u["email"] for u in users()) or "none"
+        print(f"No user {email}. Existing users: {known}. Add --create to make it a new admin.", file=sys.stderr)
+        return 1
+    if "--generate" in flags:
+        pw = secrets.token_urlsafe(12)
+    else:
+        pw = getpass.getpass("New password (8+ characters): ")
+        if len(pw) < 8:
+            print("The password needs at least 8 characters.", file=sys.stderr)
+            return 1
+        if getpass.getpass("Type it again: ") != pw:
+            print("The two passwords don't match. Nothing changed.", file=sys.stderr)
+            return 1
+    salt, h = hash_pw(pw)
+    with LOCK:
+        d = _load(USERS_PATH, {"users": []})
+        lst = d.setdefault("users", [])
+        u = next((x for x in lst if x["email"] == email), None)
+        if u:
+            u.update({"salt": salt, "hash": h, "password_reset": int(time.time())})
+        else:
+            lst.append({"email": email, "salt": salt, "hash": h, "role": "admin", "created": int(time.time())})
+        _save(USERS_PATH, d)
+        sess = _load(SESSIONS_PATH, {})
+        _save(SESSIONS_PATH, {k: v for k, v in sess.items() if v.get("email") != email})
+    print(("Password reset" if u else "Admin created") + f" for {email}. Existing sign-ins for this account were ended.")
+    if "--generate" in flags:
+        print(f"New password: {pw}")
+    return 0
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        sys.exit(cli(sys.argv[1:]))
     ensure_nginx_snippet()
     migrate_public_data()
     try:

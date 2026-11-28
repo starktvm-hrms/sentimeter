@@ -255,6 +255,7 @@ The homepage (`#home`) is public. Everything else (dashboard, mentions, reports,
 - Users are stored in `/var/lib/sentimeter/users.json` with scrypt password hashes (file mode 600). Sessions last 30 days (`/var/lib/sentimeter/sessions.json`, HttpOnly, Secure, SameSite=Lax cookie).
 - Collected data lives in `/var/lib/sentimeter/data/` and is served only to logged-in users through `/api/data/`. It is no longer in the public web folder.
 - Login attempts are limited to 8 per 15 minutes per visitor.
+- **Forgotten password**: open a terminal on the VPS (for example Hostinger's browser terminal) and, as root, run `python3 /var/www/sentimeter/fetcher/admin.py list-users` to see the login emails, then `python3 /var/www/sentimeter/fetcher/admin.py reset-password EMAIL` and type the new password twice. Add `--generate` to get a random password printed instead, or `--create` to add a new admin. Resetting signs that account out on every device.
 - The first admin is created once through `POST /api/auth/setup` with a one-time secret (only its SHA-256 is in `fetcher/admin.py`). Setup is refused once a user exists.
 - The `SENTIMETER_ADMIN_KEY` bearer key still works for scripts.
 
