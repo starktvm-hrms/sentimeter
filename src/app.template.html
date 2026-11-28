@@ -48,7 +48,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .nav a[aria-current="page"]{box-shadow:0 6px 18px rgba(106,63,240,.35)}
 .nav a .chev{margin-left:auto;opacity:.6}
 .brand-switch .select{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#fff}
-.brand-switch .select option{color:#17132b}
+.brand-switch .select option,.brand-switch .select optgroup{background:#241c47;color:#fff}
 .nav a:hover,.alert-link:hover{background:var(--side-hover)}
 .nav a[aria-current="page"]{background:var(--side-active);color:var(--side-strong)}
 .nav-sec{display:block;padding:14px 10px 4px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--side-muted);font-weight:600}
@@ -3101,11 +3101,11 @@ function bestTime(b){const hrs=Array(24).fill(0),cnt=Array(24).fill(0);const add
 function previewHTML(b,D){const k=PUB.preview,txt=esc(D.text||"Your caption appears here.").replace(/(#[\p{L}\p{N}_]+)/gu,'<span class="pv-hl">$1</span>').replace(/\n/g,"<br>");
   const vsrc=D.video&&VIDEO_LOCAL[D.video];
   if(k==="youtube"&&D.video)return `<div class="pv-card">${vsrc?`<video class="pv-img wide" src="${vsrc}" muted controls></video>`:`<div class="pv-img ph wide">▶ ${esc(D.vname||"Video")}</div>`}<div class="pv-text"><b style="font-size:15px">${esc(D.title||(D.text||"Video title").split("\n")[0].slice(0,100))}</b><div class="hint">${esc(b.name)} · ${esc({public:"Public",unlisted:"Unlisted",private:"Private"}[D.yt_privacy||"public"])} · Just now</div></div></div>`;
-  const img=D.media[0]?`<img class="pv-img${k==="instagram"?" sq":""}${k==="youtube"?" wide":""}" src="${mediaSrc(b,D.media[0])}" alt="">`:`<div class="pv-img ph${k==="instagram"?" sq":""}">${k==="youtube"?"▶ Video thumbnail":"Image or video"}</div>`;
+  const img=D.video?(vsrc?`<video class="pv-img${k==="instagram"?" sq":""}" src="${vsrc}" muted playsinline></video>`:`<div class="pv-img ph${k==="instagram"?" sq":""}">▶ ${esc(D.vname||"Video")}</div>`):D.media[0]?`<img class="pv-img${k==="instagram"?" sq":""}${k==="youtube"?" wide":""}" src="${mediaSrc(b,D.media[0])}" alt="">`:`<div class="pv-img ph${k==="instagram"?" sq":""}">${k==="youtube"?"▶ Video thumbnail":"Image or video"}</div>`;
   const head=`<div class="pv-head">${brandLogo(b,40)}<div><b>${esc(b.name)}</b><span class="hint">${k==="x"?"@"+esc(((b.extra||{}).config||{}).handles?.x||"brand"):k==="linkedin"?"Company page · Just now":"Just now · 🌐"}</span></div><span class="pv-more">⋯</span></div>`;
   if(k==="instagram")return `<div class="pv-card">${head}${img}<div class="pv-acts">♡ &nbsp; 💬 &nbsp; ➤</div><div class="pv-text"><b>${esc((((b.extra||{}).config||{}).handles||{}).instagram||b.name)}</b> ${txt}</div></div>`;
   if(k==="youtube")return `<div class="pv-card">${img}<div class="pv-text"><b style="font-size:15px">${esc(D.title||(D.text||"Video title").split("\n")[0].slice(0,100))}</b><div class="hint">${esc(b.name)} · 0 views · Just now</div></div></div>`;
-  if(k==="x")return `<div class="pv-card">${head}<div class="pv-text">${txt}</div>${D.media[0]?img:""}<div class="pv-acts">💬 &nbsp; 🔁 &nbsp; ♡ &nbsp; 📊</div></div>`;
+  if(k==="x")return `<div class="pv-card">${head}<div class="pv-text">${txt}</div>${D.media[0]||D.video?img:""}<div class="pv-acts">💬 &nbsp; 🔁 &nbsp; ♡ &nbsp; 📊</div></div>`;
   return `<div class="pv-card">${head}<div class="pv-text clamp">${txt}</div>${img}<div class="pv-acts row3"><span>👍 Like</span><span>💬 Comment</span><span>↗ ${k==="linkedin"?"Repost":"Share"}</span></div></div>`;}
 const MEDIA_LOCAL={},VIDEO_LOCAL={};
 function pubVideo(b,f,onp){return new Promise((res,rej)=>{if(!/^video\/(mp4|quicktime|webm|x-m4v)$/.test(f.type))return rej(new Error("Use an MP4, MOV or WebM video."));
@@ -3143,17 +3143,17 @@ async function renderPublish(){const root=$("pub-root");
         <div><div class="f-l">Visibility</div><select class="select" id="pub-ytp">${[["public","Public"],["unlisted","Unlisted"],["private","Private"]].map(([v,l])=>`<option value="${v}" ${D.yt_privacy===v?"selected":""}>${l}</option>`).join("")}</select></div></div>`:""}
       <textarea id="pub-text" rows="7" placeholder="Write your caption… #hashtags">${esc(D.text)}</textarea>
       <div class="pub-tools"><label class="tool" title="Add image"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="14" height="12" rx="2"/><circle cx="7.5" cy="8.5" r="1.5"/><path d="M3 14l4-4 3 3 3-2 4 3"/></svg><input type="file" id="pub-img" accept="image/jpeg,image/png,image/webp" hidden multiple></label>
-        <label class="tool" title="Add video (for YouTube)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="5" width="11" height="10" rx="2"/><path d="M13.5 9l4-2.5v7l-4-2.5"/></svg><input type="file" id="pub-vid" accept="video/mp4,video/quicktime,video/webm,video/x-m4v" hidden></label>
+        <label class="tool" title="Add video"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="5" width="11" height="10" rx="2"/><path d="M13.5 9l4-2.5v7l-4-2.5"/></svg><input type="file" id="pub-vid" accept="video/mp4,video/quicktime,video/webm,video/x-m4v" hidden></label>
         <a class="tool txt" href="https://www.canva.com/" target="_blank" rel="noopener noreferrer" title="Design in Canva, then add the image here"><i>Canva</i></a>
         <button class="tool txt ai" type="button" disabled title="AI caption help is coming with the publishing setup">✦ AI Assist</button>
         <span class="spacer" style="flex:1"></span><span class="${len>lim?"neg-c":"hint"}" title="Limit for the selected platforms">${fmtInt(len)} / ${fmtInt(lim)}</span></div>
-      ${D.platforms.includes("instagram")&&!D.media.length?`<div class="neg-c" style="font-size:12.5px">Instagram needs at least one image.</div>`:""}
+      ${D.platforms.includes("instagram")&&!D.media.length&&!D.video?`<div class="neg-c" style="font-size:12.5px">Instagram needs an image or a video.</div>`:""}
       ${D.platforms.includes("youtube")&&!D.video?`<div class="neg-c" style="font-size:12.5px">YouTube needs a video.</div>`:""}
-      ${D.platforms.includes("x")&&D.media.length>4?`<div class="neg-c" style="font-size:12.5px">X takes the first 4 images.</div>`:""}
+      ${D.platforms.includes("x")&&!D.video&&D.media.length>4?`<div class="neg-c" style="font-size:12.5px">X takes the first 4 images.</div>`:""}
       ${len>lim?`<div class="neg-c" style="font-size:12.5px">Too long for ${D.platforms.filter(k=>PLIMIT[k]<len).map(k=>PNAME[k]).join(", ")}.</div>`:""}
       <div class="media-row">${D.media.map(id=>`<div class="mthumb"><img src="${mediaSrc(b,id)}" alt=""><button type="button" data-rm-media="${id}" aria-label="Remove image">×</button></div>`).join("")}${D.video?`<div class="mthumb">${VIDEO_LOCAL[D.video]?`<video src="${VIDEO_LOCAL[D.video]}" muted></video>`:`<span class="pt-ph">▶</span>`}<button type="button" id="rm-vid" aria-label="Remove video">×</button></div>`:""}${PUB.vprog!=null?`<div class="mthumb vprog"><span>${Math.round(PUB.vprog*100)}%</span></div>`:""}
         <label class="madd"><span class="plus">+</span><b>Add Media</b><span class="hint">(Image / Video)</span><input type="file" id="pub-img2" accept="image/jpeg,image/png,image/webp,video/*" hidden multiple></label></div>
-      ${D.video?`<div class="hint" style="font-size:12.5px">🎬 ${esc(D.vname||"Video")} — the video goes to YouTube${D.platforms.some(k=>k!=="youtube")?"; other platforms get the caption"+(D.media.length?" and images":""):""}.</div>`:""}
+      ${D.video?`<div class="hint" style="font-size:12.5px">🎬 ${esc(D.vname||"Video")}: posted as a video on ${["youtube","facebook","instagram","x"].filter(k=>D.platforms.includes(k)).map(k=>k==="instagram"?"Instagram (Reel)":PNAME[k]).join(", ")||"YouTube, Facebook, Instagram and X"}${D.platforms.includes("linkedin")?"; LinkedIn gets the caption"+(D.media.length?" and images":""):""}.${D.media.length&&D.platforms.some(k=>["facebook","instagram","x"].includes(k))?" Images are left out where the video is posted.":""}</div>`:""}
       <div class="pub-sched"><div class="f-l" style="font-size:16px">Schedule</div>
         <div class="radios">${[["now","Publish Now"],["schedule","Schedule"],["queue","Add to Queue"]].map(([k,l])=>`<label><input type="radio" name="pmode" value="${k}" ${D.mode===k?"checked":""}> ${l}</label>`).join("")}</div>
         ${D.mode==="schedule"?`<div class="toolbar"><input type="date" id="pub-date" value="${D.date}" min="${localDay(new Date())}"><input type="time" id="pub-time" value="${D.time}"><select class="select" id="pub-tz"><option value="Asia/Kolkata">(GMT+05:30) Chennai, Kolkata, Mumbai</option></select></div>`:D.mode==="now"?`<div class="hint">${D.platforms.some(k=>canPost(b,k))?`Posts immediately to ${D.platforms.filter(k=>canPost(b,k)).map(k=>PNAME[k]).join(", ")}.`:"None of the selected platforms can post yet."}${D.platforms.some(k=>!canPost(b,k))?` ${D.platforms.filter(k=>!canPost(b,k)).map(k=>PNAME[k]).join(", ")} will show as waiting for permission.`:""}</div>`:`<div class="hint">Queued posts go out in the next free slot once publishing is connected.</div>`}</div>
@@ -3192,7 +3192,7 @@ function bindPublish(b){const D=PUB.draft;const rr=()=>renderPublish();bindHeade
   if($("pub-new"))$("pub-new").onclick=()=>{PUB.draft=Object.assign(newDraft(b),{brand:b.id});rr();};
   const addFiles=async files=>{keep();const msg=$("pub-msg");for(const f of files){if(f.type.startsWith("video/")){if(PUB.vprog!=null){msg.textContent="A video is already uploading.";continue;}
         PUB.vprog=0;rr();let last=0;try{const id=await pubVideo(b,f,p=>{PUB.vprog=p;const el=document.querySelector("#pub-root .vprog span");if(el&&p-last>.01){last=p;el.textContent=Math.round(p*100)+"%";}});
-          D.video=id;D.vname=f.name;if(!D.platforms.includes("youtube"))D.platforms.push("youtube");PUB.preview="youtube";}catch(e){alert(e.message);}PUB.vprog=null;continue;}
+          D.video=id;D.vname=f.name;if(!D.platforms.includes("youtube")&&canPost(b,"youtube"))D.platforms.push("youtube");}catch(e){alert(e.message);}PUB.vprog=null;continue;}
       if(D.media.length>=10){msg.textContent="Up to 10 images.";break;}msg.textContent="Uploading image…";try{D.media.push(await pubImage(b,f));}catch(e){alert(e.message);}}rr();};
   [$("pub-img"),$("pub-img2"),$("pub-vid")].forEach(i=>{if(i)i.onchange=e=>{addFiles([...e.target.files]);e.target.value="";};});
   const saveAs=async status=>{keep();const msg=$("pub-msg");let when="";if(PUB.vprog!=null){msg.textContent="Wait for the video to finish uploading.";msg.className="neg-c";return;}

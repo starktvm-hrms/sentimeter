@@ -859,6 +859,10 @@ def media_sig(bid, mid):
     return _h.new(_media_key().encode(), f"{bid}/{mid}".encode(), hashlib.sha256).hexdigest()[:40]
 
 
+def public_video_url(bid, vid, path):
+    return f"{sma.PUBLIC_URL}/api/public/media/{bid}/{vid}/{media_sig(bid, vid)}{os.path.splitext(path)[1]}"
+
+
 def public_media_url(bid, mid):
     return f"{sma.PUBLIC_URL}/api/public/media/{bid}/{mid}/{media_sig(bid, mid)}.jpg"
 
@@ -903,6 +907,9 @@ def _publish_one(bid, p):
     images = [i[0] for i in imgs]
     b = sma.get_brand(bid)
     text = p.get("text") or ""
+    vp = video_path(bid, p.get("video")) if p.get("video") else None
+    if p.get("video") and not vp:
+        return {k: {"ok": False, "error": "The video for this post is missing; upload it again.", "at": sma.iso()} for k in p.get("platforms") or []}
     for k in p.get("platforms") or []:
         try:
             if k in PUBLISHERS and not can_publish(b, k):
@@ -912,12 +919,15 @@ def _publish_one(bid, p):
                 results[k] = {"ok": True, "id": urn, "url": url, "at": sma.iso()}
             elif k in ("facebook", "instagram"):
                 import sma_meta
-                urls = [public_media_url(bid, m) for m in p.get("media") or [] if media_bytes(bid, m)[0]]
-                pid, url = (sma_meta.fb_publish if k == "facebook" else sma_meta.ig_publish)(bid, text, urls)
+                if vp:   # video posts: Facebook Page video / Instagram Reel, fetched by Meta from a signed link
+                    vurl = public_video_url(bid, p["video"], vp)
+                    pid, url = sma_meta.fb_publish_video(bid, text, vurl, p.get("title") or "") if k == "facebook" else sma_meta.ig_publish_video(bid, text, vurl)
+                else:
+                    urls = [public_media_url(bid, m) for m in p.get("media") or [] if media_bytes(bid, m)[0]]
+                    pid, url = (sma_meta.fb_publish if k == "facebook" else sma_meta.ig_publish)(bid, text, urls)
                 results[k] = {"ok": True, "id": pid, "url": url, "at": sma.iso()}
             elif k == "youtube":
                 import sma_youtube
-                vp = video_path(bid, p.get("video"))
                 if not vp:
                     raise RuntimeError("The video for this post is missing; upload it again.")
                 title = (p.get("title") or "").strip() or (text.strip().splitlines() or ["Untitled"])[0]
@@ -926,11 +936,11 @@ def _publish_one(bid, p):
                 results[k] = {"ok": True, "id": vid, "url": url, "at": sma.iso()}
             elif k == "x":
                 import sma_x
-                if not text.strip() and not imgs:
-                    raise RuntimeError("X needs text or an image (video posts to X are not supported yet).")
+                if not text.strip() and not imgs and not vp:
+                    raise RuntimeError("X needs text, an image or a video.")
                 if sma_x.weighted_len(text) > 280:
                     raise RuntimeError(f"The caption is {sma_x.weighted_len(text)} characters; X allows 280. Shorten it for X.")
-                tid, url = sma_x.publish(bid, text, imgs)
+                tid, url = sma_x.publish(bid, text, imgs, (vp, video_type(vp)) if vp else None)
                 results[k] = {"ok": True, "id": tid, "url": url, "at": sma.iso()}
             else:
                 results[k] = {"ok": False, "pending": True, "error": f"Posting to {k.title()} isn't connected yet.", "at": sma.iso()}

@@ -213,13 +213,47 @@ def upload_image(bid, raw, ctype):
     return str(mid)
 
 
-def publish(bid, text, images):
-    """images: list of (bytes, content_type). Returns (tweet_id, url)."""
+POLL_SECS = float(os.environ.get("SENTIMETER_POLL_SECS", "8"))
+CHUNK = 4 * 1024 * 1024
+
+
+def upload_video(bid, path, ctype, wait=900):
+    """Chunked upload: initialize -> append (4 MB parts) -> finalize -> wait until X has processed the video."""
+    size = os.path.getsize(path)
+    r = api(bid, "POST", "/2/media/upload/initialize", body={"media_type": ctype, "total_bytes": size, "media_category": "tweet_video"})
+    mid = str((r.get("data") or {}).get("id") or "")
+    if not mid:
+        raise RuntimeError("X did not start the video upload.")
+    with open(path, "rb") as f:
+        i = 0
+        while True:
+            part = f.read(CHUNK)
+            if not part:
+                break
+            data, mp = _multipart({"segment_index": str(i)}, "media", "chunk", part, "application/octet-stream")
+            api(bid, "POST", f"/2/media/upload/{mid}/append", raw=data, ctype=mp)
+            i += 1
+    info = (api(bid, "POST", f"/2/media/upload/{mid}/finalize").get("data") or {}).get("processing_info")
+    end = time.time() + wait
+    while info and info.get("state") in ("pending", "in_progress"):
+        if time.time() > end:
+            raise RuntimeError("X took too long to process the video.")
+        time.sleep(max(POLL_SECS, min(int(info.get("check_after_secs") or 5), 30)) if POLL_SECS >= 1 else POLL_SECS)
+        info = (api(bid, "GET", f"/2/media/upload?command=STATUS&media_id={mid}").get("data") or {}).get("processing_info")
+    if info and info.get("state") == "failed":
+        msg = ((info.get("error") or {}).get("message") or "").strip()
+        raise RuntimeError("X could not process the video" + (f": {msg}" if msg else "") + ". X takes MP4/MOV (H.264, AAC) up to 140 seconds on standard accounts.")
+    return mid
+
+
+def publish(bid, text, images, video=None):
+    """images: list of (bytes, content_type); video: (path, content_type) or None. X posts carry either images or one video.
+    Returns (tweet_id, url)."""
     b = sma.get_brand(bid)
     x = public(b)
-    if images and not x.get("can_post_media"):
-        raise RuntimeError("X was connected without image permission (media.write). Click Connect X again in Brand settings.")
-    ids = [upload_image(bid, raw, ct) for raw, ct in images[:4]]
+    if (images or video) and not x.get("can_post_media"):
+        raise RuntimeError("X was connected without media permission (media.write). Click Connect X again in Brand settings.")
+    ids = [upload_video(bid, *video)] if video else [upload_image(bid, raw, ct) for raw, ct in images[:4]]
     body = {"text": text}
     if ids:
         body["media"] = {"media_ids": ids}

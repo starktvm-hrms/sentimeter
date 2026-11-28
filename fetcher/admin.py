@@ -675,6 +675,57 @@ class H(BaseHTTPRequestHandler):
         except RuntimeError as e:
             return self.send(502, {"error": str(e)}) or True
 
+    def send_file(self, path):
+        """Stream a stored video, with single-range support (media fetchers often ask for byte ranges)."""
+        if not path:
+            return self.send(404, {"error": "Not found"})
+        size = os.path.getsize(path)
+        start, end, code = 0, size - 1, 200
+        rm = re.fullmatch(r"bytes=(\d*)-(\d*)", (self.headers.get("Range") or "").strip())
+        if rm and (rm.group(1) or rm.group(2)):
+            if rm.group(1):
+                start = int(rm.group(1))
+                end = min(int(rm.group(2)), size - 1) if rm.group(2) else size - 1
+            else:
+                start = max(0, size - int(rm.group(2)))
+            if start > end or start >= size:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            code = 206
+        self.send_response(code)
+        self.send_header("Content-Type", sma_extra.video_type(path))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if code == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.end_headers()
+        if self.command == "HEAD":
+            return
+        with open(path, "rb") as f:
+            f.seek(start)
+            left = end - start + 1
+            while left > 0:
+                chunk = f.read(min(1048576, left))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                left -= len(chunk)
+
+    def do_HEAD(self):
+        pv = re.fullmatch(r"/api/public/media/(b[0-9a-f]{8})/(v[0-9a-f]{12})/([0-9a-f]{40})\.(mp4|mov|webm|m4v)", self.path.split("?")[0])
+        ok = pv and hmac.compare_digest(pv.group(3), sma_extra.media_sig(pv.group(1), pv.group(2)))
+        if not ok:
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_file(sma_extra.video_path(pv.group(1), pv.group(2)))
+
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > 65536:
@@ -699,6 +750,10 @@ class H(BaseHTTPRequestHandler):
             return
         if re.match(r"/api/sma/(linkedin|meta|youtube|x)/callback", self.path) and not session_user(self.token()):
             return self.redirect("/#login")
+        pv = re.fullmatch(r"/api/public/media/(b[0-9a-f]{8})/(v[0-9a-f]{12})/([0-9a-f]{40})\.(mp4|mov|webm|m4v)", self.path.split("?")[0])
+        if pv:  # post videos for Meta to fetch: same signed-link rule as images
+            ok = hmac.compare_digest(pv.group(3), sma_extra.media_sig(pv.group(1), pv.group(2)))
+            return self.send_file(sma_extra.video_path(pv.group(1), pv.group(2)) if ok else None)
         pm = re.fullmatch(r"/api/public/media/(b[0-9a-f]{8})/(m[0-9a-f]{12})/([0-9a-f]{40})\.jpg", self.path.split("?")[0])
         if pm:  # post images for Meta to fetch: unguessable signed link, no login
             ok = hmac.compare_digest(pm.group(3), sma_extra.media_sig(pm.group(1), pm.group(2)))

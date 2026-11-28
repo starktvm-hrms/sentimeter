@@ -523,6 +523,9 @@ def daily_due(today):
 
 # ---------------- publishing (Page posts and Instagram) ----------------
 
+POLL_SECS = float(os.environ.get("SENTIMETER_POLL_SECS", "8"))
+
+
 def graph_post(bid, path, data):
     b = sma.get_brand(bid)
     tok = sma.secret(bid, "fb_page_token")
@@ -532,7 +535,7 @@ def graph_post(bid, path, data):
     req = urllib.request.Request(f"{GRAPH}/{version(b)}/{path.lstrip('/')}", data=urllib.parse.urlencode(form).encode(), method="POST",
                                  headers={"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"})
     try:
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with urllib.request.urlopen(req, timeout=300) as r:
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")[:500]
@@ -594,3 +597,46 @@ def ig_publish(bid, text, image_urls):
         pass
     return mid, url
 
+
+
+def fb_publish_video(bid, text, video_url, title=""):
+    """Facebook Page video: Meta downloads it from the signed link and processes it in the background."""
+    page = cfg(sma.get_brand(bid)).get("page_id")
+    if not page:
+        raise RuntimeError("Choose the brand's Facebook Page in Brand settings first.")
+    data = {"file_url": video_url, "description": text}
+    if title:
+        data["title"] = title[:250]
+    vid = graph_post(bid, f"{page}/videos", data).get("id", "")
+    if not vid:
+        raise RuntimeError("Facebook did not accept the video.")
+    return vid, f"https://www.facebook.com/{page}/videos/{vid}/"
+
+
+def ig_publish_video(bid, text, video_url, wait=600):
+    """Instagram Reel: create the container, wait for Instagram to process the video, then publish."""
+    ig = cfg(sma.get_brand(bid)).get("ig_id")
+    if not ig:
+        raise RuntimeError("No Instagram professional account is linked to the brand's Facebook Page.")
+    cid = graph_post(bid, f"{ig}/media", {"media_type": "REELS", "video_url": video_url, "caption": text, "share_to_feed": "true"}).get("id")
+    if not cid:
+        raise RuntimeError("Instagram did not accept the video.")
+    end = time.time() + wait
+    while True:
+        st = graph(bid, cid, {"fields": "status_code,status"})
+        code = st.get("status_code")
+        if code in (None, "FINISHED", "PUBLISHED"):
+            break
+        if code in ("ERROR", "EXPIRED"):
+            raise RuntimeError("Instagram could not process the video (" + str(st.get("status") or code)[:120] + "). Reels need an MP4/MOV "
+                               "(H.264, AAC audio) between 3 seconds and 15 minutes; 9:16 vertical works best.")
+        if time.time() > end:
+            raise RuntimeError("Instagram took too long to process the video. Try a shorter or smaller file.")
+        time.sleep(POLL_SECS)
+    mid = graph_post(bid, f"{ig}/media_publish", {"creation_id": cid}).get("id", "")
+    url = ""
+    try:
+        url = graph(bid, mid, {"fields": "permalink"}).get("permalink", "") if mid else ""
+    except Exception:
+        pass
+    return mid, url
