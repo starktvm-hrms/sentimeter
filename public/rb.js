@@ -1508,14 +1508,36 @@ async function pageCanvas(node, scale) {
   return html2canvas(node, { scale, useCORS: true, backgroundColor: "#ffffff", logging: false, imageTimeout: 15000 });
 }
 /* ----- selectable text: an invisible text layer placed exactly over the page picture (like a searchable scan) ----- */
-let PDF_FONT = null;
-async function pdfFont() {
-  if (!PDF_FONT) PDF_FONT = fetch("vendor/NotoSans-ReportText.ttf", { cache: "force-cache" }).then(r => { if (!r.ok) throw new Error("font " + r.status); return r.arrayBuffer(); })
+/* Fonts for the invisible text layer, one per script: Latin/Greek/Cyrillic, Kannada, Malayalam (loaded only when needed). */
+const PDF_FONTS = {
+  lat: { file: "NotoSans-ReportText.ttf", name: "NotoSansRT", keep: /[ -~ -ɏ̀-ͯͰ-ϿЀ-ӿḀ-ỿ -⁯₠-⃏℀-⅏←-⇿−∕∞≈≠≤≥■-◿✓✗]/ },
+  kn: { file: "NotoSansKannada-ReportText.ttf", name: "NotoSansKnRT", keep: /[ಀ-೿‌‍।॥]/ },
+  ml: { file: "NotoSansMalayalam-ReportText.ttf", name: "NotoSansMlRT", keep: /[ഀ-ൿ‌‍।॥]/ }
+};
+const FONT_DATA = {};
+function fontData(k) {
+  if (!FONT_DATA[k]) FONT_DATA[k] = fetch("vendor/" + PDF_FONTS[k].file, { cache: "force-cache" }).then(r => { if (!r.ok) throw new Error("font " + r.status); return r.arrayBuffer(); })
     .then(buf => { const u = new Uint8Array(buf); let bin = ""; for (let i = 0; i < u.length; i += 32768) bin += String.fromCharCode.apply(null, u.subarray(i, i + 32768)); return btoa(bin); })
-    .catch(e => { PDF_FONT = null; throw e; });
-  return PDF_FONT;
+    .catch(e => { delete FONT_DATA[k]; throw e; });
+  return FONT_DATA[k];
 }
-const FONT_CHARS = /[^\u0020-\u007E\u00A0-\u024F\u0300-\u036F\u0370-\u03FF\u0400-\u04FF\u1E00-\u1EFF\u2000-\u206F\u20A0-\u20CF\u2100-\u214F\u2190-\u21FF\u2212\u2215\u221E\u2248\u2260\u2264\u2265\u25A0-\u25FF\u2713\u2717]/g;
+async function pdfFonts(text) {   // which fonts this document needs, loaded in parallel
+  const need = ["lat"]; if (/[ಀ-೿]/.test(text)) need.push("kn"); if (/[ഀ-ൿ]/.test(text)) need.push("ml");
+  const out = {};
+  await Promise.all(need.map(k => fontData(k).then(d => out[k] = d).catch(e => console.warn("PDF text layer font", k, e))));
+  return out;
+}
+const scriptOf = ch => { const c = ch.codePointAt(0); return c >= 0x0C80 && c <= 0x0CFF ? "kn" : c >= 0x0D00 && c <= 0x0D7F ? "ml" : c === 0x200C || c === 0x200D ? "" : "lat"; };
+function segments(word) {   // split a word into runs of one script; joiners stay with the run they are in
+  const out = []; let cur = null, i = 0;
+  for (const ch of word) {
+    const sc = scriptOf(ch);
+    if (!cur || (sc && cur.sc && sc !== cur.sc)) { cur = { sc: sc || "lat", s: i, e: i }; out.push(cur); }
+    else if (sc && !cur.sc) cur.sc = sc;
+    cur.e = i + ch.length; i += ch.length;
+  }
+  return out;
+}
 function textRuns(pageNode) {
   const pr = pageNode.getBoundingClientRect(), runs = [];
   const tw = document.createTreeWalker(pageNode, NodeFilter.SHOW_TEXT, { acceptNode: n => /\S/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
@@ -1527,31 +1549,38 @@ function textRuns(pageNode) {
     const re = /\S+/g; let m, line = null;
     const flush = () => { if (line) runs.push(line); line = null; };
     while ((m = re.exec(n.nodeValue))) {
-      range.setStart(n, m.index); range.setEnd(n, m.index + m[0].length);
-      const r = [...range.getClientRects()].find(x => x.width > 0 && x.height > 0); if (!r) continue;
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      if (cx < clip.left || cx > clip.right || cy < clip.top || cy > clip.bottom || cx < pr.left || cx > pr.right || cy < pr.top || cy > pr.bottom) { flush(); continue; }   // clipped away on the page
-      if (line && Math.abs(r.top - line.t) < r.height * .5 && r.left >= line.r - 2) { line.text += (r.left - line.r > .5 ? " " : "") + m[0]; line.r = Math.max(line.r, r.right); line.b = Math.max(line.b, r.bottom); }
-      else { flush(); line = { text: m[0], l: r.left - pr.left, t: r.top - pr.top, r: r.right, b: r.bottom, h: r.height }; }
-      if (line) { line.R = line.r - pr.left; line.B = line.b - pr.top; }
+      segments(m[0]).forEach((sg, si) => {
+        range.setStart(n, m.index + sg.s); range.setEnd(n, m.index + sg.e);
+        const rects = [...range.getClientRects()].filter(x => x.width > 0 && x.height > 0); if (!rects.length) return;
+        const r = { left: Math.min(...rects.map(x => x.left)), right: Math.max(...rects.map(x => x.right)), top: Math.min(...rects.map(x => x.top)), bottom: Math.max(...rects.map(x => x.bottom)) };
+        r.height = r.bottom - r.top;
+        const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2, txt = m[0].slice(sg.s, sg.e);
+        if (cx < clip.left || cx > clip.right || cy < clip.top || cy > clip.bottom || cx < pr.left || cx > pr.right || cy < pr.top || cy > pr.bottom) { flush(); return; }   // clipped away on the page
+        if (line && line.sc === sg.sc && (sg.sc === "lat" || si > 0) && Math.abs(r.top - line.t0) < r.height * .5 && r.left >= line.r - 2) {   // Kannada/Malayalam fonts have no space glyph: one run per word
+          line.text += (si === 0 ? " " : "") + txt; line.r = Math.max(line.r, r.right); line.b = Math.max(line.b, r.bottom);
+        } else { flush(); line = { sc: sg.sc, text: txt, l: r.left - pr.left, t: r.top - pr.top, t0: r.top, r: r.right, b: r.bottom }; }
+        line.R = line.r - pr.left; line.B = line.b - pr.top;
+      });
     }
     flush();
   }
   return { runs, w: pr.width };
 }
-function addTextLayer(pdf, pageNode, wmm) {
+function addTextLayer(pdf, pageNode, wmm, have) {
   const { runs, w } = textRuns(pageNode), k = wmm / w;   // px -> mm
-  pdf.setFont("NotoSansRT", "normal");
+  let n = 0;
   runs.forEach(rn => {
-    const text = rn.text.replace(FONT_CHARS, "").trim(); if (!text) return;
+    const F = PDF_FONTS[rn.sc]; if (!F || !have[rn.sc]) return;
+    const text = [...rn.text].filter(ch => F.keep.test(ch)).join("").trim(); if (!text) return;
     const hmm = (rn.B - rn.t) * k, widthMM = (rn.R - rn.l) * k;
-    const pt = Math.max(2, hmm / 25.4 * 72 * .78);
-    pdf.setFontSize(pt);
+    pdf.setFont(F.name, "normal");
+    pdf.setFontSize(Math.max(2, hmm / 25.4 * 72 * (rn.sc === "lat" ? .78 : .62)));
     const natural = pdf.getTextWidth(text);
     const hs = natural > 0 ? Math.max(.2, Math.min(5, widthMM / natural)) : 1;
-    pdf.text(text, rn.l * k, rn.t * k + hmm * .78, { renderingMode: "invisible", horizontalScale: hs, baseline: "alphabetic" });
+    pdf.text(text, rn.l * k, rn.t * k + hmm * (rn.sc === "lat" ? .78 : .7), { renderingMode: "invisible", horizontalScale: hs, baseline: "alphabetic" });
+    n++;
   });
-  return runs.length;
+  return n;
 }
 
 function fileBase(doc) { const L = rbPeriod(doc).label; return (doc.name.includes(L) ? doc.name : `${doc.name} - ${L}`).replace(/[–—]/g, "-").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); }
@@ -1569,16 +1598,16 @@ async function exportReport(fmt, opts = {}, progress) {
   const scale = opts.hi ? 3 : 2, base = fileBase(doc);
   try {
     if (fmt === "pdf") {
-      const { jsPDF } = window.jspdf; let pdf = null; let font = null;
-      try { font = await pdfFont(); } catch (e) { console.warn("PDF text layer font", e); }
+      const { jsPDF } = window.jspdf; let pdf = null;
+      const fonts = await pdfFonts(host.textContent);
       for (const i of only) {
         progress(`Creating PDF page ${i + 1} of ${nodes.length}…`);
         const [wmm, hmm] = pageMM(doc, doc.pages[i]), cv = await pageCanvas(nodes[i], scale);
         const o = wmm > hmm ? "landscape" : "portrait";
-        if (!pdf) { pdf = new jsPDF({ orientation: o, unit: "mm", format: [wmm, hmm], compress: true }); if (font) { pdf.addFileToVFS("NotoSansRT.ttf", font); pdf.addFont("NotoSansRT.ttf", "NotoSansRT", "normal"); } }
+        if (!pdf) { pdf = new jsPDF({ orientation: o, unit: "mm", format: [wmm, hmm], compress: true }); Object.entries(fonts).forEach(([fk, data]) => { const F = PDF_FONTS[fk]; pdf.addFileToVFS(F.file, data); pdf.addFont(F.file, F.name, "normal"); }); }
         else pdf.addPage([wmm, hmm], o);
         pdf.addImage(cv.toDataURL("image/jpeg", opts.hi ? .95 : .9), "JPEG", 0, 0, wmm, hmm, undefined, "FAST");
-        if (font) addTextLayer(pdf, nodes[i], wmm);
+        if (fonts.lat) addTextLayer(pdf, nodes[i], wmm, fonts);
         doc.pages[i].elements.forEach(e => {   // clickable links: element links and videos
           const url = e.link || (e.type === "video" ? e.props.url : "");
           if (url && /^https?:\/\//.test(url) && !e.hidden) pdf.link(e.x / MM, e.y / MM, e.w / MM, e.h / MM, { url });
