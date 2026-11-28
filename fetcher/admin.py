@@ -24,6 +24,7 @@ are rate limited per visitor.
   GET  /api/sma/brands/<id>/youtube, POST /api/sma/brands/<id>/youtube/{sync,disconnect}
   GET  /api/sma/youtube/start?brand=<id>  -> Google sign-in;  GET /api/sma/youtube/callback
   GET  /api/sma/x/start?brand=<id>  -> X sign-in (posting);  GET /api/sma/x/callback;  POST /api/sma/brands/<id>/x/disconnect
+  GET/PUT /api/sma/groups  named brand groups for multi-brand reports
   GET/PUT /api/sma/apps   shared LinkedIn / Meta / Google apps used by every brand (secrets write-only)
   POST /api/upload/sma/<id>/video   (raw video body, streamed to disk; nginx allows large bodies only here)
   GET  /api/settings   settings, which keys are set (never their values), usage
@@ -470,6 +471,10 @@ class H(BaseHTTPRequestHandler):
         try:
             if path == "/api/sma/brands" and m == "GET":
                 return self.send(200, {"brands": [self.pub_brand(b) for b in sma.brands()], "redirect_uri": sma.redirect_uri(), "apps": self.pub_apps()}) or True
+            if path == "/api/sma/groups" and m == "GET":
+                return self.send(200, {"groups": sma.groups()}) or True
+            if path == "/api/sma/groups" and m == "PUT":
+                return self.send(200, {"groups": sma.save_groups(self.body().get("groups"), email)}) or True
             if path == "/api/sma/apps" and m == "GET":
                 return self.send(200, {"apps": self.pub_apps()}) or True
             if path == "/api/sma/apps" and m == "PUT":

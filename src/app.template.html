@@ -485,6 +485,13 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
 .sl-pt tfoot td{font-weight:700;border-bottom:0}
 .sl-pt a{color:inherit;text-decoration:none}
 .sl-chip{display:inline-flex;align-items:center;justify-content:center;min-width:1.5cqw;height:1.5cqw;padding:0 .3cqw;border-radius:.35cqw;color:#fff;font-size:.75cqw;font-weight:800;margin-right:.4cqw;vertical-align:middle}
+.sl-pubk{display:grid;grid-template-columns:repeat(4,1fr);gap:2cqw;margin-top:.4cqw}.sl-pubk .sl-kc b{font-size:2.4cqw;margin:.5cqw 0 0}
+.sl-pubby{display:flex;flex-wrap:wrap;gap:.6cqw 2.2cqw;margin:1.6cqw 0 .3cqw;font-size:1cqw;color:var(--mut)}.sl-pubby span{display:inline-flex;align-items:center;gap:.4cqw}
+.sl-pubt{width:100%;border-collapse:collapse;font-size:1cqw;margin-top:.9cqw}.sl-pubt th{background:#141414;color:#fff;font-size:.85cqw;text-transform:uppercase;padding:.7cqw .6cqw;text-align:left}
+.sl-pubt{table-layout:fixed}.sl-pubt th:first-child{width:7cqw}.sl-pubt th:last-child{width:26cqw}.sl-pubt td{padding:.6cqw .6cqw;border-bottom:1px solid var(--ln);vertical-align:middle;overflow-wrap:anywhere}.sl-pubt td:first-child{white-space:nowrap;width:7cqw}.sl-pubt td:last-child{white-space:nowrap;width:26cqw}
+.sl-pp{display:inline-flex;align-items:center;gap:.25cqw;margin-right:.7cqw;font-weight:700}.sl-pp.ok{color:#2f8a2a}.sl-pp.bad{color:#d33}.sl-pp.pend{color:var(--bl)}
+.sl-cv-t .sl-cv-brands{font-size:1.25cqw;color:#bbb;margin-top:2.2cqw;line-height:1.5}
+.grp-brands{display:flex;flex-wrap:wrap;gap:8px 18px}.grp-brands label{display:inline-flex;align-items:center;gap:6px}.grp-brands i{font-style:normal;font-size:11px;font-weight:700;color:var(--accent);min-width:14px}
 .sl-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--mut);font-size:1.3cqw;text-align:center;padding:0 6cqw}
 .sl-note{position:absolute;left:4.3cqw;right:4.3cqw;bottom:2.5cqw;font-size:.8cqw;color:var(--mut)}
 .mr-empty{padding:26px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
@@ -624,6 +631,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
       <a href="#competitors" data-view="competitors" data-key="competitors"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8v4a4 4 0 0 1-8 0z"/><path d="M6 5H3.5v1a3 3 0 0 0 3 3M14 5h2.5v1a3 3 0 0 1-3 3M10 11.5V14M7 16.5h6M8 14h4"/></svg>Competitor Analysis</a>
       <a href="#mentions" data-view="mentions" data-key="mentions"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="1.8"/><path d="M6.5 6.5a5 5 0 0 0 0 7M13.5 6.5a5 5 0 0 1 0 7M4 4a8.5 8.5 0 0 0 0 12M16 4a8.5 8.5 0 0 1 0 12"/></svg>Listening &amp; Mentions</a>
       <a href="#sma" data-view="sma" data-key="deck" data-bhref="sma-{b}-monthly"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h7l3.5 3.5v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/><path d="M12 2.5V6h3.5M7 10h6M7 13h6"/></svg>Reports<svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 3l4 4-4 4"/></svg></a>
+      <a href="#groupreport" data-view="groupreport" data-key="groupreport" class="nav-sub">Group report</a>
       <a href="#reports" data-view="reports" data-key="reports" class="nav-sub">Sentiment report</a>
       <a href="#sma" data-view="sma" data-key="allbrands"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7" r="2.8"/><path d="M2.5 16.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4"/><path d="M13 4.6a2.6 2.6 0 0 1 0 5M14.5 12.7c1.5.5 2.6 1.8 3 3.8"/></svg>Workspace<svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 3l4 4-4 4"/></svg></a>
       <a href="#sma" data-view="sma" data-key="brandset" data-bhref="sma-{b}-settings" class="nav-sub">Brand settings</a>
@@ -861,6 +869,7 @@ textarea{width:100%;min-height:110px;resize:vertical;font:14px/1.55 var(--f-mono
     <section class="content" id="v-calendar" hidden><div id="cal-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
     <section class="content" id="v-publish" hidden><div id="pub-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
     <section class="content" id="v-competitors" hidden><div id="cmp-root" style="display:flex;flex-direction:column;gap:18px"></div></section>
+    <section class="content" id="v-groupreport" hidden><div id="grp-root" class="mr-mode" style="display:flex;flex-direction:column;gap:14px"></div></section>
 
     <!-- SOURCES -->
     <section class="content" id="v-sources" hidden>
@@ -2229,8 +2238,24 @@ function slCompChart(rows,key,W,H){const rs=rows.filter(r=>r[key]!=null).sort((x
     s+=many?`<text transform="translate(${x+4},${H-B+16}) rotate(-45)" text-anchor="end" font-size="${fs}"${st}>${esc(r.name)}</text>`
       :lines(r.name).map((ln,k)=>`<text x="${x}" y="${H-B+24+k*20}" text-anchor="middle" font-size="${fs}"${st}>${esc(ln)}</text>`).join("");});
   return s+"</svg>";}
+function mrPubSlides(b,P){const posts=PUB.posts[b.id]||[];const day=t=>t?localDay(new Date(t)):"";const inP=d=>d&&d>=P.from&&d<=P.to;
+  const sent=posts.filter(p=>["published","partial","failed"].includes(p.status)&&inP(day(p.published_at||p.publishing_at||p.when||p.updated)));
+  const sched=posts.filter(p=>p.status==="scheduled"&&inP(day(p.when)));
+  const by={};sent.forEach(p=>Object.entries(p.results||{}).forEach(([k,r])=>{if(!MRP[k])return;const o=by[k]=by[k]||{ok:0,fail:0};r.ok?o.ok++:o.fail++;}));
+  const cnt=st=>sent.filter(p=>p.status===st).length;const at=p=>p.published_at||p.publishing_at||p.when||p.updated||"";
+  const rows=sent.concat(sched).sort((a,c)=>at(a)<at(c)?-1:1).map(p=>({when:at(p),text:String(p.title||p.text||"").split("\n")[0],
+    plats:(p.platforms||[]).filter(k=>MRP[k]).map(k=>({k,ok:!!((p.results||{})[k]||{}).ok,pending:p.status==="scheduled"}))}));
+  const per=9,pages=Math.max(1,Math.ceil(rows.length/per));
+  return Array.from({length:pages},(_,i)=>({type:"pubsum",stats:{published:cnt("published"),partial:cnt("partial"),failed:cnt("failed"),scheduled:sched.length},by,rows:rows.slice(i*per,i*per+per),page:i+1,pages}));}
+const PUBK=[["Published","published","5BB542"],["Partly published","partial","EEA143"],["Failed","failed","E5484D"],["Scheduled","scheduled","4889B1"]];
+const pubDay=t=>t?new Date(t).toLocaleDateString("en-IN",{day:"numeric",month:"short"}):"–";
 function slExtraHTML(b,M,s){
   const cfg=(b.extra||{}).config||{};
+  if(s.type==="pubsum")return `<section class="sl">${slHead("04 / Publishing","Publishing summary - "+b.name,s.pages>1?`${s.page} / ${s.pages}`:"")}<div class="sl-body">
+    <div class="sl-pubk">${PUBK.map(([l,k,c])=>`<div class="sl-kc" style="--a:#${c}"><i>${l}</i><b>${fmtInt(s.stats[k])}</b></div>`).join("")}</div>
+    ${Object.keys(s.by).length?`<div class="sl-pubby">${Object.entries(s.by).map(([k,o])=>`<span>${slChip(k)} ${MRP[k].n}: ${o.ok} posted${o.fail?`, ${o.fail} failed`:""}</span>`).join("")}</div>`:""}
+    ${s.rows.length?`<table class="sl-pubt"><thead><tr><th>Date</th><th>Post</th><th>Platforms</th></tr></thead><tbody>${s.rows.map(r=>`<tr><td>${pubDay(r.when)}</td><td>${esc(r.text.slice(0,110)||"(No caption)")}</td><td>${r.plats.map(p=>`<span class="sl-pp ${p.pending?"pend":p.ok?"ok":"bad"}">${slChip(p.k)}${p.pending?"⏱":p.ok?"✓":"✗"}</span>`).join("")}</td></tr>`).join("")}</tbody></table>`
+      :`<div class="sl-empty" style="height:auto;margin-top:8cqw">No posts were published or scheduled through Sentimeter in this ${M.P.word}.</div>`}</div></section>`;
   if(s.type==="handles")return `<section class="sl">${slHead("01 / Channels","Management of SM Channels")}<div class="sl-body"><div style="display:flex;flex-wrap:wrap;gap:2.2cqw;justify-content:center;align-content:center;height:100%;padding:0 6cqw">
     ${s.items.map(([k,h])=>`<div style="width:16cqw;border:1px solid var(--ln);border-radius:1.2cqw;padding:2.2cqw 1cqw;text-align:center;box-shadow:.15cqw .25cqw .45cqw rgba(0,0,0,.12)"><span class="sl-chip" style="background:${(MRP[k]||{c:"#111"}).c};min-width:4.4cqw;height:4.4cqw;border-radius:50%;font-size:1.5cqw;margin:0">${MRPX[k]}</span><div style="margin-top:1.2cqw;font-size:1.15cqw;font-weight:700;overflow-wrap:anywhere">${esc(h)}</div><div style="font-size:.9cqw;color:var(--mut)">${(MRP[k]||{n:k}).n}</div></div>`).join("")}</div></div></section>`;
   if(s.type==="ugc"||s.type==="neg")return `<section class="sl">${slHead("04 / Digital monitoring",s.type==="ugc"?"Top UGC contents":"Negative / least performing posts")}<div class="sl-body">
@@ -2268,6 +2293,19 @@ function slExtraHTML(b,M,s){
 
 async function mrPPTExtra(pptx,s,sd,M,head,chip,imgs){
   const F="Arial",C=SLC,b=M.b;const note=t=>s.addText(t,{x:.43,y:5.13,w:9.14,h:.2,fontFace:F,fontSize:6.5,color:C.mut,margin:0});
+  if(sd.type==="pubsum"){head(s,"04 / Publishing","Publishing summary - "+b.name,sd.pages>1?`${sd.page} / ${sd.pages}`:"");const cw=(9.14-3*.22)/4;
+    PUBK.forEach(([l,k,c],i)=>{const x=.43+i*(cw+.22),y=1.05;
+      s.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x,y,w:cw,h:.72,rectRadius:.06,fill:{color:C.card},line:{color:C.card,width:0}});
+      s.addShape(pptx.shapes.RECTANGLE,{x,y:y+.03,w:.045,h:.66,fill:{color:c},line:{color:c,width:0}});
+      s.addText(l.toUpperCase(),{x:x+.17,y:y+.08,w:cw-.25,h:.18,fontFace:F,fontSize:6.5,bold:true,color:"5F6661",margin:0});
+      s.addText(fmtInt(sd.stats[k]),{x:x+.17,y:y+.3,w:cw-.25,h:.34,fontFace:F,fontSize:17,bold:true,color:C.ink,margin:0});});
+    const by=Object.entries(sd.by);if(by.length)s.addText(by.map(([k,o])=>`${MRP[k].n}: ${o.ok} posted${o.fail?`, ${o.fail} failed`:""}`).join("     "),{x:.43,y:1.88,w:9.14,h:.2,fontFace:F,fontSize:7.5,color:C.mut,margin:0});
+    if(sd.rows.length){const cell=(t,o={})=>({text:String(t),options:{fontSize:7.5,color:C.ink,valign:"middle",border:[{type:"none"},{type:"none"},{type:"solid",pt:.5,color:C.ln},{type:"none"}],...o}});
+      const rows=[["Date","Post","Platforms"].map(t=>cell(t.toUpperCase(),{bold:true,color:"FFFFFF",fill:{color:"141414"},fontSize:6.5})),
+        ...sd.rows.map(r=>[cell(pubDay(r.when)),cell(r.text.slice(0,110)||"(No caption)"),cell(r.plats.map(p=>`${MRP[p.k].n} ${p.pending?"(scheduled)":p.ok?"✓":"✗"}`).join("   "),{fontSize:7})])];
+      s.addTable(rows,{x:.43,y:2.18,w:9.14,colW:[.8,5.14,3.2],rowH:.3,fontFace:F,margin:.04});}
+    else s.addText(`No posts were published or scheduled through Sentimeter in this ${M.P.word}.`,{x:.43,y:2.8,w:9.14,h:.4,fontFace:F,fontSize:11,color:C.mut,align:"center"});
+    return true;}
   if(sd.type==="handles"){head(s,"01 / Channels","Management of SM Channels");const n=sd.items.length,w=1.6,gap=.22,perRow=Math.min(n,5),x0=5-(perRow*w+(perRow-1)*gap)/2;
     sd.items.forEach(([k,h],i)=>{const x=x0+(i%5)*(w+gap),y=n>5?(i<5?1.4:3.2):2.1;
       s.addShape(pptx.shapes.ROUNDED_RECTANGLE,{x,y,w,h:1.55,rectRadius:.1,fill:{color:"FFFFFF"},line:{color:C.ln,width:.75},shadow:{type:"outer",blur:3,offset:1.5,angle:45,color:"000000",opacity:.18}});
@@ -2363,11 +2401,88 @@ function smaMonthly(b){
   if(!M.plats.length&&!M.R.posts.length)return toolbar+`<div class="card"><p class="empty">No platform is connected for ${esc(b.name)} yet. Connect Facebook, Instagram, LinkedIn or YouTube in <a href="#sma-${b.id}-settings">Settings</a>, sync, and the monthly report fills in automatically.</p></div>`;
   return toolbar+`<p class="hint no-print" style="margin:-4px 0 12px">${M.slides.length} slides · ${esc(M.period)}${M.toDate?" (month to date)":""}. Statistics are as of the last sync.</p><div class="deck-wrap"><div class="deck" id="mr-deck">${M.slides.map(s=>slHTML(b,M,s)).join("")}</div></div>`;
 }
+/* ---------- Group report: several brands' reports, one after another ---------- */
+const GRP={groups:null,sel:null,edit:null,model:null,seq:0};
+async function grpLoad(b,fresh){const j=[];
+  if(!SMA.data[b.id]||SMA.dataFor[b.id]!==(b.linkedin.last_sync||""))j.push(smaLoadData(b));
+  if(!SMA.meta[b.id]||SMA.metaFor[b.id]!==(b.meta.last_sync||""))j.push(smaLoadMeta(b));
+  if(SMA.ytAllFor[b.id]!==ytAllKey(b))j.push(smaLoadYTAll(b));
+  if(SMA.extraFor[b.id]!==extraKey(b))j.push(smaLoadExtra(b));
+  j.push(loadPosts(b,fresh));await Promise.all(j);}
+function grpModel(g,bs){const SOCIAL=["cover","handles","dash","table","plat","posts"];
+  const parts=bs.map(b=>{const M=mrModel(b);return {b,M:{...M,slides:M.slides.filter(x=>SOCIAL.includes(x.type)).concat(mrPubSlides(b,M.P))}};});
+  const P=parts[0].M.P,toDate=parts.some(x=>x.M.toDate);
+  const file=`${g.name} - Social Media ${P.kind==="week"?"Weekly Report":P.kind==="quarter"?"Quarterly Report":"Report"} - ${P.label}`.replace(/[–—]/g,"-").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim();
+  return {g,bs,parts,P,toDate,file,count:parts.reduce((a,x)=>a+x.M.slides.length,0)+2};}
+function grpCoverHTML(G){return `<section class="sl sl-dark"><div class="sl-bar"></div><div class="sl-cv-logo"><div class="sl-cv-name">${esc(G.g.name)}</div></div><div class="sl-div"></div>
+  <div class="sl-cv-t"><b>${esc(G.P.cover[0])}</b><span>${esc(G.P.cover[1])}${G.toDate?" (TO DATE)":""}</span><span class="sl-cv-brands">${G.bs.map(b=>esc(b.name)).join(" · ")}</span></div><img class="sl-stark" src="stark-logo.png" alt="Stark"></section>`;}
+function grpEditorHTML(){const E=GRP.edit;return `<div class="card no-print"><div class="card-head"><h2>${E.id?"Edit group":"New group"}</h2></div><div class="card-body">
+  <div class="form"><label class="f" for="grp-name">Group name</label><input type="text" id="grp-name" value="${esc(E.name)}" maxlength="80" placeholder="e.g. Tourism clients">
+    <div class="f">Brands</div><div class="grp-brands">${(SMA.brands||[]).map(b=>`<label><input type="checkbox" data-gb="${b.id}" ${E.brands.includes(b.id)?"checked":""}><i data-gbn="${b.id}">${E.brands.includes(b.id)?E.brands.indexOf(b.id)+1:""}</i>${esc(b.name)}</label>`).join("")}</div></div>
+  <p class="hint" style="margin:0">The numbers show the order brands appear in the report (the order you tick them).</p>
+  <div class="form-actions">${E.id?`<button class="btn danger" type="button" id="grp-del">Delete group</button>`:""}<span class="spacer"></span><button class="btn" type="button" id="grp-cancel">Cancel</button><button class="btn primary" type="button" id="grp-save">Save group</button></div></div></div>`;}
+function grpToolbar(){const k=SMA.pkind||"month";return `<div class="toolbar no-print" style="margin:0">
+  <select class="select" id="grp-kind" aria-label="Report type">${[["week","Weekly report"],["month","Monthly report"],["quarter","Quarterly report"]].map(([v,l])=>`<option value="${v}" ${k===v?"selected":""}>${l}</option>`).join("")}</select>
+  ${k==="quarter"?`<select class="select" id="grp-quarter" aria-label="Report quarter">${mrQuarters().map(([v,l])=>`<option value="${v}" ${v===SMA.quarter?"selected":""}>${l}</option>`).join("")}</select>`
+   :k==="week"?`<select class="select" id="grp-week" aria-label="Report week">${mrWeeks().map(([v,l])=>`<option value="${v}" ${v===SMA.week?"selected":""}>${l}</option>`).join("")}</select>`
+   :`<select class="select" id="grp-month" aria-label="Report month">${mrMonths().map(([v,l])=>`<option value="${v}" ${v===SMA.month?"selected":""}>${l}</option>`).join("")}</select>`}
+  <select class="select" id="grp-sort" aria-label="Sort posts"><option value="date" ${SMA.mrSort==="date"?"selected":""}>Posts by date</option><option value="eng" ${SMA.mrSort==="eng"?"selected":""}>Posts by engagement</option><option value="reach" ${SMA.mrSort==="reach"?"selected":""}>Posts by reach</option></select>
+  <select class="select" id="grp-limit" aria-label="Posts shown">${[[0,"All posts"],[10,"Top 10"],[20,"Top 20"]].map(([v,l])=>`<option value="${v}" ${SMA.mrLimit===v?"selected":""}>${l}</option>`).join("")}</select>
+  <span class="spacer" style="flex:1"></span><button class="btn" type="button" id="grp-ppt">Download PPT</button><button class="btn primary" type="button" id="grp-pdf">Download PDF</button></div>`;}
+async function renderGroupReport(quick){const root=$("grp-root");const seq=++GRP.seq;
+  const head=`<div class="page-head"><div><h1>Group report</h1><p class="sub">One report for several brands: each brand's social media analytics and publishing summary, one after another.</p></div></div>`;
+  if(AUTH_MODE!=="server"){root.innerHTML=head+`<p class="hint">This needs the Sentimeter server and a login.</p>`;return;}
+  if(!SMA.brands||!GRP.groups){root.innerHTML=head+`<p class="hint">Loading…</p>`;
+    try{if(!SMA.brands)SMA.brands=(await smaApi("/brands")).brands;if(!GRP.groups)GRP.groups=(await smaApi("/groups")).groups;}catch(e){root.innerHTML=head+`<p class="neg-c">${esc(e.message)}</p>`;return;}}
+  if(GRP.sel==null){try{GRP.sel=localStorage.getItem("sentimeter-group");}catch(e){}}
+  if(!GRP.groups.some(g=>g.id===GRP.sel))GRP.sel=(GRP.groups[0]||{}).id||null;
+  const g=GRP.groups.find(x=>x.id===GRP.sel);
+  const bar=`<div class="toolbar no-print">${GRP.groups.length?`<select class="select" id="grp-sel" aria-label="Brand group">${GRP.groups.map(x=>`<option value="${x.id}" ${x.id===GRP.sel?"selected":""}>${esc(x.name)} (${x.brands.length} brand${x.brands.length===1?"":"s"})</option>`).join("")}</select><button class="btn" type="button" id="grp-edit">Edit group</button>`:""}
+    <button class="btn" type="button" id="grp-new">New group</button><span id="grp-msg" class="hint"></span></div>`;
+  const top=head+bar+(GRP.edit?grpEditorHTML():"");
+  if(!g){root.innerHTML=top+(GRP.edit?"":`<div class="card"><p class="empty">No brand groups yet. Click <b>New group</b>, name it (for example "Tourism clients") and tick the brands to include.</p></div>`);bindGroup();return;}
+  const bs=g.brands.map(id=>SMA.brands.find(b=>b.id===id)).filter(Boolean);
+  if(!bs.length){root.innerHTML=top+`<div class="card"><p class="empty">This group has no brands left. Click <b>Edit group</b> to add some.</p></div>`;bindGroup();return;}
+  if(!quick){root.innerHTML=top+`<p class="hint">Loading ${bs.length} brand${bs.length>1?"s":""}…</p>`;bindGroup();await Promise.all(bs.map(b=>grpLoad(b,true)));if(seq!==GRP.seq||current()!=="groupreport")return;}
+  const G=grpModel(g,bs);GRP.model=G;
+  root.innerHTML=top+grpToolbar()+`<p class="hint no-print" style="margin:0">${G.count} slides · ${bs.length} brand${bs.length>1?"s":""}: ${bs.map(b=>esc(b.name)).join(", ")} · ${esc(G.P.label)}${G.toDate?" (to date)":""}. Each brand: social media analytics, then its publishing summary. Statistics are as of each brand's last sync.</p>
+    <div class="deck-wrap"><div class="deck" id="grp-deck">${grpCoverHTML(G)}${G.parts.map(({b,M})=>M.slides.map(x=>slHTML(b,M,x)).join("")).join("")}${slHTML({name:"",logo:null},G.parts[0].M,{type:"thanks"})}</div></div>`;
+  bindGroup();}
+async function grpPPT(G,btn){await mrLoad("vendor/pptxgen.bundle.js");const pptx=new PptxGenJS();pptx.layout="LAYOUT_16x9";pptx.author="Stark";pptx.company="Stark";pptx.title=G.file;
+  const base={b:{id:"",name:G.g.name,logo:null},P:G.P,toDate:G.toDate,file:G.file};
+  await mrPPT({...base,slides:[{type:"cover"}],subtitle:G.bs.map(b=>b.name).join("  ·  ")},btn,pptx);
+  for(let i=0;i<G.parts.length;i++){btn.textContent=`Brand ${i+1}/${G.parts.length}: ${G.parts[i].b.name}…`;await mrPPT(G.parts[i].M,btn,pptx);}
+  await mrPPT({...base,slides:[{type:"thanks"}]},btn,pptx);
+  btn.textContent="Saving…";await pptx.writeFile({fileName:G.file+".pptx"});}
+function bindGroup(){const msg=t=>{const m=$("grp-msg");if(m){m.textContent=t;m.className="hint";}},err=t=>{const m=$("grp-msg");if(m){m.textContent=t;m.className="neg-c";}};
+  const keepSel=()=>{try{localStorage.setItem("sentimeter-group",GRP.sel||"");}catch(e){}};
+  if($("grp-sel"))$("grp-sel").onchange=e=>{GRP.sel=e.target.value;GRP.edit=null;keepSel();renderGroupReport();};
+  if($("grp-new"))$("grp-new").onclick=()=>{GRP.edit={id:null,name:"",brands:[]};renderGroupReport(true);};
+  if($("grp-edit"))$("grp-edit").onclick=()=>{const g=GRP.groups.find(x=>x.id===GRP.sel);if(g){GRP.edit={id:g.id,name:g.name,brands:[...g.brands]};renderGroupReport(true);}};
+  document.querySelectorAll("#grp-root [data-gb]").forEach(cb=>cb.onchange=()=>{const E=GRP.edit,id=cb.dataset.gb;E.brands=E.brands.filter(x=>x!==id);if(cb.checked)E.brands.push(id);
+    document.querySelectorAll("#grp-root [data-gbn]").forEach(i=>{const n=E.brands.indexOf(i.dataset.gbn);i.textContent=n<0?"":n+1;});});
+  if($("grp-cancel"))$("grp-cancel").onclick=()=>{GRP.edit=null;renderGroupReport(true);};
+  if($("grp-save"))$("grp-save").onclick=async()=>{const E=GRP.edit;const name=$("grp-name").value.trim();
+    if(!name){err("Give the group a name.");return;}if(!E.brands.length){err("Tick at least one brand.");return;}
+    const all=GRP.groups.map(x=>x.id===E.id?{...x,name,brands:E.brands}:x);if(!E.id)all.push({name,brands:E.brands});
+    try{const j=await smaApi("/groups",{method:"PUT",body:JSON.stringify({groups:all})});GRP.groups=j.groups;GRP.sel=E.id||(j.groups.find(x=>x.name===name)||{}).id;GRP.edit=null;keepSel();await renderGroupReport();msg("Group saved.");}catch(e){err(e.message);}};
+  if($("grp-del"))$("grp-del").onclick=async e=>{if(GRP.arm!=="del"){GRP.arm="del";e.currentTarget.textContent="Click again to delete";return;}GRP.arm=null;
+    try{const j=await smaApi("/groups",{method:"PUT",body:JSON.stringify({groups:GRP.groups.filter(x=>x.id!==GRP.edit.id)})});GRP.groups=j.groups;GRP.edit=null;GRP.sel=null;keepSel();await renderGroupReport(true);msg("Group deleted.");}catch(err2){err(err2.message);}};
+  const re=()=>renderGroupReport(true);
+  if($("grp-kind"))$("grp-kind").onchange=e=>{SMA.pkind=e.target.value;SMA.mrLimit=SMA.pkind==="quarter"?20:0;re();};
+  if($("grp-month"))$("grp-month").onchange=e=>{SMA.month=e.target.value;re();};
+  if($("grp-week"))$("grp-week").onchange=e=>{SMA.week=e.target.value;re();};
+  if($("grp-quarter"))$("grp-quarter").onchange=e=>{SMA.quarter=e.target.value;re();};
+  if($("grp-sort"))$("grp-sort").onchange=e=>{SMA.mrSort=e.target.value;re();};
+  if($("grp-limit"))$("grp-limit").onchange=e=>{SMA.mrLimit=+e.target.value;re();};
+  const exp=(id,fn,label)=>{const btn=$(id);if(!btn)return;btn.onclick=async()=>{if(btn.disabled)return;btn.disabled=true;
+    try{await fn(GRP.model,btn);msg("Downloaded.");}catch(e){err(e.message||String(e));}finally{btn.disabled=false;btn.textContent=label;}};};
+  exp("grp-pdf",(G,btn)=>mrPDF({file:G.file,deckEl:$("grp-deck")},btn),"Download PDF");exp("grp-ppt",grpPPT,"Download PPT");}
 const MR_LIBS={};
 function mrLoad(src){return MR_LIBS[src]||(MR_LIBS[src]=new Promise((ok,bad)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>{delete MR_LIBS[src];bad(new Error("Could not load the export library. Check your connection and try again."));};document.head.appendChild(s);}));}
 async function mrImgsReady(root){await Promise.all([...root.querySelectorAll("img")].map(im=>im.complete?0:new Promise(r=>{im.addEventListener("load",r,{once:true});im.addEventListener("error",r,{once:true});setTimeout(r,8000);})));try{await document.fonts.ready;}catch(e){}}
 async function mrPDF(M,btn){
-  const deck=$("mr-deck");if(!deck)return;
+  const deck=M.deckEl||$("mr-deck");if(!deck)return;
   await Promise.all([mrLoad("vendor/html2canvas-pro.min.js"),mrLoad("vendor/jspdf.umd.min.js")]);
   await mrImgsReady(deck);deck.classList.add("cap");
   try{const{jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:"landscape",unit:"pt",format:[960,540],compress:true});const sl=[...deck.querySelectorAll(".sl")];
@@ -2383,9 +2498,9 @@ function mrImgData(srcs,boxW,boxH,mode){return new Promise(res=>{const list=srcs
       if(mode==="cover"){cv.width=Math.round(boxW*160);cv.height=Math.round(boxH*160);ctx=cv.getContext("2d");const s=Math.max(cv.width/nw,cv.height/nh);ctx.drawImage(im,(cv.width-nw*s)/2,(cv.height-nh*s)/2,nw*s,nh*s);res({data:cv.toDataURL("image/jpeg",.86),w:boxW,h:boxH});}
       else{const s=Math.min(1,900/Math.max(nw,nh));cv.width=Math.round(nw*s);cv.height=Math.round(nh*s);ctx=cv.getContext("2d");ctx.drawImage(im,0,0,cv.width,cv.height);const r=Math.min(boxW/nw,boxH/nh);res({data:cv.toDataURL("image/png"),w:nw*r,h:nh*r});}}catch(e){tryOne(i+1);}};
     im.onerror=()=>tryOne(i+1);im.src=list[i];};tryOne(0);});}
-async function mrPPT(M,btn){
+async function mrPPT(M,btn,into){
   await mrLoad("vendor/pptxgen.bundle.js");const b=M.b;
-  const pptx=new PptxGenJS();pptx.layout="LAYOUT_16x9";pptx.author="Stark";pptx.company="Stark";pptx.title=M.file;
+  const pptx=into||new PptxGenJS();if(!into){pptx.layout="LAYOUT_16x9";pptx.author="Stark";pptx.company="Stark";pptx.title=M.file;}
   const F="Arial",J="Jost";const C=SLC;
   const head=(s,eb,title,pg)=>{s.addText(eb.toUpperCase(),{x:.43,y:.14,w:6,h:.2,fontFace:F,fontSize:7,bold:true,color:C.gr,margin:0});
     if(pg)s.addText(pg,{x:7.6,y:.14,w:1.97,h:.2,fontFace:F,fontSize:7,color:C.mut,align:"right",margin:0});
@@ -2407,6 +2522,7 @@ async function mrPPT(M,btn){
         else s.addText(b.name,{x:.6,y:2,w:2.2,h:1.6,fontFace:J,fontSize:22,bold:true,color:"FFFFFF",align:"center",valign:"middle"});
         s.addText(M.P.cover[0],{x:3.75,y:2.32,w:6,h:.5,fontFace:J,fontSize:26,bold:true,color:C.ol,margin:0});
         s.addText(M.P.cover[1]+(M.toDate?" (TO DATE)":""),{x:3.75,y:2.86,w:6,h:.36,fontFace:J,fontSize:16,color:"FFFFFF",margin:0});
+        if(M.subtitle)s.addText(M.subtitle,{x:3.75,y:3.4,w:5.9,h:.6,fontFace:J,fontSize:10,color:"BBBBBB",margin:0,valign:"top",fit:"shrink"});
         if(stark)s.addImage({data:stark.data,x:9.82-stark.w,y:5.2-stark.h,w:stark.w,h:stark.h});}
       else s.addText("THANK YOU",{x:3.75,y:2.5,w:6,h:.6,fontFace:J,fontSize:26,bold:true,color:C.ol,margin:0});
       continue;}
@@ -2461,7 +2577,7 @@ async function mrPPT(M,btn){
         if(g.posts.length>1)rows.push([cell("All platforms",{bold:true}),cell(g.hasReach?fmtInt(g.reach):"–",{bold:true,align:"right"}),cell(fmtInt(g.eng),{bold:true,align:"right"}),cell(g.reach?rate(g.eng,g.reach):"–",{bold:true,align:"right"})]);
         s.addTable(rows,{x:x+.1,y:y+h-.12-rows.length*.22,w:w-.2,colW:[1.3,.85,.95,.81],rowH:.22,fontFace:F,margin:.03});});}
   }
-  await pptx.writeFile({fileName:M.file+".pptx"});
+  if(!into)await pptx.writeFile({fileName:M.file+".pptx"});
 }
 async function logoDataUrl(file){const url=URL.createObjectURL(file);
   try{const img=new Image();await new Promise((ok,bad)=>{img.onload=ok;img.onerror=()=>bad(new Error("Could not read that image. Use a PNG, JPG, WebP or SVG file."));img.src=url;});
@@ -2978,12 +3094,12 @@ function preview(){if(!draft)return;readDraft();const p=periods();const n=MENTIO
   $("set-preview").textContent=`These settings match ${n} mentions in the selected period${ex?`, ${ex} removed by exclusions`:""}.`;}
 
 /* ---------- Routing ---------- */
-const VIEWS=["overview","publish","calendar","dashboard","mentions","reports","sma","competitors","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
+const VIEWS=["overview","publish","calendar","dashboard","mentions","reports","sma","competitors","groupreport","sources","analyze","alert-setup"];const PUBLIC_VIEWS=["home","login"];let AUTH=null,AUTH_MODE="local";
 function current(){const h=location.hash.slice(1);if(AUTH_MODE==="server"&&!AUTH)return h==="login"?"login":"home";if(PUBLIC_VIEWS.includes(h))return h;if(h.startsWith("m-"))return"mentions";if(h==="sma"||h.startsWith("sma-"))return"sma";return VIEWS.includes(h)?h:(AUTH_MODE==="server"?"overview":"dashboard");}
 function selId(){const h=location.hash.slice(1);return h.startsWith("m-")?h.slice(2):null;}
 function render(){
   const v=current();
-  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors"||v==="publish"||v==="overview"||v==="calendar");document.querySelector(".app").classList.toggle("new-view",["overview","publish","calendar"].includes(v));document.querySelector(".app").classList.toggle("listen-view",["dashboard","mentions","reports","alert-setup","analyze"].includes(v));
+  const pub=PUBLIC_VIEWS.includes(v);document.querySelector(".app").classList.toggle("public",pub);document.querySelector(".app").classList.toggle("sma-view",v==="sma"||v==="competitors"||v==="groupreport"||v==="publish"||v==="overview"||v==="calendar");document.querySelector(".app").classList.toggle("new-view",["overview","publish","calendar"].includes(v));document.querySelector(".app").classList.toggle("listen-view",["dashboard","mentions","reports","alert-setup","analyze"].includes(v));
   VIEWS.concat(PUBLIC_VIEWS).forEach(x=>$("v-"+x).hidden=x!==v);
   if(pub){renderPublic(v);return;}
   $("user-chip").hidden=!AUTH;if(AUTH)$("user-email").textContent=AUTH.email;
@@ -2992,7 +3108,7 @@ function render(){
    const show=["dashboard","mentions","reports","alert-setup"].includes(v)&&cb&&ab.toLowerCase()!==cb.toLowerCase()&&!brandAlert(cb);
    ln.hidden=!show;if(show)ln.innerHTML=`${esc(cb)} has no listening alerts yet, so this shows ${ab?`<b>${esc(ab)}</b>'s alert`:"a stand-alone alert"} <b>${esc(a.name)}</b>. <button class="btn" type="button" data-addsec="${esc(cb)}">Add an alert for ${esc(cb)}</button>`;}
   renderChrome();
-  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="publish")renderPublish();else if(v==="overview")renderOverview();else if(v==="calendar")renderCalendar();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
+  if(v==="dashboard")renderDashboard();else if(v==="mentions")renderMentions();else if(v==="reports")renderReports();else if(v==="sma")renderSMA();else if(v==="competitors")renderCompetitors();else if(v==="groupreport")renderGroupReport();else if(v==="publish")renderPublish();else if(v==="overview")renderOverview();else if(v==="calendar")renderCalendar();else if(v==="sources")renderSources();else if(v==="analyze")renderAnalyze();else renderSettings();
 }
 function go(v){if(location.hash==="#"+v)render();else location.hash=v;}
 /* ================= Brand dashboard (home), Publish & Schedule, Content Calendar ================= */

@@ -196,6 +196,46 @@ def migrate_apps():
             log(f"shared {kind} app set from existing brands ({len(seen)} app(s) found)")
 
 
+# ---------------- brand groups (for multi-brand reports) ----------------
+
+def groups():
+    ids = {b["id"] for b in brands()}
+    out = []
+    for g in _load(_p("groups.json"), {}).get("groups") or []:
+        out.append({**g, "brands": [x for x in g.get("brands") or [] if x in ids]})   # deleted brands drop out
+    return out
+
+
+def save_groups(lst, who=""):
+    if not isinstance(lst, list) or len(lst) > 50:
+        raise ValueError("Up to 50 groups.")
+    ids = [b["id"] for b in brands()]
+    old = {g["id"]: g for g in groups()}
+    out, names = [], set()
+    for g in lst:
+        name = str((g or {}).get("name") or "").strip()[:80]
+        if not name:
+            raise ValueError("Give every group a name.")
+        if name.lower() in names:
+            raise ValueError(f'There are two groups named "{name}".')
+        names.add(name.lower())
+        bs = []
+        for x in (g.get("brands") or []):
+            if x in ids and x not in bs:
+                bs.append(x)
+        if not bs:
+            raise ValueError(f'Pick at least one brand for "{name}".')
+        gid = str(g.get("id") or "")
+        if not re.fullmatch(r"g[0-9a-f]{8}", gid):
+            gid = "g" + secrets.token_hex(4)
+        prev = old.get(gid) or {}
+        out.append({"id": gid, "name": name, "brands": bs, "created": prev.get("created") or iso(),
+                    "updated": iso() if (prev.get("name"), prev.get("brands")) != (name, bs) else prev.get("updated", iso()), "updated_by": who or prev.get("updated_by", "")})
+    with LOCK:
+        _save(_p("groups.json"), {"groups": out}, 0o640)
+    return groups()
+
+
 def li_data(bid):
     return _load(_p(bid, "linkedin.json"), {})
 
